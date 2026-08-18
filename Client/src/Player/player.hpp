@@ -16,7 +16,25 @@ private:
 public:
   void Update(float dt, Camera3D &camera) override;
   void Draw() const override;
+  Transform getTransform() {
+    return transform;
+  };
   Player();
+
+  static void DrawPlayer(const Transform &transform) {
+    Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
+    Matrix matRotation = QuaternionToMatrix(transform.rotation);
+    Matrix matTranslation =
+        MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
+
+    Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+
+    rlPushMatrix();
+    rlMultMatrixf(MatrixToFloat(matTransform));
+    DrawCube(Vector3Zero(), 1.0f, 1.0f, 1.0f, RED);
+    DrawCubeWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, BLACK);
+    rlPopMatrix();
+  }
 };
 
 #endif
