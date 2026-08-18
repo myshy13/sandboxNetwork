@@ -1,15 +1,20 @@
+#include "Client/client.hpp"
 #include "Player/player.hpp"
 #include <raylib.h>
+
+bool paused = false;
 
 int main() {
   const int screenWidth  = 1280;
   const int screenHeight = 720;
 
+  int playerPosCooldown = 1;
+
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   InitWindow(screenWidth, screenHeight, "game-project");
   SetTargetFPS(60);
 
-  SetWindowSize(GetMonitorWidth(0), GetMonitorHeight(0));
-  SetWindowPosition(0, 0);
+  SetExitKey(KEY_NULL);
 
   Camera3D camera;
   camera.position   = {10.0f, 10.0f, 10.0f};
@@ -19,16 +24,52 @@ int main() {
   camera.projection = CAMERA_PERSPECTIVE;
 
   Player player;
+  Client client;
 
   while (!WindowShouldClose()) {
+    // ==== Server communication
+    client.poll();
+
+    if (IsKeyPressed(KEY_ESCAPE)) {
+      paused = !paused;
+      if (paused) {
+        EnableCursor();
+      } else {
+        DisableCursor();
+      }
+    }
+
+    if (!paused) {
+      playerPosCooldown--;
+      if (playerPosCooldown <= 0) {
+        client.sendPlayerPosition(player.getTransform());
+        playerPosCooldown = 3;
+      }
+    }
+
     // ==== Update ====
-    float dt = GetFrameTime();
-    player.Update(dt, camera);
+    if (!paused) {
+      float dt = GetFrameTime();
+      player.Update(dt, camera);
+    }
     // ==== Draw ====
     BeginDrawing();
     ClearBackground({5, 5, 5, 255});
 
+    if (paused) {
+      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {50, 50, 50, 50});
+      DrawText("Paused", GetScreenWidth() / 2 - MeasureText("Paused", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
+    }
+
     BeginMode3D(camera);
+    // ==== draw online players
+    for (auto &p : client.getPlayers()) {
+      Transform transform;
+      transform.rotation    = QuaternionFromEuler(0, 0, 0);
+      transform.scale       = {0.7, 5, 0.7};
+      transform.translation = p.pos;
+      player.DrawPlayer(transform);
+    }
     player.Draw();
     DrawGrid(40, 10);
     EndMode3D();
