@@ -8,6 +8,7 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D &camera) {
+
   // ==== player movement ====
   Vector3 lookForward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
 
@@ -68,6 +69,10 @@ void Player::Update(float dt, Camera3D &camera) {
     velocity.y -= GRAVITY * dt;
     velocity.y = Clamp(velocity.y, -20.0f, jumpPower);
   }
+  // to stop tiny fractions
+  if (Vector3LengthSqr(velocity) < 0.01f) {
+    velocity = Vector3Zero();
+  }
 
   transform.translation = Vector3Add(transform.translation, Vector3Scale(velocity, dt));
 
@@ -111,3 +116,18 @@ void Player::Draw() const {
   DrawCubeWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, BLACK);
   rlPopMatrix();
 };
+
+void DrawPlayer(const Transform &transform) {
+  Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
+  Matrix matRotation = QuaternionToMatrix(transform.rotation);
+  Matrix matTranslation =
+      MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
+
+  Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
+
+  rlPushMatrix();
+  rlMultMatrixf(MatrixToFloat(matTransform));
+  DrawCube(Vector3Zero(), 1.0f, 1.0f, 1.0f, RED);
+  DrawCubeWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, BLACK);
+  rlPopMatrix();
+}
