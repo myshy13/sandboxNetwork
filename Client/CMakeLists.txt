@@ -38,6 +38,18 @@ endif()
 FetchContent_MakeAvailable(raylib)
 
 # ---------------------------------------------------------------------------
+# ENet (reliable UDP, fetched at configure time, built from source)
+# ---------------------------------------------------------------------------
+FetchContent_Declare(
+    enet
+    GIT_REPOSITORY https://github.com/lsalzman/enet.git
+    GIT_TAG        v1.3.18
+    GIT_SHALLOW    TRUE
+)
+
+FetchContent_MakeAvailable(enet)
+
+# ---------------------------------------------------------------------------
 # Source files
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
@@ -49,9 +61,10 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src"
+    "${enet_SOURCE_DIR}/include"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet)
 
 # Warnings - helps a lot when learning a systems-heavy codebase
 target_compile_options(${PROJECT_NAME} PRIVATE
