@@ -1,10 +1,10 @@
 #include "client.hpp"
+#include "Protocol/protocol.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <enet/enet.h>
 #include <iostream>
 #include <raylib.h>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -13,8 +13,8 @@
 void Client::sendPlayerPosition(const Transform &transform) {
   if (playerId == -1)
     return;
-  std::string message = "playerUpdate " + std::to_string(playerId) + " " + std::to_string(transform.translation.x) + " " + std::to_string(transform.translation.y) + " " + std::to_string(transform.translation.z) + "\n";
-  ENetPacket *packet  = enet_packet_create(message.c_str(), message.size(), ENET_PACKET_FLAG_RELIABLE);
+  auto bytes = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{playerId, transform.translation});
+  ENetPacket *packet = enet_packet_create(bytes.data(), bytes.size(), ENET_PACKET_FLAG_RELIABLE);
 
   enet_peer_send(peer, 0, packet);
   enet_host_flush(host);
@@ -35,7 +35,7 @@ Client::Client() {
   }
 
   ENetAddress address;
-  enet_address_set_host(&address, "127.0.0.1");
+  enet_address_set_host(&address, SERVER_IP);
   address.port = port;
 
   peer = enet_host_connect(host, &address, 2, 0);
@@ -61,41 +61,40 @@ void Client::poll() {
     switch (event.type) {
     case ENET_EVENT_TYPE_RECEIVE: {
       std::string data(reinterpret_cast<char *>(event.packet->data), event.packet->dataLength);
+      if (data.empty()) {
+        break;
+      }
 
+      switch (proto::peekType(data)) {
       // ==== id assignment ==== //
-      if (data.rfind("givenId ", 0) == 0) {
-        data.erase(0, 8);
-        try {
-          playerId = std::stoi(data);
-        } catch (const std::invalid_argument &e) {
-          std::exit(EXIT_FAILURE);
-        } catch (const std::out_of_range &e) {
-          std::exit(EXIT_FAILURE);
-        }
+      case proto::Type::GivenId: {
+        playerId = proto::unpack<proto::GivenId>(data).id;
+        break;
       }
       // ==== other player position updates ==== //
-      else if (data.rfind("updatePlayer ", 0) == 0) {
-        if (data.length() >= 13) {
-          data.erase(0, 13);
-        }
-        std::stringstream ss(data);
-        float x, y, z;
-        int id;
-        if (ss >> id >> x >> y >> z) {
-          if (id != playerId) {
-            OnlinePlayer *player = findPlayer(id);
-            if (player == nullptr) {
-              OnlinePlayer player;
-              player.id  = id;
-              player.pos = {x, y, z};
-              players.push_back(player);
-            } else {
-              player->pos = {x, y, z};
-            }
+      case proto::Type::PlayerUpdate: {
+        auto msg = proto::unpack<proto::PlayerUpdate>(data);
+        if (msg.id != playerId) {
+          OnlinePlayer *player = findPlayer(msg.id);
+          if (player == nullptr) {
+            OnlinePlayer newPlayer;
+            newPlayer.id  = msg.id;
+            newPlayer.pos = msg.pos;
+            players.push_back(newPlayer);
+          } else {
+            player->pos = msg.pos;
           }
-        } else {
-          std::cerr << "Malformed playerUpdate from client\n";
         }
+        break;
+      }
+      // ==== other player disconnected ==== //
+      case proto::Type::DeletePlayer: {
+        auto msg = proto::unpack<proto::DeletePlayer>(data);
+        if (msg.id != playerId) {
+          deletePlayer(msg.id);
+        }
+        break;
+      }
       }
       break;
     }

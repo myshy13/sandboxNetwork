@@ -1,8 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <enet/enet.h>
 #include <raylib.h>
 #include <vector>
+
+#ifndef SERVER_IP
+#define SERVER_IP "192.168.10.111"
+#endif
 
 struct OnlinePlayer {
   int id{-1};
@@ -24,6 +29,13 @@ class Client {
         return &p;
     }
     return nullptr;
+  }
+  void deletePlayer(int id) {
+    auto it = std::find_if(players.begin(), players.end(),
+                           [id](const OnlinePlayer &p) { return p.id == id; });
+    if (it != players.end()) {
+      players.erase(it);
+    }
   }
 
 public:
