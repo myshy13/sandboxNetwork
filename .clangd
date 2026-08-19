@@ -1,0 +1,5 @@
+CompileFlags:
+  Add:
+    - -IClient/build/_deps/cereal-src/include
+    - -IClient/build/_deps/enet-src/include
+    - -IClient/build/_deps/raylib-src/src

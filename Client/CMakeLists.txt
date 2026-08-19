@@ -50,10 +50,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(enet)
 
 # ---------------------------------------------------------------------------
+# Cereal
+# ---------------------------------------------------------------------------
+
+FetchContent_Declare(
+  cereal
+  GIT_REPOSITORY https://github.com/USCiLab/cereal.git
+  GIT_TAG        v1.3.2
+  GIT_SHALLOW    TRUE
+)
+set(JUST_INSTALL_CEREAL ON CACHE BOOL "" FORCE) # skip building cereal's tests/docs
+FetchContent_MakeAvailable(cereal)
+
+# ---------------------------------------------------------------------------
 # Source files
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/../Shared/Protocol/protocol.cpp"
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -61,7 +75,9 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src"
+    "${CMAKE_SOURCE_DIR}/../Shared"
     "${enet_SOURCE_DIR}/include"
+    "${cereal_SOURCE_DIR}/include"
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet)
