@@ -2,9 +2,10 @@
 
 #include <raylib.h>
 #include "raymath.h"
+#include "Net/transport.hpp"
 #include "structs.hpp"
 #include <algorithm>
-#include <enet/enet.h>
+#include <string>
 #include <vector>
 
 #ifndef SERVER_IP
@@ -20,8 +21,7 @@ struct OnlinePlayer {
 
 class Client {
   int port{9798};
-  ENetHost *host;
-  ENetPeer *peer;
+  std::unique_ptr<Transport> transport;
 
   std::vector<OnlinePlayer> players{};
   std::vector<Bullet> bullets{};
@@ -42,11 +42,16 @@ class Client {
       players.erase(it);
     }
   }
+  void handleMessage(const std::string &data);
 
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
   void createBullet();
+  // Connecting is asynchronous, so the game starts before this goes true.
+  bool isConnected() const {
+    return transport->isConnected();
+  }
   const std::vector<OnlinePlayer> &getPlayers() const {
     return players;
   };

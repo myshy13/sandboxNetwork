@@ -48,6 +48,22 @@ set(JUST_INSTALL_CEREAL ON CACHE BOOL "" FORCE) # skip building cereal's tests/d
 FetchContent_MakeAvailable(cereal)
 
 # ---------------------------------------------------------------------------
+# IXWebSocket
+#
+# Browsers can't open raw UDP sockets, so the Emscripten client can't speak
+# ENet. This backs the optional --ws-port proxy that bridges browser clients
+# into the same game loop.
+# ---------------------------------------------------------------------------
+set(USE_TLS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  ixwebsocket
+  GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+  GIT_TAG        v11.4.5
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(ixwebsocket)
+
+# ---------------------------------------------------------------------------
 # Source files
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
@@ -64,7 +80,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${cereal_SOURCE_DIR}/include"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
