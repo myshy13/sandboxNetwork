@@ -1,8 +1,10 @@
 #pragma once
 
+#include <raylib.h>
+#include "raymath.h"
+#include "structs.hpp"
 #include <algorithm>
 #include <enet/enet.h>
-#include <raylib.h>
 #include <vector>
 
 #ifndef SERVER_IP
@@ -11,7 +13,9 @@
 
 struct OnlinePlayer {
   int id{-1};
-  Vector3 pos{0,0,0};
+  Vector3 pos{0, 0, 0};
+  float pitch{0.0f};
+  float yaw{0.0f};
 };
 
 class Client {
@@ -20,6 +24,7 @@ class Client {
   ENetPeer *peer;
 
   std::vector<OnlinePlayer> players{};
+  std::vector<Bullet> bullets{};
 
   int playerId{-1};
 
@@ -39,10 +44,19 @@ class Client {
   }
 
 public:
-  void sendPlayerPosition(const Transform &transform);
+  void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
-  std::vector<OnlinePlayer> getPlayers() {
+  void createBullet();
+  const std::vector<OnlinePlayer> &getPlayers() const {
     return players;
   };
+  const std::vector<Bullet> &getBullets() const {
+    return bullets;
+  };
+  void updateBullets(float dt) {
+    for (Bullet &b : bullets) {
+      b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
+    }
+  }
   Client();
 };

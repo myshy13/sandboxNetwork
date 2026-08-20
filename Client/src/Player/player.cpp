@@ -1,4 +1,6 @@
 #include "Player/player.hpp"
+#include "Client/client.hpp"
+#include "enet/enet.h"
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -22,10 +24,17 @@ void Player::Update(float dt, Camera3D &camera) {
   moveRight.y       = 0.0f;
   moveRight         = Vector3Normalize(moveRight);
 
-  if (transform.translation.y < transform.scale.y * 2) {
+  BoundingBox playerBox = {
+      {transform.translation.x - transform.scale.x * 0.5f, transform.translation.y,
+       transform.translation.z - transform.scale.z * 0.5f},
+      {transform.translation.x + transform.scale.x * 0.5f, transform.translation.y + transform.scale.y,
+       transform.translation.z + transform.scale.z * 0.5f}};
+  BoundingBox groundBox = {{-1000.0f, -10.0f, -1000.0f}, {1000.0f, 0.0f, 1000.0f}};
+
+  if (velocity.y <= 0.0f && CheckCollisionBoxes(playerBox, groundBox)) {
     onGround                = true;
     velocity.y              = 0;
-    transform.translation.y = transform.scale.y * 2;
+    transform.translation.y = groundBox.max.y;
   }
 
   Vector3 moveDir = Vector3Zero();
@@ -89,35 +98,41 @@ void Player::Update(float dt, Camera3D &camera) {
 
   transform.rotation = QuaternionFromEuler(pitch, yaw, 0.0f);
 
+  if (IsKeyPressed(KEY_C)) {
+    perspective = perspective == FirstPerson ? ThirdPerson : FirstPerson;
+  }
+
   // ==== update camera ====
-  camera.position = transform.translation;
-  camera.target   = Vector3Add(transform.translation, lookForward);
+  Vector3 head = Vector3Add(transform.translation, {0.0f, transform.scale.y * 0.8f, 0.0f});
+  if (perspective == ThirdPerson) {
+    Vector3 up      = {0.0f, 1.0f, 0.0f};
+    camera.position = Vector3Add(head, Vector3Subtract(up, Vector3Scale(lookForward, 5.0f)));
+    camera.target   = head;
+  } else {
+    head            = Vector3Add(head, {0, transform.scale.y / 0.8f, 0});
+    camera.position = head;
+    camera.target   = Vector3Add(head, lookForward);
+  }
 }
 
 Player::Player() {
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
   transform.scale       = {0.7, 5, 0.7};
   transform.translation = {0, 10, 0};
+  onGround              = false;
 
   DisableCursor();
 }
 
 void Player::Draw() const {
-  Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
-  Matrix matRotation = QuaternionToMatrix(transform.rotation);
-  Matrix matTranslation =
-      MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
-
-  Matrix matTransform = MatrixMultiply(MatrixMultiply(matScale, matRotation), matTranslation);
-
-  rlPushMatrix();
-  rlMultMatrixf(MatrixToFloat(matTransform));
-  DrawCube(Vector3Zero(), 1.0f, 1.0f, 1.0f, RED);
-  DrawCubeWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, BLACK);
-  rlPopMatrix();
+  if (perspective == ThirdPerson) {
+    Transform bodyTransform = transform;
+    bodyTransform.rotation  = QuaternionFromEuler(0.0f, yaw, 0.0f);
+    DrawPlayer(bodyTransform);
+  }
 };
 
-void DrawPlayer(const Transform &transform) {
+void Player::DrawPlayer(const Transform &transform) {
   Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
   Matrix matRotation = QuaternionToMatrix(transform.rotation);
   Matrix matTranslation =
@@ -127,7 +142,7 @@ void DrawPlayer(const Transform &transform) {
 
   rlPushMatrix();
   rlMultMatrixf(MatrixToFloat(matTransform));
-  DrawCube(Vector3Zero(), 1.0f, 1.0f, 1.0f, RED);
-  DrawCubeWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, BLACK);
+  DrawCylinder(Vector3Zero(), 1.0f, 1.0f, 1.0f, 16, RED);
+  DrawCylinderWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, 16, BLACK);
   rlPopMatrix();
 }

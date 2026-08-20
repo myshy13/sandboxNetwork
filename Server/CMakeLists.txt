@@ -11,6 +11,22 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(FetchContent)
 
 set(FETCHCONTENT_QUIET FALSE)
+
+# ---------------------------------------------------------------------------
+# raylib (for shared math/model types, fetched at configure time)
+# ---------------------------------------------------------------------------
+FetchContent_Declare(
+    raylib
+    GIT_REPOSITORY https://github.com/raysan5/raylib.git
+    GIT_TAG        5.5
+    GIT_SHALLOW    TRUE
+)
+
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(raylib)
+
 FetchContent_Declare(
     enet
     GIT_REPOSITORY https://github.com/lsalzman/enet.git
@@ -48,7 +64,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${cereal_SOURCE_DIR}/include"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE enet)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>

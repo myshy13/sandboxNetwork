@@ -1,19 +1,19 @@
 #include "client.hpp"
 #include "Protocol/protocol.hpp"
-#include <cstdio>
+
+#include "structs.hpp"
 #include <cstdlib>
 #include <enet/enet.h>
 #include <iostream>
 #include <raylib.h>
-#include <stdexcept>
 #include <string>
 
 // ==== outgoing messages ==== //
 
-void Client::sendPlayerPosition(const Transform &transform) {
+void Client::sendPlayerPosition(const Transform &transform, float pitch, float yaw) {
   if (playerId == -1)
     return;
-  auto bytes = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{playerId, transform.translation});
+  auto bytes         = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{playerId, transform.translation, pitch, yaw});
   ENetPacket *packet = enet_packet_create(bytes.data(), bytes.size(), ENET_PACKET_FLAG_RELIABLE);
 
   enet_peer_send(peer, 0, packet);
@@ -78,11 +78,15 @@ void Client::poll() {
           OnlinePlayer *player = findPlayer(msg.id);
           if (player == nullptr) {
             OnlinePlayer newPlayer;
-            newPlayer.id  = msg.id;
-            newPlayer.pos = msg.pos;
+            newPlayer.id    = msg.id;
+            newPlayer.pos   = msg.pos;
+            newPlayer.pitch = msg.pitch;
+            newPlayer.yaw   = msg.yaw;
             players.push_back(newPlayer);
           } else {
-            player->pos = msg.pos;
+            player->pos   = msg.pos;
+            player->pitch = msg.pitch;
+            player->yaw   = msg.yaw;
           }
         }
         break;
@@ -95,6 +99,25 @@ void Client::poll() {
         }
         break;
       }
+      case proto::Type::NewBullet: {
+        auto msg = proto::unpack<proto::NewBullet>(data);
+        Bullet b;
+        b.playerId = msg.playerId;
+        b.vel      = msg.vel;
+        b.pos      = msg.pos;
+        b.bulletId = msg.bulletId;
+        bullets.push_back(b);
+        break;
+      }
+      case proto::Type::DeleteBullet: {
+        auto msg = proto::unpack<proto::DeleteBullet>(data);
+        std::erase_if(bullets, [msg](Bullet b) {
+          return b.bulletId == msg.id;
+        });
+        break;
+      }
+      default:
+        break;
       }
       break;
     }
@@ -107,4 +130,14 @@ void Client::poll() {
       break;
     }
   }
+}
+
+void Client::createBullet() {
+  if (playerId == -1)
+    return;
+  auto bytes         = proto::pack(proto::Type::CreateBullet, proto::CreateBullet{playerId});
+  ENetPacket *packet = enet_packet_create(bytes.data(), bytes.size(), ENET_PACKET_FLAG_RELIABLE);
+
+  enet_peer_send(peer, 0, packet);
+  enet_host_flush(host);
 }
