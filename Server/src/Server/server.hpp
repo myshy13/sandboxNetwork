@@ -1,8 +1,14 @@
 #pragma once
 
+#include "Net/connection.hpp"
+#include "Net/ws_proxy.hpp"
+
 #include <enet/enet.h>
+#include <memory>
 #include <optional>
 #include <raylib.h>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 struct Bullet {
@@ -25,6 +31,16 @@ class Server {
   int port{9798};
   ENetHost *host;
 
+  // Declared before `connections` on purpose: a WebSocket Connection holds a
+  // reference back into the proxy, and members are destroyed in reverse
+  // declaration order, so the connections must die first.
+  std::unique_ptr<WsProxy> wsProxy;
+
+  // Every client, ENet and WebSocket alike, keyed by player id.
+  std::unordered_map<int, std::unique_ptr<Connection>> connections;
+  // WebSocket clients have no equivalent of ENetPeer::data to stash an id in.
+  std::unordered_map<std::string, int> wsPlayerIds;
+
   int nextClientId{1};
   int nextBulletId{1};
   std::vector<Player> players{};
@@ -39,14 +55,23 @@ class Server {
   }
   void deletePlayer(int id);
   std::optional<Bullet> createBullet(int playerId);
-  void deleteBullet(int id);
 
-  void handleConnect(ENetEvent &event);
-  void handleDisconnect(ENetEvent &event);
-  void handleReceive(ENetEvent &event);
+  // ==== transport-agnostic game logic ==== //
+  int handleConnect(std::unique_ptr<Connection> connection);
+  void handleDisconnect(int playerId);
+  void handleReceive(int playerId, const std::string &data);
   void tick(float dt);
+
+  void sendTo(int playerId, const std::string &bytes, bool reliable);
+  void broadcast(const std::string &bytes, bool reliable);
+
+  // ==== transport plumbing ==== //
+  void pumpEnet();
+  void pumpWebSockets();
 
 public:
   void poll();
-  Server();
+  // wsPort of 0 leaves the browser proxy switched off.
+  explicit Server(int wsPort = 0);
+  ~Server();
 };
