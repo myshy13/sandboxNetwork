@@ -1,8 +1,9 @@
 #pragma once
+#include "raylib.h"
+#include <cereal/archives/binary.hpp>
 #include <cstdint>
 #include <sstream>
 #include <string>
-#include <cereal/archives/binary.hpp>
 
 // Vector3 must already be defined before this header is included
 // (via <raylib.h> on the Client, or "models.hpp" on the Server) -
@@ -12,12 +13,21 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 }
 
 namespace proto {
-enum class Type : uint8_t { PlayerUpdate, GivenId, DeletePlayer };
+enum class Type : uint8_t {
+  PlayerUpdate,
+  GivenId,
+  DeletePlayer,
+  CreateBullet,
+  NewBullet,
+  DeleteBullet
+};
 
 struct PlayerUpdate {
   int id;
   Vector3 pos;
-  template <class A> void serialize(A &ar) { ar(id, pos); }
+  float pitch;
+  float yaw;
+  template <class A> void serialize(A &ar) { ar(id, pos, pitch, yaw); }
 };
 struct GivenId {
   int id;
@@ -26,6 +36,23 @@ struct GivenId {
 struct DeletePlayer {
   int id;
   template <class A> void serialize(A &ar) { ar(id); }
+};
+struct CreateBullet { // clients telling server
+  int playerId;
+  // position, velocity, and bullet id calculated on the server
+  template <class A> void serialize(A &ar) { ar(playerId); }
+};
+struct DeleteBullet { // clients telling server
+  long id;
+  // position, velocity, and bullet id calculated on the server
+  template <class A> void serialize(A &ar) { ar(id); }
+};
+struct NewBullet { // server telling clients
+  int playerId;
+  int bulletId;
+  Vector3 pos;
+  Vector3 vel;
+  template <class A> void serialize(A &ar) { ar(playerId, bulletId, pos, vel); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //
