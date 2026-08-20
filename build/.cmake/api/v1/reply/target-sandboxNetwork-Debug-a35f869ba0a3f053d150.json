@@ -1,0 +1,298 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "sandboxNetwork"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_executable",
+			"target_link_libraries",
+			"target_compile_options",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"CMakeLists.txt",
+			"/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/raylib-src/src/external/glfw/src/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 73,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 83,
+				"parent" : 0
+			},
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 152,
+				"parent" : 3
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 93,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 75,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 88,
+				"parent" : 0
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 11
+	},
+	"compileDependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "raylib::@4dc3a4644cf4ded08c01"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "enet::@b72fdde267e7ac772003"
+		}
+	],
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-g -std=gnu++20 -arch arm64"
+				},
+				{
+					"backtrace" : 5,
+					"fragment" : "-Wall"
+				},
+				{
+					"backtrace" : 5,
+					"fragment" : "-Wextra"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 2,
+					"define" : "GRAPHICS_API_OPENGL_33"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "PLATFORM_DESKTOP"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 6,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/Client/include"
+				},
+				{
+					"backtrace" : 6,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/Client/src"
+				},
+				{
+					"backtrace" : 6,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/Client/../Shared"
+				},
+				{
+					"backtrace" : 6,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/enet-src/include"
+				},
+				{
+					"backtrace" : 6,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/cereal-src/include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/raylib-src/src/external/glfw/include"
+				},
+				{
+					"backtrace" : 7,
+					"isSystem" : true,
+					"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/raylib-src/src"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					1
+				],
+				"standard" : "20"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "raylib::@4dc3a4644cf4ded08c01"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "glfw::@9de86fbe87260ae8e66c"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "enet::@b72fdde267e7ac772003"
+		}
+	],
+	"id" : "sandboxNetwork::@6890427a1f51a3e7e1df",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "-g",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "-Wl,-search_paths_first -Wl,-headerpad_max_install_names",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "_deps/raylib-build/raylib/libraylib.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "_deps/enet-build/libenet.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-framework OpenGL",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-framework Cocoa",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-framework IOKit",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-framework CoreFoundation",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"linkLibraries" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "raylib::@4dc3a4644cf4ded08c01"
+		},
+		{
+			"backtrace" : 2,
+			"id" : "enet::@b72fdde267e7ac772003"
+		}
+	],
+	"name" : "sandboxNetwork",
+	"nameOnDisk" : "sandboxNetwork",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"backtraces" : 
+			[
+				1
+			],
+			"compileGroupIndex" : 0,
+			"path" : "/Users/hamish/Desktop/Code/sandboxNetwork/Shared/Protocol/protocol.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"backtraces" : 
+			[
+				1
+			],
+			"compileGroupIndex" : 0,
+			"path" : "src/Client/client.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"backtraces" : 
+			[
+				1
+			],
+			"compileGroupIndex" : 0,
+			"path" : "src/Player/player.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"backtraces" : 
+			[
+				1
+			],
+			"compileGroupIndex" : 0,
+			"path" : "src/main.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "EXECUTABLE"
+}

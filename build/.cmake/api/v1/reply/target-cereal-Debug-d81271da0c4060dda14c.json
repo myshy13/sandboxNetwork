@@ -1,0 +1,41 @@
+{
+	"abstract" : true,
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library"
+		],
+		"files" : 
+		[
+			"/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/cereal-src/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 60,
+				"parent" : 0
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 11
+	},
+	"id" : "cereal::@0a2f9304a3e59ed88eeb",
+	"name" : "cereal",
+	"paths" : 
+	{
+		"build" : "_deps/cereal-build",
+		"source" : "/Users/hamish/Desktop/Code/sandboxNetwork/build/_deps/cereal-src"
+	},
+	"sources" : [],
+	"type" : "INTERFACE_LIBRARY"
+}
