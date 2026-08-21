@@ -20,9 +20,8 @@ public:
     if (peer == nullptr) {
       return;
     }
-    ENetPacket *packet =
-        enet_packet_create(bytes.data(), bytes.size(),
-                           reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
+    ENetPacket *packet = enet_packet_create(
+        bytes.data(), bytes.size(), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
     enet_peer_send(peer, 0, packet);
   }
 
@@ -93,7 +92,7 @@ void Server::deletePlayer(int id) {
 }
 
 // ==== Bullet handling ==== //
-constexpr float BULLET_SPEED = 100.0f;
+constexpr float BULLET_SPEED = 150.0f;
 
 std::optional<Bullet> Server::createBullet(int playerId) {
   Player *player = findPlayer(playerId);
@@ -101,7 +100,7 @@ std::optional<Bullet> Server::createBullet(int playerId) {
     return std::nullopt;
   }
 
-  Quaternion aim  = QuaternionFromEuler(player->pitch, player->yaw, 0.0f);
+  Quaternion aim = QuaternionFromEuler(player->pitch, player->yaw, 0.0f);
   Vector3 forward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, aim);
 
   Bullet bullet;
@@ -110,11 +109,11 @@ std::optional<Bullet> Server::createBullet(int playerId) {
   bullet.playerId = player->id;
   // player->pos is the player's feet, so lift to the head before pushing the
   // spawn forward - otherwise the bullet renders point-blank on the camera.
-  constexpr Vector3 HEAD_OFFSET   = {0.0f, 10.0f, 0.0f};
+  constexpr Vector3 HEAD_OFFSET = {0.0f, 10.0f, 0.0f};
   constexpr float MUZZLE_DISTANCE = 3.0f;
   Vector3 headPos = Vector3Add(player->pos, HEAD_OFFSET);
-  bullet.pos      = Vector3Add(headPos, Vector3Scale(forward, MUZZLE_DISTANCE));
-  bullet.vel      = Vector3Scale(forward, BULLET_SPEED);
+  bullet.pos = Vector3Add(headPos, Vector3Scale(forward, MUZZLE_DISTANCE));
+  bullet.vel = Vector3Scale(forward, BULLET_SPEED);
 
   bullets.push_back(bullet);
   return bullet;
@@ -130,7 +129,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   connections[id] = std::move(connection);
 
   Player newPlayer;
-  newPlayer.id  = id;
+  newPlayer.id = id;
   newPlayer.pos = {0, 0, 0};
   players.push_back(newPlayer);
 
@@ -143,8 +142,9 @@ void Server::handleDisconnect(int playerId) {
   deletePlayer(playerId);
   connections.erase(playerId);
 
-  broadcast(proto::pack(proto::Type::DeletePlayer, proto::DeletePlayer{playerId}),
-            true);
+  broadcast(
+      proto::pack(proto::Type::DeletePlayer, proto::DeletePlayer{playerId}),
+      true);
 }
 
 void Server::handleReceive(int playerId, const std::string &data) {
@@ -161,9 +161,9 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
     Player *player = findPlayer(playerId);
     if (player != nullptr) {
-      player->pos   = msg.pos;
+      player->pos = msg.pos;
       player->pitch = msg.pitch;
-      player->yaw   = msg.yaw;
+      player->yaw = msg.yaw;
     }
     // ==== notify all peers ==== //
     // Unreliable on purpose: a dropped position is superseded a frame later.
@@ -177,8 +177,8 @@ void Server::handleReceive(int playerId, const std::string &data) {
       proto::NewBullet packetMsg;
       packetMsg.bulletId = bullet->bulletId;
       packetMsg.playerId = bullet->playerId;
-      packetMsg.pos      = bullet->pos;
-      packetMsg.vel      = bullet->vel;
+      packetMsg.pos = bullet->pos;
+      packetMsg.vel = bullet->vel;
       broadcast(proto::pack(proto::Type::NewBullet, packetMsg), true);
     }
     break;
@@ -195,17 +195,42 @@ void Server::handleReceive(int playerId, const std::string &data) {
 constexpr float TICK_RATE = 1.0f / 60.0f;
 
 // same as the client's default Player scale (Client/src/Player/player.cpp)
-constexpr Vector3 PLAYER_SCALE       = {0.7f, 5.0f, 0.7f};
-constexpr Vector3 BULLET_HALF_EXTENT = {0.7f, 0.7f, 0.7f};
+constexpr Vector3 PLAYER_SCALE = {0.7f, 10.0f, 0.7f};
+
+// Slab test: true if the segment start->end passes through box, so a fast
+// bullet can't tunnel through a player between ticks (a plain point-in-box
+// check at the post-move position can miss a player it swept straight past).
+bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
+  Vector3 dir = Vector3Subtract(end, start);
+  float tMin = 0.0f;
+  float tMax = 1.0f;
+
+  auto clipAxis = [&](float s, float d, float boxMin, float boxMax) {
+    if (fabsf(d) < 1e-6f) {
+      return s >= boxMin && s <= boxMax;
+    }
+    float t1 = (boxMin - s) / d;
+    float t2 = (boxMax - s) / d;
+    if (t1 > t2) {
+      std::swap(t1, t2);
+    }
+    tMin = std::max(tMin, t1);
+    tMax = std::min(tMax, t2);
+    return tMin <= tMax;
+  };
+
+  return clipAxis(start.x, dir.x, box.min.x, box.max.x) &&
+         clipAxis(start.y, dir.y, box.min.y, box.max.y) &&
+         clipAxis(start.z, dir.z, box.min.z, box.max.z);
+}
 
 void Server::tick(float dt) {
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;
 
-    BoundingBox bulletBox;
-    bulletBox.min = Vector3Subtract(b.pos, BULLET_HALF_EXTENT);
-    bulletBox.max = Vector3Add(b.pos, BULLET_HALF_EXTENT);
+    Vector3 prevPos = b.pos;
+    b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
 
     for (const auto &p : players) {
       if (p.id == b.playerId) {
@@ -214,21 +239,23 @@ void Server::tick(float dt) {
 
       // p.pos is the player's feet/base position, so the box extends
       // upward from there rather than being centered on it.
-      BoundingBox playerBox;
-      playerBox.min = {p.pos.x - PLAYER_SCALE.x * 0.5f, p.pos.y,
-                       p.pos.z - PLAYER_SCALE.z * 0.5f};
-      playerBox.max = {p.pos.x + PLAYER_SCALE.x * 0.5f, p.pos.y + PLAYER_SCALE.y,
-                       p.pos.z + PLAYER_SCALE.z * 0.5f};
+      BoundingBox player;
+      player.min = Vector3Subtract(
+          p.pos, {PLAYER_SCALE.x * 0.5f, 0.0f, PLAYER_SCALE.z * 0.5f});
+      player.max = Vector3Add(player.min, PLAYER_SCALE);
 
-      if (CheckCollisionBoxes(bulletBox, playerBox)) {
-        std::printf("[hit] bullet %d (from player %d) hit player %d\n",
-                    b.bulletId, b.playerId, p.id);
+      if (SegmentIntersectsBox(prevPos, b.pos, player)) {
         b.deathCountdown = 0.0f; // TODO: broadcast a hit/damage message
+        sendTo(p.id,
+               proto::pack(proto::Type::PlayerHit, proto::PlayerHit{p.id}),
+               true);
       }
     }
-  }
 
-  for (const auto &b : bullets) {
+    if (b.pos.y <= 0) {
+      b.deathCountdown = 0.0f;
+    }
+
     if (b.deathCountdown <= 0.0f) {
       broadcast(proto::pack(proto::Type::DeleteBullet,
                             proto::DeleteBullet{b.bulletId}),
@@ -250,7 +277,8 @@ void Server::pumpEnet() {
   if (enet_host_service(host, &event, 16) > 0) {
     switch (event.type) {
     case ENET_EVENT_TYPE_CONNECT: {
-      const int id = handleConnect(std::make_unique<EnetConnection>(event.peer));
+      const int id =
+          handleConnect(std::make_unique<EnetConnection>(event.peer));
       event.peer->data = reinterpret_cast<void *>(static_cast<intptr_t>(id));
       break;
     }

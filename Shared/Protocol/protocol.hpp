@@ -19,7 +19,8 @@ enum class Type : uint8_t {
   DeletePlayer,
   CreateBullet,
   NewBullet,
-  DeleteBullet
+  DeleteBullet,
+  PlayerHit
 };
 
 struct PlayerUpdate {
@@ -53,6 +54,10 @@ struct NewBullet { // server telling clients
   Vector3 pos;
   Vector3 vel;
   template <class A> void serialize(A &ar) { ar(playerId, bulletId, pos, vel); }
+};
+struct PlayerHit {
+  int id; // player id
+  template <class A> void serialize(A &ar) { ar(id); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //

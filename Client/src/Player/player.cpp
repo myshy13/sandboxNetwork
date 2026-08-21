@@ -1,5 +1,4 @@
 #include "Player/player.hpp"
-#include "Client/client.hpp"
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -26,17 +25,11 @@ void Player::Update(float dt, Camera3D &camera) {
   moveRight.y       = 0.0f;
   moveRight         = Vector3Normalize(moveRight);
 
-  BoundingBox playerBox = {
-      {transform.translation.x - transform.scale.x * 0.5f, transform.translation.y,
-       transform.translation.z - transform.scale.z * 0.5f},
-      {transform.translation.x + transform.scale.x * 0.5f, transform.translation.y + transform.scale.y,
-       transform.translation.z + transform.scale.z * 0.5f}};
-  BoundingBox groundBox = {{-1000.0f, -10.0f, -1000.0f}, {1000.0f, 0.0f, 1000.0f}};
-
-  if (velocity.y <= 0.0f && CheckCollisionBoxes(playerBox, groundBox)) {
+  constexpr float GROUND_Y = 0.0f;
+  if (velocity.y <= 0.0f && transform.translation.y <= GROUND_Y) {
     onGround                = true;
     velocity.y              = 0;
-    transform.translation.y = groundBox.max.y;
+    transform.translation.y = GROUND_Y;
   }
 
   Vector3 moveDir = Vector3Zero();
@@ -118,7 +111,7 @@ void Player::Update(float dt, Camera3D &camera) {
 
 Player::Player() {
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
-  transform.scale       = {0.7, 10, 0.7};
+  transform.scale       = {2, 10, 2};
   transform.translation = {0, 10, 0};
   onGround              = false;
 
@@ -143,7 +136,7 @@ void Player::DrawPlayer(const Transform &transform) {
 
   rlPushMatrix();
   rlMultMatrixf(MatrixToFloat(matTransform));
-  DrawCylinder(Vector3Zero(), 1.0f, 1.0f, 1.0f, 16, RED);
-  DrawCylinderWires(Vector3Zero(), 1.0f, 1.0f, 1.0f, 16, BLACK);
+  DrawCubeV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, WHITE);
+  DrawCubeWiresV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, BLACK);
   rlPopMatrix();
 }
