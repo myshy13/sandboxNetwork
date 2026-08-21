@@ -9,6 +9,9 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D &camera) {
+  if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+    DisableCursor();
+  }
 
   // ==== player movement ====
   Vector3 lookForward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
@@ -102,13 +105,12 @@ void Player::Update(float dt, Camera3D &camera) {
   }
 
   // ==== update camera ====
-  Vector3 head = Vector3Add(transform.translation, {0.0f, transform.scale.y * 0.8f, 0.0f});
+  Vector3 head = Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
   if (perspective == ThirdPerson) {
     Vector3 up      = {0.0f, 1.0f, 0.0f};
     camera.position = Vector3Add(head, Vector3Subtract(up, Vector3Scale(lookForward, 5.0f)));
     camera.target   = head;
   } else {
-    head            = Vector3Add(head, {0, transform.scale.y / 0.8f, 0});
     camera.position = head;
     camera.target   = Vector3Add(head, lookForward);
   }
@@ -116,7 +118,7 @@ void Player::Update(float dt, Camera3D &camera) {
 
 Player::Player() {
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
-  transform.scale       = {0.7, 5, 0.7};
+  transform.scale       = {0.7, 10, 0.7};
   transform.translation = {0, 10, 0};
   onGround              = false;
 
