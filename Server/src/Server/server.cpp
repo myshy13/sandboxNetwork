@@ -199,12 +199,10 @@ constexpr Vector3 PLAYER_SCALE       = {0.7f, 5.0f, 0.7f};
 constexpr Vector3 BULLET_HALF_EXTENT = {0.7f, 0.7f, 0.7f};
 
 void Server::tick(float dt) {
-  for (auto &b : bullets) {
-    b.deathCountdown -= dt;
-  }
-
   // ==== hit detection ==== //
   for (auto &b : bullets) {
+    b.deathCountdown -= dt;
+
     BoundingBox bulletBox;
     bulletBox.min = Vector3Subtract(b.pos, BULLET_HALF_EXTENT);
     bulletBox.max = Vector3Add(b.pos, BULLET_HALF_EXTENT);
