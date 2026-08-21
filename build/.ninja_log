@@ -1,5 +1,0 @@
-# ninja log v7
-2	17	1787216115928609391	/Users/hamish/Desktop/Code/sandboxNetwork/build/CMakeFiles/cmake.verify_globs	4870cc422800e5e
-20	106	1787216115946590074	_deps/raylib-build/raylib/CMakeFiles/raylib.dir/utils.c.o	a26017d560246f21
-19	202	1787216115945605534	_deps/raylib-build/raylib/CMakeFiles/raylib.dir/rshapes.c.o	412a52ff534d915c
-19	394	1787216115945822534	_deps/raylib-build/raylib/CMakeFiles/raylib.dir/rtext.c.o	cf90acb3c03cd93f
