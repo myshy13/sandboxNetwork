@@ -66,7 +66,7 @@ int main() {
     for (auto &p : client.getPlayers()) {
       Transform transform;
       transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
-      transform.scale       = {0.7, 5, 0.7};
+      transform.scale       = {0.7, 10, 0.7};
       transform.translation = p.pos;
       player.DrawPlayer(transform);
     }
@@ -86,8 +86,7 @@ int main() {
     } else {
       // ==== draw crosshair ==== //
       Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
-      DrawLineEx(Vector2Add(centre, {-5, 0}), Vector2Add(centre, {5, 0}), 3.0f, WHITE);
-      DrawLineEx(Vector2Add(centre, {0, -5}), Vector2Add(centre, {0, 5}), 3.0f, WHITE);
+      DrawCircleV(centre, 1, WHITE);
     }
 
     EndDrawing();
