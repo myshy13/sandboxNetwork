@@ -139,6 +139,6 @@ if(BUILD_WEB)
         "-sALLOW_MEMORY_GROWTH=1"
         "-lwebsocket.js"
         "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets"
-        "--shell-file=${raylib_SOURCE_DIR}/src/minshell.html"
+        "--shell-file=${CMAKE_SOURCE_DIR}/minshell.html"
     )
 endif()

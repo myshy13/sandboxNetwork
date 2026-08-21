@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>sandboxNetwork</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { margin: 0; overflow: hidden; background-color: black; }
+      /* Canvas fills the viewport in CSS pixels; its backing store is bigger
+         (see below), so the browser downsamples instead of upscaling. */
+      canvas.emscripten { display: block; width: 100vw; height: 100vh; border: 0; background-color: black; }
+    </style>
+    <script>
+      // raylib's web resize handler sizes the canvas backing store from
+      // window.innerWidth/Height - CSS pixels, so on a HiDPI display the game
+      // renders at 1x and gets upscaled (blurry). Lie about the window size by
+      // the device pixel ratio: raylib then allocates a full-resolution buffer
+      // and sets a matching GL viewport, and the CSS above scales it back down.
+      // NOTE: this makes raylib's screen coords device pixels, so GetMouseDelta
+      // (pointer lock) is effectively DPR times more sensitive.
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap: 3x on phones is a lot of pixels
+      for (const [prop, css] of [["innerWidth", "clientWidth"], ["innerHeight", "clientHeight"]]) {
+        Object.defineProperty(window, prop, { get: () => Math.round(document.documentElement[css] * dpr) });
+      }
+      var Module = { canvas: document.getElementById("canvas"), print: (...a) => console.log(...a) };
+    </script>
+  </head>
+  <body>
+    <canvas class=emscripten id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas>
+    <script>Module.canvas = document.getElementById("canvas");</script>
+    {{{ SCRIPT }}}
+  </body>
+</html>
