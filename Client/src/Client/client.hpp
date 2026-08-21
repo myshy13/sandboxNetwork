@@ -9,7 +9,7 @@
 #include <vector>
 
 #ifndef SERVER_IP
-#define SERVER_IP "192.168.10.111"
+#define SERVER_IP "127.0.0.1"
 #endif
 
 struct OnlinePlayer {
