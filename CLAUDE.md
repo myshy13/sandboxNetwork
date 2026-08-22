@@ -7,3 +7,6 @@ CRITICAL: Before writing any code, you must read, merge, and strictly follow the
 - Use `.claude/rules/arch.md` for folder layouts and state management constraints.
 
 See [README.md](README.md) for build/run commands.
+
+Do not delete the build folder (even if you created it) unless it is temporary.
+Don't build after you create code, if it fails to build, I will tell you.

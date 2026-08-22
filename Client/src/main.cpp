@@ -66,7 +66,7 @@ int main() {
     for (auto &p : client.getPlayers()) {
       Transform transform;
       transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
-      transform.scale       = {0.7, 10, 0.7};
+      transform.scale       = {1, 10, 1};
       transform.translation = p.pos;
       player.DrawPlayer(transform);
     }

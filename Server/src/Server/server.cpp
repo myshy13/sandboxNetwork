@@ -195,7 +195,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
 constexpr float TICK_RATE = 1.0f / 60.0f;
 
 // same as the client's default Player scale (Client/src/Player/player.cpp)
-constexpr Vector3 PLAYER_SCALE = {0.7f, 10.0f, 0.7f};
+constexpr Vector3 PLAYER_SCALE = {1.0f, 10.0f, 1.0f};
 
 // Slab test: true if the segment start->end passes through box, so a fast
 // bullet can't tunnel through a player between ticks (a plain point-in-box
