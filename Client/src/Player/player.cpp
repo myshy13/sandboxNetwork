@@ -111,7 +111,7 @@ void Player::Update(float dt, Camera3D &camera) {
 
 Player::Player() {
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
-  transform.scale       = {2, 10, 2};
+  transform.scale       = {1, 10, 1};
   transform.translation = {0, 10, 0};
   onGround              = false;
 

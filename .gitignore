@@ -1,6 +1,6 @@
 .DS_Store
 .cache
-buildbuild/
+build/
 Client/build/
 Client/build-web/
 Server/build/
