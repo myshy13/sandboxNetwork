@@ -1,4 +1,5 @@
 #include "Player/player.hpp"
+#include <cstdlib>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -50,7 +51,7 @@ void Player::Update(float dt, Camera3D &camera) {
 
   if (Vector3Length(moveDir) > 0.0f) {
     moveDir  = Vector3Normalize(moveDir); // prevents diagonal movement being faster
-    velocity = Vector3Add(velocity, Vector3Scale(moveDir, speed * multiplier));
+    velocity = Vector3Add(velocity, Vector3Scale(moveDir, speed * multiplier * dt * 60));
   }
 
   if (onGround && IsKeyDown(KEY_SPACE)) {
@@ -64,11 +65,9 @@ void Player::Update(float dt, Camera3D &camera) {
     velocity.x    = horizontalVel.x;
     velocity.z    = horizontalVel.y;
   }
-  if (onGround) {
-    float damping = powf(0.7f, dt * 60.0f);
-    velocity.x *= damping;
-    velocity.z *= damping;
-  }
+  float damping = powf(onGround ? 0.7f : 1.0f, dt * 60.0f);
+  velocity.x *= damping;
+  velocity.z *= damping;
   if (!onGround) {
     velocity.y -= GRAVITY * dt;
     velocity.y = Clamp(velocity.y, -20.0f, jumpPower);
@@ -97,7 +96,15 @@ void Player::Update(float dt, Camera3D &camera) {
     perspective = perspective == FirstPerson ? ThirdPerson : FirstPerson;
   }
 
-  // ==== update camera ====
+  UpdateCamera(camera);
+}
+
+// Separate from Update because the camera has to follow the body even when
+// movement is frozen - a respawn while paused moves us, and the view has to
+// come along or it looks like the respawn never happened.
+void Player::UpdateCamera(Camera3D &camera) const {
+  Vector3 lookForward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
+
   Vector3 head = Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
   if (perspective == ThirdPerson) {
     Vector3 up      = {0.0f, 1.0f, 0.0f};
@@ -110,9 +117,13 @@ void Player::Update(float dt, Camera3D &camera) {
 }
 
 Player::Player() {
+  Vector3 spawnPos;
+  spawnPos.x            = rand() % 200 - 100;
+  spawnPos.z            = rand() % 200 - 100;
+  spawnPos.y            = 10;
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
   transform.scale       = {1, 10, 1};
-  transform.translation = {0, 10, 0};
+  transform.translation = spawnPos;
   onGround              = false;
 
   DisableCursor();

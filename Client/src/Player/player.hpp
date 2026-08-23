@@ -2,8 +2,8 @@
 #define SANDBOXNET_PLAYER
 
 #include "Entity/entity.hpp"
-#include "structs.hpp"
 #include <raylib.h>
+#include <raymath.h>
 
 enum Perspective {
   FirstPerson,
@@ -12,9 +12,8 @@ enum Perspective {
 
 class Player : public Entity {
 private:
-  // bool local{true}; // Server/ Local player
-  float speed     = 90.0f;
-  float jumpPower = 40.0f;
+  const float speed = 90.0f;
+  float jumpPower   = 40.0f;
 
   float yaw   = 0.0f;
   float pitch = 0.0f;
@@ -23,6 +22,7 @@ private:
 
 public:
   void Update(float dt, Camera3D &camera) override;
+  void UpdateCamera(Camera3D &camera) const;
   void Draw() const override;
   Transform getTransform() {
     return transform;
@@ -36,6 +36,15 @@ public:
 
   Perspective getPerspective() {
     return perspective;
+  }
+  // Teleport, for the one case the server overrides us: respawning. Clears
+  // velocity too, or you reappear still falling at the speed that killed you.
+  void setPosition(Vector3 pos) {
+    transform.translation = pos;
+    velocity              = Vector3Zero();
+    onGround              = false;
+    yaw                   = 0.0f;
+    transform.rotation    = {};
   }
   Player();
 
