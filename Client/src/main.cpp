@@ -7,8 +7,8 @@
 bool paused = false;
 
 int main() {
-  const int screenWidth  = 1280;
-  const int screenHeight = 720;
+  int screenWidth  = 1280;
+  int screenHeight = 720;
 
   GameState &gameState = GameState::shared();
 
@@ -121,3 +121,11 @@ int main() {
   CloseWindow();
   return 0;
 }
+
+#ifdef __EMSCRIPTEN__
+extern "C" {
+void resize(int w, int h) {
+  SetWindowSize(w, h);
+}
+}
+#endif

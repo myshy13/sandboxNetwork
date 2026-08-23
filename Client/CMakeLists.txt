@@ -137,6 +137,8 @@ if(BUILD_WEB)
         "-sWASM=1"
         "-sASYNCIFY"
         "-sALLOW_MEMORY_GROWTH=1"
+        "-sEXPORTED_FUNCTIONS=['_main','_resize']"
+        "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']"
         "-lwebsocket.js"
         "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets"
         "--shell-file=${CMAKE_SOURCE_DIR}/minshell.html"
