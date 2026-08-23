@@ -14,8 +14,8 @@ int main() {
 
   int playerPosCooldown = 1;
 
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  InitWindow(screenWidth, screenHeight, "game-project");
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
+  InitWindow(screenWidth, screenHeight, "Sandbox Network");
   SetTargetFPS(60);
 
   SetExitKey(KEY_NULL);
@@ -112,7 +112,7 @@ int main() {
     } else {
       // ==== draw crosshair ==== //
       Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
-      DrawCircleV(centre, 1, WHITE);
+      DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
     }
 
     EndDrawing();

@@ -1,33 +1,153 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
-    <title>sandboxNetwork</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>raylib web app</title>
     <style>
-      body { margin: 0; overflow: hidden; background-color: black; }
-      /* Canvas fills the viewport in CSS pixels; its backing store is bigger
-         (see below), so the browser downsamples instead of upscaling. */
-      canvas.emscripten { display: block; width: 100vw; height: 100vh; border: 0; background-color: black; }
+        /* Reset and layout */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Container to manage layout dimensions */
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1280px; /* Adjust maximum size constraints here */
+            max-height: 720px;
+            aspect-ratio: 16 / 9;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background-color: #000000;
+        }
+
+        /* The Canvas where raylib renders */
+        canvas.emscripten {
+            border: 0 none;
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Simple loading status text overlay */
+        #status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            font-weight: bold;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
     </style>
-    <script>
-      // raylib's web resize handler sizes the canvas backing store from
-      // window.innerWidth/Height - CSS pixels, so on a HiDPI display the game
-      // renders at 1x and gets upscaled (blurry). Lie about the window size by
-      // the device pixel ratio: raylib then allocates a full-resolution buffer
-      // and sets a matching GL viewport, and the CSS above scales it back down.
-      // NOTE: this makes raylib's screen coords device pixels, so GetMouseDelta
-      // (pointer lock) is effectively DPR times more sensitive.
-      const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap: 3x on phones is a lot of pixels
-      for (const [prop, css] of [["innerWidth", "clientWidth"], ["innerHeight", "clientHeight"]]) {
-        Object.defineProperty(window, prop, { get: () => Math.round(document.documentElement[css] * dpr) });
-      }
-      var Module = { canvas: document.getElementById("canvas"), print: (...a) => console.log(...a) };
+</head>
+<body>
+
+    <div class="game-container">
+        <div id="status">Loading application...</div>
+        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    </div>
+
+    <script type='text/javascript'>
+        var statusElement = document.getElementById('status');
+        var canvasElement = document.getElementById('canvas');
+
+        var Module = {
+            preRun: [
+                function() {
+                    // This function runs right before the game starts
+                    // It forces the internal drawing canvas scale to adapt to high-DPI screens
+                    function resizeCanvasForHiDPI() {
+                        const dpr = window.devicePixelRatio || 1;
+                        const rect = canvasElement.getBoundingClientRect();
+                        
+                        // Multiply layout size by physical pixel scale
+                        canvasElement.width = rect.width * dpr;
+                        canvasElement.height = rect.height * dpr;
+                    }
+
+                    // Run initial resize calculation
+                    resizeCanvasForHiDPI();
+
+                    // Optional: Recalculate if the browser window changes dimensions/monitors
+                    window.addEventListener('resize', resizeCanvasForHiDPI);
+                }
+            ],
+            postRun: [],
+            print: (function() {
+                return function(text) {
+                    if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                    console.log(text);
+                };
+            })(),
+            canvas: (function() {
+                // Ensure keyboard inputs don't bubble out and scroll the web browser window
+                canvasElement.addEventListener("keydown", function(e) {
+                    if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+                        e.preventDefault();
+                    }
+                }, false);
+                return canvasElement;
+            })(),
+            setStatus: function(text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - Module.setStatus.last.time < 30) return; // limit updates
+                
+                Module.setStatus.last.time = now;
+                Module.setStatus.last.text = text;
+                
+                if (m) {
+                    text = m[1];
+                }
+                
+                statusElement.innerHTML = text;
+                if (text === '' || text === 'Running...') {
+                    statusElement.style.opacity = 0;
+                    // Focus the canvas automatically when loaded so inputs register immediately
+                    canvasElement.focus();
+                } else {
+                    statusElement.style.opacity = 1;
+                }
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            }
+        };
+
+        Module.setStatus('Downloading...');
+        
+        window.onerror = function(event) {
+            Module.setStatus('Exception thrown, see JavaScript console');
+            Module.setStatus = function(text) {
+                if (text) console.error('[post-exception status] ' + text);
+            };
+        };
     </script>
-  </head>
-  <body>
-    <canvas class=emscripten id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas>
-    <script>Module.canvas = document.getElementById("canvas");</script>
+    
     {{{ SCRIPT }}}
-  </body>
+
+</body>
 </html>
