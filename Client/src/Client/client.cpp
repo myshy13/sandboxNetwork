@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "GameState/gameState.hpp"
 #include "Protocol/protocol.hpp"
 
 #include "structs.hpp"
@@ -96,6 +97,21 @@ void Client::handleMessage(const std::string &data) {
     std::erase_if(bullets, [msg](Bullet b) {
       return b.bulletId == msg.id;
     });
+    break;
+  }
+
+  case proto::Type::PlayerHit: {
+    auto msg = proto::unpack<proto::PlayerHit>(data);
+    if (msg.id == playerId) {
+      health = msg.health;
+      GameState::shared().TriggerDamageFlash();
+    } else if (msg.shooterId == playerId) {
+      GameState::shared().TriggerGreenFlash();
+    }
+    break;
+  }
+  case proto::Type::Respawn: {
+    respawnTo = proto::unpack<proto::Respawn>(data).pos;
     break;
   }
   default:

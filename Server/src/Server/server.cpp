@@ -130,7 +130,11 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
   Player newPlayer;
   newPlayer.id = id;
-  newPlayer.pos = {0, 0, 0};
+  Vector3 spawnPos;
+  spawnPos.x = rand() % 200 - 100;
+  spawnPos.z = rand() % 200 - 100;
+  spawnPos.y = 10;
+  newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
 
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
@@ -232,11 +236,10 @@ void Server::tick(float dt) {
     Vector3 prevPos = b.pos;
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
 
-    for (const auto &p : players) {
+    for (auto &p : players) {
       if (p.id == b.playerId) {
         continue; // don't hit the shooter
       }
-
       // p.pos is the player's feet/base position, so the box extends
       // upward from there rather than being centered on it.
       BoundingBox player;
@@ -245,10 +248,25 @@ void Server::tick(float dt) {
       player.max = Vector3Add(player.min, PLAYER_SCALE);
 
       if (SegmentIntersectsBox(prevPos, b.pos, player)) {
-        b.deathCountdown = 0.0f; // TODO: broadcast a hit/damage message
-        sendTo(p.id,
-               proto::pack(proto::Type::PlayerHit, proto::PlayerHit{p.id}),
-               true);
+        b.deathCountdown = 0.0f;
+        p.health--;
+
+        if (p.health <= 0) {
+          Vector3 spawnPos;
+          spawnPos.x = rand() % 200 - 100;
+          spawnPos.z = rand() % 200 - 100;
+          spawnPos.y = 10;
+          p.health = PLAYER_MAX_HEALTH;
+          p.pos = spawnPos;
+          sendTo(p.id,
+                 proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}),
+                 true);
+        }
+
+        broadcast(proto::pack(proto::Type::PlayerHit,
+                              proto::PlayerHit{p.health, p.id, b.playerId}),
+                  true);
+        break;
       }
     }
 

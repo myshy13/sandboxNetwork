@@ -20,11 +20,14 @@ struct Bullet {
   float deathCountdown = 3;
 };
 
+constexpr int PLAYER_MAX_HEALTH = 3;
+
 struct Player {
   int id;
   Vector3 pos;
   float pitch{0.0f};
   float yaw{0.0f};
+  int health{PLAYER_MAX_HEALTH};
 };
 
 class Server {

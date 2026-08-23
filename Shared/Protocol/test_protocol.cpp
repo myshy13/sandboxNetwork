@@ -29,6 +29,23 @@ int main() {
     assert(msg.id == 3);
   }
 
+  // ==== PlayerHit ==== //
+  {
+    auto bytes = proto::pack(proto::Type::PlayerHit, proto::PlayerHit{2, 0, 1});
+    auto msg = proto::unpack<proto::PlayerHit>(bytes);
+    assert(proto::peekType(bytes) == proto::Type::PlayerHit);
+    assert(msg.health == 2 && msg.id == 0 && msg.shooterId == 1);
+  }
+
+  // ==== Respawn ==== //
+  {
+    auto bytes =
+        proto::pack(proto::Type::Respawn, proto::Respawn{{0.0f, 10.0f, 0.0f}});
+    assert(proto::peekType(bytes) == proto::Type::Respawn);
+    auto msg = proto::unpack<proto::Respawn>(bytes);
+    assert(msg.pos.x == 0.0f && msg.pos.y == 10.0f && msg.pos.z == 0.0f);
+  }
+
   std::printf("protocol tests passed\n");
   return 0;
 }
