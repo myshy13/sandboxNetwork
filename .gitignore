@@ -1,6 +1,9 @@
 .DS_Store
 .cache
 build/
+.vscode
 Client/build/
 Client/build-web/
 Server/build/
+**/.DS_Store
+Client/src/env.hpp
