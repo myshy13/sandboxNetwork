@@ -5,9 +5,6 @@
 #include <algorithm>
 #include <optional>
 #include <raylib.h>
-// After <raylib.h>, always: raymath re-defines Vector2/3/4 and Matrix if
-// raylib hasn't already. Angle brackets keep it in the same sort group, so a
-// format-on-save can't hoist it above raylib again.
 #include <raymath.h>
 #include <string>
 #include <utility>
@@ -17,18 +14,17 @@
 #include "env.hpp"
 #endif
 
-#ifndef SERVER_IP
-#define SERVER_IP "127.0.0.1"
-#endif
-#ifndef SERVER_PORT
-#define SERVER_PORT 9798
-#endif
-
 struct OnlinePlayer {
   int id{-1};
   Vector3 pos{0, 0, 0};
   float pitch{0.0f};
   float yaw{0.0f};
+};
+
+struct ChatEntry {
+  int id;
+  std::string text;
+  double receivedAt = GetTime();
 };
 
 class Client {
@@ -37,6 +33,7 @@ class Client {
 
   std::vector<OnlinePlayer> players{};
   std::vector<Bullet> bullets{};
+  std::vector<ChatEntry> chat{};
 
   int health{3};
   int playerId{-1};
@@ -62,6 +59,7 @@ public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
   void createBullet();
+  void sendChatMessage(const std::string &msg);
   // Connecting is asynchronous, so the game starts before this goes true.
   bool isConnected() const {
     return transport->isConnected();
@@ -71,6 +69,9 @@ public:
   };
   const std::vector<Bullet> &getBullets() const {
     return bullets;
+  };
+  const std::vector<ChatEntry> &getChat() const {
+    return chat;
   };
   const int &getHealth() const {
     return health;

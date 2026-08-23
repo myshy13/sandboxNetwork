@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include <cereal/archives/binary.hpp>
+#include <cereal/types/string.hpp>
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -21,7 +22,8 @@ enum class Type : uint8_t {
   NewBullet,
   DeleteBullet,
   PlayerHit,
-  Respawn
+  Respawn,
+  ChatMessage
 };
 
 struct PlayerUpdate {
@@ -41,12 +43,10 @@ struct DeletePlayer {
 };
 struct CreateBullet { // clients telling server
   int playerId;
-  // position, velocity, and bullet id calculated on the server
   template <class A> void serialize(A &ar) { ar(playerId); }
 };
 struct DeleteBullet { // clients telling server
   int id;
-  // position, velocity, and bullet id calculated on the server
   template <class A> void serialize(A &ar) { ar(id); }
 };
 struct NewBullet { // server telling clients
@@ -66,6 +66,11 @@ struct Respawn {
   Vector3 pos;
   template <class A> void serialize(A &ar) { ar(pos); }
 };
+struct ChatMessage {
+  std::string text;
+  int id;
+  template <class A> void serialize(A &ar) { ar(text, id); }
+};
 
 // ==== pack: struct -> bytes, tag prepended ==== //
 template <typename T> std::string pack(Type type, const T &msg) {
@@ -80,7 +85,6 @@ template <typename T> std::string pack(Type type, const T &msg) {
 
 // ==== unpack: peek tag, then caller reads the matching type ==== //
 Type peekType(const std::string &data);
-
 template <typename T> T unpack(const std::string &data) {
   std::istringstream is(data.substr(1), std::ios::binary);
   cereal::BinaryInputArchive ar(is);

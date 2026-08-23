@@ -7,16 +7,10 @@
 #include <string>
 
 // ==== outgoing messages ==== //
-
 void Client::sendPlayerPosition(const Transform &transform, float pitch, float yaw) {
   if (playerId == -1)
     return;
   auto bytes = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{playerId, transform.translation, pitch, yaw});
-  // Unreliable on purpose. A lost position is superseded a few frames later,
-  // so resending it is worse than useless: reliable packets also hold up
-  // everything behind them on the channel until the resend lands.
-  // ENet's unreliable-but-sequenced mode already discards any update that
-  // arrives older than one we've seen (see enet peer.c, incomingUnreliableSequenceNumber).
   transport->send(bytes, false);
 };
 
@@ -28,17 +22,12 @@ void Client::createBullet() {
 }
 
 // ==== connection setup ==== //
-
 Client::Client() {
   transport = makeTransport();
-  // Non-blocking - the handshake completes over the next few poll() calls.
-  // Until the server hands us an id, playerId stays -1 and the send helpers
-  // above no-op, so it is safe to start the game loop immediately.
   transport->connect(SERVER_IP, port);
 }
 
 // ==== incoming message handling ==== //
-
 void Client::poll() {
   while (auto data = transport->receive()) {
     if (!data->empty()) {
@@ -114,7 +103,23 @@ void Client::handleMessage(const std::string &data) {
     respawnTo = proto::unpack<proto::Respawn>(data).pos;
     break;
   }
+  case proto::Type::ChatMessage: {
+    auto msg = proto::unpack<proto::ChatMessage>(data);
+    ChatEntry entry;
+    entry.id         = msg.id;
+    entry.text       = msg.text;
+    entry.receivedAt = GetTime();
+    chat.push_back(entry);
+    break;
+  }
   default:
     break;
   }
+}
+
+void Client::sendChatMessage(const std::string &msg) {
+  if (playerId == -1)
+    return;
+  auto bytes = proto::pack(proto::Type::ChatMessage, proto::ChatMessage{msg, playerId});
+  transport->send(bytes, true);
 }

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <raymath.h>
 #include <string>
 
@@ -188,6 +189,11 @@ void Server::handleReceive(int playerId, const std::string &data) {
     break;
   }
 
+  case proto::Type::ChatMessage: {
+    auto msg = proto::unpack<proto::ChatMessage>(data);
+    broadcast(data, true);
+  }
+
   default:
     std::printf("Invalid request\n");
     break;
@@ -240,8 +246,6 @@ void Server::tick(float dt) {
       if (p.id == b.playerId) {
         continue; // don't hit the shooter
       }
-      // p.pos is the player's feet/base position, so the box extends
-      // upward from there rather than being centered on it.
       BoundingBox player;
       player.min = Vector3Subtract(
           p.pos, {PLAYER_SCALE.x * 0.5f, 0.0f, PLAYER_SCALE.z * 0.5f});
@@ -288,7 +292,6 @@ void Server::tick(float dt) {
 }
 
 // ==== transport plumbing ==== //
-
 void Server::pumpEnet() {
   ENetEvent event;
   // Doubles as the loop's pacing: blocks up to ~1 frame waiting for traffic.
