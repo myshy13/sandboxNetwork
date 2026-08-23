@@ -8,16 +8,15 @@ public:
   }
 
   float damageFlashTimer          = 0.0f;
-  const float damageFlashDuration = 0.5f;
+  const float flashDuration       = 0.4f;
 
-  float greenFlashTimer                     = 0.0f;
-  constexpr static float greenFlashDuration = 0.2f;
+  float greenFlashTimer = 0.0f;
 
   void TriggerDamageFlash() {
-    damageFlashTimer = damageFlashDuration;
+    damageFlashTimer = flashDuration;
   }
   void TriggerGreenFlash() {
-    greenFlashTimer = greenFlashDuration;
+    greenFlashTimer = flashDuration;
   }
 
 private:
