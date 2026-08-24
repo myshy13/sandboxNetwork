@@ -9,8 +9,6 @@
 bool paused = false;
 
 int main() {
-  float bulletCooldown = 0.0f;
-
   int screenWidth  = 1280;
   int screenHeight = 720;
   bool inChat      = false;
@@ -22,7 +20,7 @@ int main() {
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
   InitWindow(screenWidth, screenHeight, "Sandbox Network");
-  SetTargetFPS(60);
+  SetTargetFPS(120);
 
   SetExitKey(KEY_NULL);
 
@@ -124,8 +122,8 @@ int main() {
       }
       client.updateBullets(dt);
       for (auto &b : client.getBullets()) {
-        DrawCubeV(b.pos, {0.7f, 0.7f, 0.7f}, RED);
-        DrawCubeWiresV(b.pos, {0.7f, 0.7f, 0.7f}, BLACK);
+        DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
+        DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
       }
       player.Draw();
       DrawGrid(40, 10);
@@ -171,7 +169,7 @@ int main() {
       int y           = GetScreenHeight() - 20 - inputHeight - LINE_HEIGHT * (int)visible.size();
       for (auto it = visible.rbegin(); it != visible.rend(); ++it) {
         const ChatEntry &entry = chat[*it];
-        std::string line       = "Player " + std::to_string(entry.id) + ": " + entry.text;
+        std::string line       = entry.id == -1 ? entry.text : "Player " + std::to_string(entry.id) + ": " + entry.text;
         DrawRectangle(16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT, {0, 0, 0, 120});
         DrawText(line.c_str(), 20, y, FONT_SIZE, entry.id == -1 ? Color{200, 74, 64, 255} : WHITE);
         y += LINE_HEIGHT * std::count(line.begin(), line.end(), '\n') + 1;

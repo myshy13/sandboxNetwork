@@ -127,7 +127,8 @@ void Client::handleMessage(const std::string &data) {
     if (msg.health <= 0) {
       ChatEntry deathMessage;
       deathMessage.id   = -1;
-      deathMessage.text = "Player " + std::to_string(msg.shooterId) + " killed Player" + std::to_string(msg.id);
+      deathMessage.receivedAt = GetTime();
+      deathMessage.text = "Player " + std::to_string(msg.shooterId) + " killed Player " + std::to_string(msg.id);
       chat.push_back(deathMessage);
     }
     break;
