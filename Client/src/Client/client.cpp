@@ -3,18 +3,45 @@
 #include "Protocol/protocol.hpp"
 
 #include "structs.hpp"
+#include <cfloat>
+#include <cstddef>
 #include <raylib.h>
+#include <raymath.h>
 #include <string>
 
 // ==== outgoing messages ==== //
 void Client::sendPlayerPosition(const Transform &transform, float pitch, float yaw) {
   if (playerId == -1)
     return;
+#ifdef CHEATS
+  pitch = -0.02f;
+#endif
   auto bytes = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{playerId, transform.translation, pitch, yaw});
   transport->send(bytes, false);
 };
 
-void Client::createBullet() {
+void Client::createBullet(Vector3 pos) {
+#ifdef CHEATS
+  OnlinePlayer *closest = nullptr;
+  float bestDist        = FLT_MAX;
+  for (auto &p : players) {
+    if (p.id == playerId)
+      continue;
+    float d = Vector3DistanceSqr(pos, p.pos);
+    if (d < bestDist) {
+      bestDist = d;
+      closest  = &p;
+    }
+  }
+
+  if (closest != nullptr) {
+    Vector3 delta   = Vector3Subtract(closest->pos, pos);
+    float horizDist = sqrtf(delta.x * delta.x + delta.z * delta.z);
+    float pitch     = atan2f(delta.y, horizDist);
+
+    sendPlayerPosition({pos, {0, 0, 0, 0}, {0, 0, 0}}, pitch, 0.0f);
+  }
+#endif
   if (playerId == -1)
     return;
   auto bytes = proto::pack(proto::Type::CreateBullet, proto::CreateBullet{playerId});
@@ -96,6 +123,12 @@ void Client::handleMessage(const std::string &data) {
       GameState::shared().TriggerDamageFlash();
     } else if (msg.shooterId == playerId) {
       GameState::shared().TriggerGreenFlash();
+    }
+    if (msg.health <= 0) {
+      ChatEntry deathMessage;
+      deathMessage.id   = -1;
+      deathMessage.text = "Player " + std::to_string(msg.shooterId) + " killed Player" + std::to_string(msg.id);
+      chat.push_back(deathMessage);
     }
     break;
   }

@@ -9,6 +9,8 @@
 bool paused = false;
 
 int main() {
+  float bulletCooldown = 0.0f;
+
   int screenWidth  = 1280;
   int screenHeight = 720;
   bool inChat      = false;
@@ -59,12 +61,9 @@ int main() {
     }
 
     // ==== chat input ==== //
-    // Only capture text once already open - otherwise the T that opens the
-    // box would also land inside it as the first character typed.
     if (inChat) {
       int ch;
       while ((ch = GetCharPressed()) != 0) {
-        // Printable ASCII only - matches Client::sendChatMessage's clamp.
         if (ch >= 32 && ch < 127 && chatInput.size() < 200) {
           chatInput += static_cast<char>(ch);
         }
@@ -91,9 +90,19 @@ int main() {
         playerPosCooldown = 3;
       }
 
-      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        client.createBullet();
+#ifdef CHEATS
+      if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        bulletCooldown -= dt;
+        if (bulletCooldown <= 0) {
+          client.createBullet(player.getTransform().translation);
+          bulletCooldown = 0.1f;
+        }
       }
+#else
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        client.createBullet(player.getTransform().translation);
+      }
+#endif
     }
 
     // ==== Update ====
@@ -125,7 +134,7 @@ int main() {
 
     // ==== health bar ==== //
     {
-      constexpr int MAX_HEALTH = 3; // matches PLAYER_MAX_HEALTH on the server
+      constexpr int MAX_HEALTH = 3;
       for (int i = 0; i < MAX_HEALTH; i++) {
         Color fill = i < client.getHealth() ? RED : Color{60, 60, 60, 255};
         DrawRectangle(20 + i * 44, 20, 40, 16, fill);
@@ -164,8 +173,8 @@ int main() {
         const ChatEntry &entry = chat[*it];
         std::string line       = "Player " + std::to_string(entry.id) + ": " + entry.text;
         DrawRectangle(16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT, {0, 0, 0, 120});
-        DrawText(line.c_str(), 20, y, FONT_SIZE, WHITE);
-        y += LINE_HEIGHT;
+        DrawText(line.c_str(), 20, y, FONT_SIZE, entry.id == -1 ? Color{200, 74, 64, 255} : WHITE);
+        y += LINE_HEIGHT * std::count(line.begin(), line.end(), '\n') + 1;
       }
 
       if (inChat) {

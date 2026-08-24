@@ -8,7 +8,7 @@ public:
   }
 
   float damageFlashTimer          = 0.0f;
-  const float flashDuration       = 0.4f;
+  const float flashDuration       = 0.1f;
 
   float greenFlashTimer = 0.0f;
 

@@ -37,8 +37,6 @@ public:
   Perspective getPerspective() {
     return perspective;
   }
-  // Teleport, for the one case the server overrides us: respawning. Clears
-  // velocity too, or you reappear still falling at the speed that killed you.
   void setPosition(Vector3 pos) {
     transform.translation = pos;
     velocity              = Vector3Zero();

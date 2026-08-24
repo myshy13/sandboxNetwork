@@ -58,7 +58,7 @@ class Client {
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
-  void createBullet();
+  void createBullet(Vector3 pos);
   void sendChatMessage(const std::string &msg);
   // Connecting is asynchronous, so the game starts before this goes true.
   bool isConnected() const {
