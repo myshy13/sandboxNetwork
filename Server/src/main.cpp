@@ -1,10 +1,15 @@
 #include "Server/server.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 int main(int argc, char **argv) {
+  srand(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
+
   int wsPort = 0;
 
   for (int i = 1; i < argc; i++) {
