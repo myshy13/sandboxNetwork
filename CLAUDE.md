@@ -25,7 +25,6 @@ Take actions to try and educate the creator the most.
 ## Git
 
 - When committing, omit the "Co-Authored-By: Claude" trailer unless the
-  commit's own diff (added + removed lines, that commit only) is more
-  than 10 lines. Under that, commit without the trailer.
+  amount that you contributed is over ~50% of the code in that 1 commit.
 - After making 3 or more commits in a session that haven't been pushed
   yet, push the current branch to its remote.
