@@ -5,7 +5,6 @@
 #include <optional>
 #include <raylib.h>
 #include <raymath.h>
-#include <sstream>
 #include <string>
 #include <vector>
 
