@@ -1,12 +1,18 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
+#include <iostream>
+#include <optional>
 #include <raylib.h>
 #include <raymath.h>
+#include <sstream>
 #include <string>
 #include <vector>
 
 bool paused = false;
+#ifdef CHEATS
+float bulletCooldown = 0.0f;
+#endif
 
 int main() {
   int screenWidth  = 1280;
@@ -20,7 +26,6 @@ int main() {
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
   InitWindow(screenWidth, screenHeight, "Sandbox Network");
-  SetTargetFPS(120);
 
   SetExitKey(KEY_NULL);
 
@@ -71,7 +76,30 @@ int main() {
       }
       if (IsKeyPressed(KEY_ENTER)) {
         if (!chatInput.empty()) {
-          client.sendChatMessage(chatInput);
+          if (chatInput.starts_with("/")) {
+            chatInput.erase(0, 1);
+            if (chatInput.starts_with("setname ")) {
+              chatInput.erase(0, 8);
+              client.setName(chatInput);
+              std::cout << "Set name to " << chatInput << "\n";
+            } else if (chatInput.starts_with("clear")) {
+              client.clearChat();
+            }
+#ifdef CHEATS
+            else if (chatInput.starts_with("tp ")) {
+              chatInput.erase(0, 3);
+              std::stringstream pos(chatInput);
+              Vector3 p;
+              if (pos >> p.x >> p.y >> p.z) {
+                player.setPosition(p);
+              }
+            } else {
+              client.addLocalChat("Command not found");
+            }
+#endif
+          } else {
+            client.sendChatMessage(chatInput);
+          }
           chatInput.clear();
         }
         inChat = false;
@@ -79,15 +107,26 @@ int main() {
     } else if (IsKeyPressed(KEY_T)) {
       inChat = true;
       paused = false;
+    } else if (IsKeyPressed(KEY_SLASH)) {
+      inChat    = true;
+      paused    = false;
+      chatInput = "/";
     }
 
-    if (!paused && !inChat) {
+    if (!paused) {
+      // Chat freezes input, not the world: the player keeps falling/sliding
+      // while you type, and other clients keep seeing you move.
+      player.inputEnabled = !inChat;
+      player.Update(dt, camera);
+
       playerPosCooldown--;
       if (playerPosCooldown <= 0) {
         client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
         playerPosCooldown = 3;
       }
+    }
 
+    if (!paused && !inChat) {
 #ifdef CHEATS
       if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
         bulletCooldown -= dt;
@@ -98,15 +137,11 @@ int main() {
       }
 #else
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        client.createBullet(player.getTransform().translation);
+        client.createBullet();
       }
 #endif
     }
 
-    // ==== Update ====
-    if (!paused && !inChat) {
-      player.Update(dt, camera);
-    }
     // ==== Draw ====
     {
       BeginDrawing();
@@ -170,13 +205,23 @@ int main() {
       for (auto it = visible.rbegin(); it != visible.rend(); ++it) {
         const ChatEntry &entry = chat[*it];
         std::string line       = entry.id == -1 ? entry.text : "Player " + std::to_string(entry.id) + ": " + entry.text;
+        if (entry.id != client.getPlayerId()) {
+          OnlinePlayer *p = client.findPlayer(entry.id);
+          if (p && p->name.has_value()) {
+            line = p->name.value() + ": " + entry.text;
+          }
+        } else {
+          const std::optional<std::string> &clientName = client.getName();
+          if (clientName && clientName.has_value()) {
+            line = clientName.value() + ": " + entry.text;
+          }
+        }
         DrawRectangle(16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT, {0, 0, 0, 120});
         DrawText(line.c_str(), 20, y, FONT_SIZE, entry.id == -1 ? Color{200, 74, 64, 255} : WHITE);
-        y += LINE_HEIGHT * std::count(line.begin(), line.end(), '\n') + 1;
+        y += LINE_HEIGHT * ((int)std::count(line.begin(), line.end(), '\n') + 1);
       }
 
       if (inChat) {
-        // ~2Hz blink, Minecraft/terminal-style.
         const char *cursor = (int)(GetTime() * 2) % 2 == 0 ? "_" : "";
         std::string prompt = "> " + chatInput + cursor;
         int boxY           = GetScreenHeight() - 20 - LINE_HEIGHT;
@@ -195,11 +240,17 @@ int main() {
     } else if (gameState.greenFlashTimer > 0) {
       DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {10, 100, 10, 50});
       gameState.greenFlashTimer -= dt;
-    } else {
+    }
+    if (!paused) {
       // ==== draw crosshair ==== //
       Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
       DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
     }
+
+#ifdef DEBUG
+    const char *fps = TextFormat("FPS: %d", GetFPS());
+    DrawText(fps, GetScreenWidth() - MeasureText(fps, 20) - 10, 10, 20, LIME);
+#endif
 
     EndDrawing();
   }

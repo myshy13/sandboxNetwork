@@ -1,6 +1,14 @@
+
 #pragma once
 
-// Copy this file to env.hpp (which is gitignored) and point it at your own
-// server. client.hpp falls back to localhost if env.hpp doesn't exist.
+#ifndef SERVER_IP
 #define SERVER_IP "127.0.0.1"
+#endif
+#ifndef SERVER_PORT
 #define SERVER_PORT 9798
+#endif
+
+// #define SERVER_WSS
+// #define DEBUG
+
+// #define CHEATS

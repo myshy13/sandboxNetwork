@@ -20,8 +20,10 @@ void Client::sendPlayerPosition(const Transform &transform, float pitch, float y
   transport->send(bytes, false);
 };
 
+#ifndef CHEATS
+void Client::createBullet() {
+#else
 void Client::createBullet(Vector3 pos) {
-#ifdef CHEATS
   OnlinePlayer *closest = nullptr;
   float bestDist        = FLT_MAX;
   for (auto &p : players) {
@@ -126,9 +128,9 @@ void Client::handleMessage(const std::string &data) {
     }
     if (msg.health <= 0) {
       ChatEntry deathMessage;
-      deathMessage.id   = -1;
+      deathMessage.id         = -1;
       deathMessage.receivedAt = GetTime();
-      deathMessage.text = "Player " + std::to_string(msg.shooterId) + " killed Player " + std::to_string(msg.id);
+      deathMessage.text       = "Player " + std::to_string(msg.shooterId) + " killed Player " + std::to_string(msg.id);
       chat.push_back(deathMessage);
     }
     break;
@@ -146,6 +148,14 @@ void Client::handleMessage(const std::string &data) {
     chat.push_back(entry);
     break;
   }
+  case proto::Type::SetName: {
+    proto::SetName msg = proto::unpack<proto::SetName>(data);
+    OnlinePlayer *p    = findPlayer(msg.id);
+    if (p) {
+      p->name = msg.name;
+    }
+    break;
+  }
   default:
     break;
   }
@@ -156,4 +166,13 @@ void Client::sendChatMessage(const std::string &msg) {
     return;
   auto bytes = proto::pack(proto::Type::ChatMessage, proto::ChatMessage{msg, playerId});
   transport->send(bytes, true);
+}
+
+void Client::setName(const std::string &newname) {
+  if (playerId == -1)
+    return;
+  playerName = newname;
+  auto bytes = proto::pack(proto::Type::SetName, proto::SetName{newname, playerId});
+  transport->send(bytes, true);
+  std::cout << "SENT NAME\n";
 }

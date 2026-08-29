@@ -21,6 +21,10 @@ private:
   Perspective perspective = FirstPerson;
 
 public:
+  // When false, Update still runs physics (gravity, momentum, collision) but
+  // ignores keyboard/mouse - used while the chat box has focus.
+  bool inputEnabled = true;
+
   void Update(float dt, Camera3D &camera) override;
   void UpdateCamera(Camera3D &camera) const;
   void Draw() const override;

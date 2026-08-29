@@ -19,6 +19,7 @@ The meaning of this project is for the creator to learn about multiplayer games
 and getting more overall experience building games.
 
 Take actions to try and educate the creator the most.
+Do not do any code unless you have concrete evidence that they already would know how.
 
 > **Note:** To do this, you should try and teach the creator how specific things work.
 

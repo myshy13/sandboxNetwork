@@ -43,7 +43,7 @@ Server::Server(int wsPort) {
   std::printf("ENet initialized\n");
 
   ENetAddress address;
-  address.host = ENET_HOST_ANY;
+  enet_address_set_host(&address, "192.168.10.111");
   address.port = port;
 
   host = enet_host_create(&address, 32, 2, 0, 0);
@@ -121,7 +121,6 @@ std::optional<Bullet> Server::createBullet(int playerId) {
 };
 
 // ==== event handlers ==== //
-
 int Server::handleConnect(std::unique_ptr<Connection> connection) {
   const int id = nextClientId;
   nextClientId++;
@@ -192,6 +191,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
   case proto::Type::ChatMessage: {
     auto msg = proto::unpack<proto::ChatMessage>(data);
     broadcast(data, true);
+    break;
+  }
+
+  case proto::Type::SetName: {
+    auto msg = proto::unpack<proto::SetName>(data);
+    if (auto *p = findPlayer(msg.id)) {
+      p->displayName = msg.name;
+      broadcast(data, true);
+    }
+    break;
   }
 
   default:
@@ -205,7 +214,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
 constexpr float TICK_RATE = 1.0f / 60.0f;
 
 // same as the client's default Player scale (Client/src/Player/player.cpp)
-constexpr Vector3 PLAYER_SCALE = {1.0f, 10.0f, 1.0f};
+constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
 
 // Slab test: true if the segment start->end passes through box, so a fast
 // bullet can't tunnel through a player between ticks (a plain point-in-box

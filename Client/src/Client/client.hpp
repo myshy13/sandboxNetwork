@@ -19,6 +19,7 @@ struct OnlinePlayer {
   Vector3 pos{0, 0, 0};
   float pitch{0.0f};
   float yaw{0.0f};
+  std::optional<std::string> name;
 };
 
 struct ChatEntry {
@@ -34,18 +35,12 @@ class Client {
   std::vector<OnlinePlayer> players{};
   std::vector<Bullet> bullets{};
   std::vector<ChatEntry> chat{};
+  std::optional<std::string> playerName;
 
   int health{3};
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 
-  OnlinePlayer *findPlayer(int id) {
-    for (auto &p : players) {
-      if (p.id == id)
-        return &p;
-    }
-    return nullptr;
-  }
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
                            [id](const OnlinePlayer &p) { return p.id == id; });
@@ -58,8 +53,20 @@ class Client {
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
+#ifdef CHEATS
   void createBullet(Vector3 pos);
+#else
+  void createBullet();
+#endif
   void sendChatMessage(const std::string &msg);
+  void setName(const std::string &msg);
+  OnlinePlayer *findPlayer(int id) {
+    for (auto &p : players) {
+      if (p.id == id)
+        return &p;
+    }
+    return nullptr;
+  }
   // Connecting is asynchronous, so the game starts before this goes true.
   bool isConnected() const {
     return transport->isConnected();
@@ -70,9 +77,25 @@ public:
   const std::vector<Bullet> &getBullets() const {
     return bullets;
   };
+  const std::optional<std::string> &getName() const {
+    return playerName;
+  };
   const std::vector<ChatEntry> &getChat() const {
     return chat;
   };
+  void addLocalChat(std::string text) {
+    ChatEntry c;
+    c.id         = -1;
+    c.receivedAt = GetTime();
+    c.text       = text;
+    chat.push_back(c);
+  }
+  const int &getPlayerId() const {
+    return playerId;
+  }
+  void clearChat() {
+    chat = {};
+  }
   const int &getHealth() const {
     return health;
   };

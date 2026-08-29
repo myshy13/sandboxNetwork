@@ -28,20 +28,17 @@ struct Player {
   float pitch{0.0f};
   float yaw{0.0f};
   int health{PLAYER_MAX_HEALTH};
+  std::optional<std::string> displayName;
 };
 
 class Server {
   int port{9798};
   ENetHost *host;
 
-  // Declared before `connections` on purpose: a WebSocket Connection holds a
-  // reference back into the proxy, and members are destroyed in reverse
-  // declaration order, so the connections must die first.
   std::unique_ptr<WsProxy> wsProxy;
 
   // Every client, ENet and WebSocket alike, keyed by player id.
   std::unordered_map<int, std::unique_ptr<Connection>> connections;
-  // WebSocket clients have no equivalent of ENetPeer::data to stash an id in.
   std::unordered_map<std::string, int> wsPlayerIds;
 
   int nextClientId{1};

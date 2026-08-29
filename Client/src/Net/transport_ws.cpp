@@ -3,6 +3,7 @@
 // Compiled only for Emscripten builds - see Client/CMakeLists.txt.
 
 #include "Net/transport.hpp"
+#include "env.hpp"
 
 #include <cstdio>
 #include <deque>
@@ -26,7 +27,11 @@ public:
 
     // Held as a member: emscripten_websocket_new() does not copy the url,
     // so it has to outlive the call.
+#ifdef SERVER_WSS
+    url = "wss://" + hostName + ":" + std::to_string(port);
+#else
     url = "ws://" + hostName + ":" + std::to_string(port);
+#endif
 
     EmscriptenWebSocketCreateAttributes attrs;
     emscripten_websocket_init_create_attributes(&attrs);

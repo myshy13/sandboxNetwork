@@ -28,7 +28,9 @@ private:
 } // namespace
 
 WsProxy::WsProxy(int port) {
-  server = std::make_unique<ix::WebSocketServer>(port);
+  // IXWebSocket defaults its listen host to 127.0.0.1; bind all interfaces so
+  // browsers on the LAN can reach the proxy.
+  server = std::make_unique<ix::WebSocketServer>(port, "0.0.0.0");
 
   server->setOnClientMessageCallback(
       [this](std::shared_ptr<ix::ConnectionState> state, ix::WebSocket &socket,

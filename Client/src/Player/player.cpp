@@ -9,7 +9,7 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D &camera) {
-  if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+  if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
     DisableCursor();
   }
 
@@ -35,14 +35,16 @@ void Player::Update(float dt, Camera3D &camera) {
 
   Vector3 moveDir = Vector3Zero();
 
-  if (IsKeyDown(KEY_W))
-    moveDir = Vector3Add(moveDir, moveForward);
-  if (IsKeyDown(KEY_S))
-    moveDir = Vector3Subtract(moveDir, moveForward);
-  if (IsKeyDown(KEY_D))
-    moveDir = Vector3Add(moveDir, moveRight);
-  if (IsKeyDown(KEY_A))
-    moveDir = Vector3Subtract(moveDir, moveRight);
+  if (inputEnabled) {
+    if (IsKeyDown(KEY_W))
+      moveDir = Vector3Add(moveDir, moveForward);
+    if (IsKeyDown(KEY_S))
+      moveDir = Vector3Subtract(moveDir, moveForward);
+    if (IsKeyDown(KEY_D))
+      moveDir = Vector3Add(moveDir, moveRight);
+    if (IsKeyDown(KEY_A))
+      moveDir = Vector3Subtract(moveDir, moveRight);
+  }
 
   float multiplier = onGround ? 1.0f : 0.05f;
   if (IsKeyDown(KEY_LEFT_SHIFT)) {
@@ -54,7 +56,7 @@ void Player::Update(float dt, Camera3D &camera) {
     velocity = Vector3Add(velocity, Vector3Scale(moveDir, speed * multiplier * dt * 60));
   }
 
-  if (onGround && IsKeyDown(KEY_SPACE)) {
+  if (inputEnabled && onGround && IsKeyDown(KEY_SPACE)) {
     onGround   = false;
     velocity.y = jumpPower;
   }
@@ -70,7 +72,10 @@ void Player::Update(float dt, Camera3D &camera) {
   velocity.z *= damping;
   if (!onGround) {
     velocity.y -= GRAVITY * dt;
-    velocity.y = Clamp(velocity.y, -20.0f, jumpPower);
+    // Terminal velocity: cap how fast we can fall. Upper bound is jumpPower so
+    // an upward launch is never clamped away.
+    constexpr float TERMINAL_VELOCITY = -60.0f;
+    velocity.y = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
   }
   // to stop tiny fractions
   if (Vector3LengthSqr(velocity) < 0.01f) {
@@ -80,7 +85,11 @@ void Player::Update(float dt, Camera3D &camera) {
   transform.translation = Vector3Add(transform.translation, Vector3Scale(velocity, dt));
 
   // ==== mouse rotaton =====
+  // Always call GetMouseDelta so the delta doesn't accumulate while ignored,
+  // which would snap the camera when input is re-enabled.
   Vector2 mouseDelta = GetMouseDelta();
+  if (!inputEnabled)
+    mouseDelta = {0.0f, 0.0f};
 
   float mouseSensitivity = 0.003f;
 
@@ -92,7 +101,7 @@ void Player::Update(float dt, Camera3D &camera) {
 
   transform.rotation = QuaternionFromEuler(pitch, yaw, 0.0f);
 
-  if (IsKeyPressed(KEY_C)) {
+  if (inputEnabled && IsKeyPressed(KEY_C)) {
     perspective = perspective == FirstPerson ? ThirdPerson : FirstPerson;
   }
 
@@ -122,7 +131,7 @@ Player::Player() {
   spawnPos.z            = rand() % 200 - 100;
   spawnPos.y            = 10;
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
-  transform.scale       = {1, 10, 1};
+  transform.scale       = {1.5f, 10, 1.5f};
   transform.translation = spawnPos;
   onGround              = false;
 

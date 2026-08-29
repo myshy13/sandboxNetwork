@@ -23,7 +23,8 @@ enum class Type : uint8_t {
   DeleteBullet,
   PlayerHit,
   Respawn,
-  ChatMessage
+  ChatMessage,
+  SetName
 };
 
 struct PlayerUpdate {
@@ -70,6 +71,11 @@ struct ChatMessage {
   std::string text;
   int id;
   template <class A> void serialize(A &ar) { ar(text, id); }
+};
+struct SetName {
+  std::string name;
+  int id;
+  template <class A> void serialize(A &ar) { ar(name, id); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //
