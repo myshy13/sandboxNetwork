@@ -8,12 +8,9 @@ they build on what already exists. Not commitments, just a running list.
 - ~~**Display names.**~~ Done (`458615e`). Client sends a chosen name in
   the connect handshake, server stores it on `Player` and threads it
   through chat / hit / connect log instead of raw ids.
-- **Building/placing blocks.** The project is a "sandbox" but there's
-  currently no way to place or remove anything - `DrawGrid` is the whole
-  world. Even a minimal version (a fixed block size, a `PlaceBlock`/
-  `RemoveBlock` protocol pair, a `std::vector<Vector3>` of block positions
-  broadcast to new joiners) would be a big step toward the project's own
-  name.
+- ~~**Building/placing blocks.**~~ Done (`c6e3929`, `af939dd`). Fixed-size
+  blocks, place/break protocol pair, positions broadcast to new joiners,
+  player collision against placed blocks.
 - **World bounds.** `spawnPos` picks random x/z in [-100, 100] but nothing
   stops a player (or a bullet) from wandering or falling forever outside
   that range. A void/out-of-bounds check that triggers a respawn (reusing
