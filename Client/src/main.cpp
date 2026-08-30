@@ -125,7 +125,7 @@ int main() {
       // Chat freezes input, not the world: the player keeps falling/sliding
       // while you type, and other clients keep seeing you move.
       player.inputEnabled = !inChat;
-      player.Update(dt, camera);
+      player.Update(dt, camera, world.getObjects());
 
       playerPosCooldown--;
       if (playerPosCooldown <= 0) {

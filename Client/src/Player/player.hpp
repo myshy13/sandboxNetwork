@@ -2,8 +2,10 @@
 #define SANDBOXNET_PLAYER
 
 #include "Entity/entity.hpp"
+#include "Models/Object.hpp"
 #include <raylib.h>
 #include <raymath.h>
+#include <vector>
 
 enum Perspective {
   FirstPerson,
@@ -25,7 +27,7 @@ public:
   // ignores keyboard/mouse - used while the chat box has focus.
   bool inputEnabled = true;
 
-  void Update(float dt, Camera3D &camera) override;
+  void Update(float dt, Camera3D &camera, const std::vector<Object> &blocks);
   void UpdateCamera(Camera3D &camera) const;
   void Draw() const override;
   Transform getTransform() {

@@ -1,4 +1,5 @@
 #include "Player/player.hpp"
+#include "Models/Object.hpp"
 #include <cstdlib>
 #include <raylib.h>
 #include <raymath.h>
@@ -8,7 +9,7 @@
 
 constexpr float GRAVITY = 140.0f;
 
-void Player::Update(float dt, Camera3D &camera) {
+void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &blocks) {
   if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
     DisableCursor();
   }
@@ -27,10 +28,39 @@ void Player::Update(float dt, Camera3D &camera) {
   moveRight         = Vector3Normalize(moveRight);
 
   constexpr float GROUND_Y = 0.0f;
-  if (velocity.y <= 0.0f && transform.translation.y <= GROUND_Y) {
-    onGround                = true;
-    velocity.y              = 0;
-    transform.translation.y = GROUND_Y;
+
+  // ==== collision helpers ====
+  Vector3 half = {transform.scale.x * 0.5f, 0.0f, transform.scale.z * 0.5f};
+
+  // True if a box overlaps any placed block.
+  auto hitsBlock = [&](BoundingBox b) {
+    for (const Object &o : blocks) {
+      ObjectTransform t = o.getTransform();
+      Vector3 h         = Vector3Scale(t.scale, 0.5f);
+      if (CheckCollisionBoxes(b, {Vector3Subtract(t.pos, h), Vector3Add(t.pos, h)})) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // The player's body box, bottom at the feet (translation), scale tall.
+  auto blocked = [&](Vector3 feet) {
+    return hitsBlock({Vector3Subtract(feet, half),
+                      Vector3Add(Vector3Subtract(feet, half), transform.scale)});
+  };
+
+  // Grounded = on the floor plane, or a thin slab just under the feet touches
+  // a block. A foot slab (not the whole body) so standing beside a wall
+  // doesn't count as standing on it. Recomputed each frame -> walk off a
+  // ledge and you start falling next frame.
+  BoundingBox feetSlab{Vector3Subtract(transform.translation, {half.x, 0.2f, half.z}),
+                       Vector3Add(transform.translation, {half.x, 0.0f, half.z})};
+  onGround = transform.translation.y <= GROUND_Y || hitsBlock(feetSlab);
+  if (onGround && velocity.y <= 0.0f) {
+    velocity.y = 0.0f;
+    if (transform.translation.y < GROUND_Y) {
+      transform.translation.y = GROUND_Y;
+    }
   }
 
   Vector3 moveDir = Vector3Zero();
@@ -75,18 +105,41 @@ void Player::Update(float dt, Camera3D &camera) {
     // Terminal velocity: cap how fast we can fall. Upper bound is jumpPower so
     // an upward launch is never clamped away.
     constexpr float TERMINAL_VELOCITY = -60.0f;
-    velocity.y = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
+    velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
   }
   // to stop tiny fractions
   if (Vector3LengthSqr(velocity) < 0.01f) {
     velocity = Vector3Zero();
   }
 
-  transform.translation = Vector3Add(transform.translation, Vector3Scale(velocity, dt));
+  // ==== move + collide, one axis at a time ====
+  Vector3 pos  = transform.translation;
+  Vector3 step = Vector3Scale(velocity, dt);
+
+  pos.x += step.x;
+  if (blocked(pos)) {
+    pos.x -= step.x;
+    velocity.x = 0.0f;
+  }
+
+  pos.z += step.z;
+  if (blocked(pos)) {
+    pos.z -= step.z;
+    velocity.z = 0.0f;
+  }
+
+  pos.y += step.y;
+  if (blocked(pos)) {
+    if (step.y < 0.0f) {
+      onGround = true; // landed on a block top
+    }
+    pos.y -= step.y;
+    velocity.y = 0.0f;
+  }
+
+  transform.translation = pos;
 
   // ==== mouse rotaton =====
-  // Always call GetMouseDelta so the delta doesn't accumulate while ignored,
-  // which would snap the camera when input is re-enabled.
   Vector2 mouseDelta = GetMouseDelta();
   if (!inputEnabled)
     mouseDelta = {0.0f, 0.0f};

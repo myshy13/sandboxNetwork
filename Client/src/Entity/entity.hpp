@@ -8,7 +8,6 @@ class Entity {
 public:
   virtual ~Entity() = default;
 
-  virtual void Update(float dt, Camera3D &camera) = 0;
   virtual void Draw() const {
     Matrix matScale       = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
     Matrix matRotation    = QuaternionToMatrix(transform.rotation);
