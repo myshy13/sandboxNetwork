@@ -133,6 +133,7 @@ void Client::handleMessage(const std::string &data) {
       deathMessage.receivedAt = GetTime();
       deathMessage.text       = "Player " + std::to_string(msg.shooterId) + " killed Player " + std::to_string(msg.id);
       chat.push_back(deathMessage);
+      kills[msg.shooterId] += 1;
     }
     break;
   }

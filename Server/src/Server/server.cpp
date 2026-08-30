@@ -310,6 +310,7 @@ void Server::tick(float dt) {
           sendTo(p.id,
                  proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}),
                  true);
+          kills[b.playerId] += 1;
         }
 
         broadcast(proto::pack(proto::Type::PlayerHit,

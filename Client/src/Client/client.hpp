@@ -8,6 +8,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -37,6 +38,7 @@ class Client {
   std::vector<Bullet> bullets{};
   std::vector<ChatEntry> chat{};
   std::optional<std::string> playerName;
+  std::unordered_map<int, int> kills;
 
   int health{3};
   int playerId{-1};

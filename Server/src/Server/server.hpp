@@ -42,6 +42,8 @@ class Server {
   std::unordered_map<int, std::unique_ptr<Connection>> connections;
   std::unordered_map<std::string, int> wsPlayerIds;
 
+  std::unordered_map<int, int> kills;
+
   int nextClientId{1};
   int nextBulletId{1};
   int nextObjectId{1};
