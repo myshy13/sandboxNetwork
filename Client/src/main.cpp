@@ -8,6 +8,7 @@
 #include <raymath.h>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 bool paused = false;
@@ -239,6 +240,38 @@ int main() {
         int boxY           = GetScreenHeight() - 20 - LINE_HEIGHT;
         DrawRectangle(16, boxY - 2, GetScreenWidth() - 32, LINE_HEIGHT + 4, {0, 0, 0, 160});
         DrawText(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
+      }
+    }
+
+    if (IsKeyDown(KEY_TAB)) {
+      // Tab Kills UI - hold Tab for the scoreboard, sorted by kills.
+      constexpr int ROW_HEIGHT = 28;
+      constexpr int FONT_SIZE  = 20;
+      const int rowWidth       = (int)(GetScreenWidth() * 0.6f);
+      const int x              = GetScreenWidth() / 2 - rowWidth / 2;
+
+      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 120});
+
+      std::vector<std::pair<int, int>> rows(client.getKills().begin(), client.getKills().end());
+      std::sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
+
+      int y = 80;
+      DrawRectangle(x, y, rowWidth, ROW_HEIGHT * ((int)rows.size() + 1), {0, 0, 0, 160});
+      DrawText("Kills", x + 10, y + 4, FONT_SIZE, {200, 200, 200, 255});
+      y += ROW_HEIGHT;
+      for (const auto &[id, kills] : rows) {
+        std::string name = "Player " + std::to_string(id);
+        if (id == client.getPlayerId()) {
+          if (const auto &n = client.getName(); n.has_value()) {
+            name = n.value();
+          }
+        } else if (OnlinePlayer *p = client.findPlayer(id); p && p->name.has_value()) {
+          name = p->name.value();
+        }
+        DrawText(name.c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
+        std::string k = std::to_string(kills);
+        DrawText(k.c_str(), x + rowWidth - 10 - MeasureText(k.c_str(), FONT_SIZE), y + 4, FONT_SIZE, WHITE);
+        y += ROW_HEIGHT;
       }
     }
 

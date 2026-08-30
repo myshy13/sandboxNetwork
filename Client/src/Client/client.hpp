@@ -90,6 +90,9 @@ public:
   const std::vector<ChatEntry> &getChat() const {
     return chat;
   };
+  const std::unordered_map<int, int> &getKills() const {
+    return kills;
+  };
   void addLocalChat(std::string text) {
     ChatEntry c;
     c.id         = -1;
