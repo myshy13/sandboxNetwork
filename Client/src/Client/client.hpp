@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Models/Object.hpp"
 #include "Net/transport.hpp"
 #include "structs.hpp"
 #include <algorithm>
@@ -41,6 +42,9 @@ class Client {
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 
+  std::vector<Object> pendingObjects{};
+  std::vector<int> pendingRemovals{};
+
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
                            [id](const OnlinePlayer &p) { return p.id == id; });
@@ -60,6 +64,7 @@ public:
 #endif
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
+  void placeObject(const Object &object);
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
       if (p.id == id)
@@ -102,6 +107,12 @@ public:
   // Returns a position exactly once per respawn, nullopt otherwise.
   std::optional<Vector3> takeRespawn() {
     return std::exchange(respawnTo, std::nullopt);
+  }
+  std::vector<Object> takeNewObjects() {
+    return std::exchange(pendingObjects, {});
+  }
+  std::vector<int> takeRemovedObjects() {
+    return std::exchange(pendingRemovals, {});
   }
   void updateBullets(float dt) {
     for (Bullet &b : bullets) {

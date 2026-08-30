@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
 
@@ -43,7 +44,9 @@ class Server {
 
   int nextClientId{1};
   int nextBulletId{1};
+  int nextObjectId{1};
   std::vector<Player> players{};
+  std::vector<Object> objects{};
   std::vector<Bullet> bullets;
 
   Player *findPlayer(int id) {

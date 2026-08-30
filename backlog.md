@@ -5,13 +5,9 @@ they build on what already exists. Not commitments, just a running list.
 
 ## Gameplay
 
-- **Display names.** Right now players are bare integer ids everywhere -
-  the health bar, chat (`Player 3: hey`), the console log on connect. Have
-  the client send a chosen name during the connect handshake (a new field
-  on `GivenId`'s reply, or a follow-up message once `playerId` is known),
-  store it alongside `Player` on the server, and thread it through
-  `PlayerHit`/`ChatMessage`/etc. instead of raw ids. Low effort, and every
-  other feature below reads better once names exist.
+- ~~**Display names.**~~ Done (`458615e`). Client sends a chosen name in
+  the connect handshake, server stores it on `Player` and threads it
+  through chat / hit / connect log instead of raw ids.
 - **Building/placing blocks.** The project is a "sandbox" but there's
   currently no way to place or remove anything - `DrawGrid` is the whole
   world. Even a minimal version (a fixed block size, a `PlaceBlock`/
@@ -55,8 +51,7 @@ protocol is to cheat on - noting it here so it doesn't get lost:
 - Server-side length/rate limiting on `ChatMessage` (the client already
   clamps to 200 chars, but nothing stops a modified client from spamming
   short messages rapidly).
-- Show display names instead of ids once the display-name feature above
-  exists.
+- ~~Show display names instead of ids~~ Done with the display-name feature.
 
 ## Web build
 

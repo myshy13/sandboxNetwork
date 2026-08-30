@@ -1,4 +1,5 @@
 #include "Server/server.hpp"
+#include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 #include "enet/enet.h"
 #include "raylib.h"
@@ -138,6 +139,11 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   players.push_back(newPlayer);
 
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
+
+  // Catch the newcomer up on blocks placed before they joined.
+  for (const Object &o : objects) {
+    sendTo(id, proto::pack(proto::Type::NewObject, proto::NewObject{o}), true);
+  }
   return id;
 }
 
@@ -203,6 +209,22 @@ void Server::handleReceive(int playerId, const std::string &data) {
     break;
   }
 
+  case proto::Type::PlaceObject: {
+    auto msg = proto::unpack<proto::PlaceObject>(data);
+    msg.object.setId(nextObjectId++); // server owns ids, clients send -1
+    objects.push_back(msg.object);
+    broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
+              true); // reliable
+    break;
+  }
+  case proto::Type::RemoveObject: {
+    auto msg = proto::unpack<proto::RemoveObject>(data);
+    std::erase_if(objects,
+                  [&](const Object &o) { return o.getId() == msg.id; });
+    broadcast(data, true);
+    break;
+  }
+
   default:
     std::printf("Invalid request\n");
     break;
@@ -216,9 +238,6 @@ constexpr float TICK_RATE = 1.0f / 60.0f;
 // same as the client's default Player scale (Client/src/Player/player.cpp)
 constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
 
-// Slab test: true if the segment start->end passes through box, so a fast
-// bullet can't tunnel through a player between ticks (a plain point-in-box
-// check at the post-move position can miss a player it swept straight past).
 bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
   Vector3 dir = Vector3Subtract(end, start);
   float tMin = 0.0f;
@@ -251,7 +270,24 @@ void Server::tick(float dt) {
     Vector3 prevPos = b.pos;
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
 
+    std::erase_if(objects, [&](const Object &object) {
+      ObjectTransform t = object.getTransform();
+      Vector3 half = Vector3Scale(t.scale, 0.5f);
+      BoundingBox box{Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
+      if (!SegmentIntersectsBox(prevPos, b.pos, box)) {
+        return false;
+      }
+      b.deathCountdown = 0.0f;
+      broadcast(proto::pack(proto::Type::RemoveObject,
+                            proto::RemoveObject{object.getId()}),
+                true);
+      return true;
+    });
+
     for (auto &p : players) {
+      if (b.deathCountdown <= 0.0f) {
+        break; // already spent on a block this tick
+      }
       if (p.id == b.playerId) {
         continue; // don't hit the shooter
       }

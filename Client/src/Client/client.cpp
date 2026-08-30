@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include "GameState/gameState.hpp"
+#include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 
 #include "structs.hpp"
@@ -156,6 +157,15 @@ void Client::handleMessage(const std::string &data) {
     }
     break;
   }
+  // Server assigns the id and echoes NewObject to everyone (including us).
+  case proto::Type::NewObject: {
+    pendingObjects.push_back(proto::unpack<proto::NewObject>(data).object);
+    break;
+  }
+  case proto::Type::RemoveObject: {
+    pendingRemovals.push_back(proto::unpack<proto::RemoveObject>(data).id);
+    break;
+  }
   default:
     break;
   }
@@ -174,5 +184,11 @@ void Client::setName(const std::string &newname) {
   playerName = newname;
   auto bytes = proto::pack(proto::Type::SetName, proto::SetName{newname, playerId});
   transport->send(bytes, true);
-  std::cout << "SENT NAME\n";
 }
+
+void Client::placeObject(const Object &object) {
+  if (playerId == -1)
+    return;
+  auto bytes = proto::pack(proto::Type::PlaceObject, proto::PlaceObject{object});
+  transport->send(bytes, true);
+};

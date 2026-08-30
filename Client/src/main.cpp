@@ -1,10 +1,12 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
+#include "World/world.hpp"
 #include <iostream>
 #include <optional>
 #include <raylib.h>
 #include <raymath.h>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -37,6 +39,7 @@ int main() {
 
   Player player;
   Client client;
+  World world;
 
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
@@ -46,6 +49,12 @@ int main() {
       player.setPosition(*pos);
       client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
       player.UpdateCamera(camera);
+    }
+    for (const Object &o : client.takeNewObjects()) {
+      world.addObject(o);
+    }
+    for (int id : client.takeRemovedObjects()) {
+      world.removeObject(id);
     }
 
     if (IsKeyPressed(KEY_ESCAPE)) {
@@ -139,6 +148,10 @@ int main() {
         client.createBullet();
       }
 #endif
+      if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+        world.placeBlock(GetScreenToWorldRay(centre, camera), client);
+      }
     }
 
     // ==== Draw ====
@@ -160,7 +173,7 @@ int main() {
         DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
       }
       player.Draw();
-      DrawGrid(40, 10);
+      world.draw();
       EndMode3D();
     }
 

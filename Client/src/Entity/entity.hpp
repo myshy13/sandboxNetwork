@@ -24,10 +24,6 @@ public:
     rlPopMatrix();
   };
 
-  virtual Transform getPlayerTransform() {
-    return transform;
-  };
-
 protected:
   Transform transform{};
   Vector3 velocity;

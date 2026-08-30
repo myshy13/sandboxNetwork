@@ -1,4 +1,5 @@
 #pragma once
+#include "Models/Object.hpp"
 #include "raylib.h"
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
@@ -24,7 +25,10 @@ enum class Type : uint8_t {
   PlayerHit,
   Respawn,
   ChatMessage,
-  SetName
+  SetName,
+  PlaceObject,
+  NewObject,
+  RemoveObject
 };
 
 struct PlayerUpdate {
@@ -76,6 +80,18 @@ struct SetName {
   std::string name;
   int id;
   template <class A> void serialize(A &ar) { ar(name, id); }
+};
+struct PlaceObject {
+  Object object;
+  template <class A> void serialize(A &ar) { ar(object); }
+};
+struct NewObject {
+  Object object; // server -> clients
+  template <class A> void serialize(A &ar) { ar(object); }
+};
+struct RemoveObject {
+  int id; // both directions
+  template <class A> void serialize(A &ar) { ar(id); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //
