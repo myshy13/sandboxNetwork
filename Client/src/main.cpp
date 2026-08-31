@@ -6,15 +6,12 @@
 #include <optional>
 #include <raylib.h>
 #include <raymath.h>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-bool paused = false;
-#ifdef CHEATS
+bool paused          = false;
 float bulletCooldown = 0.0f;
-#endif
 
 int main() {
   int screenWidth  = 1280;
@@ -136,22 +133,12 @@ int main() {
     }
 
     if (!paused && !inChat) {
-#ifdef CHEATS
       if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
         bulletCooldown -= dt;
         if (bulletCooldown <= 0) {
-          client.createBullet(player.getTransform().translation);
+          client.createBullet();
           bulletCooldown = 0.1f;
         }
-      }
-#else
-      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        client.createBullet();
-      }
-#endif
-      if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-        Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-        world.placeBlock(GetScreenToWorldRay(centre, camera), client);
       }
     }
 

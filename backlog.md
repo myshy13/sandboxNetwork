@@ -11,10 +11,11 @@ they build on what already exists. Not commitments, just a running list.
 - ~~**Building/placing blocks.**~~ Done (`c6e3929`, `af939dd`). Fixed-size
   blocks, place/break protocol pair, positions broadcast to new joiners,
   player collision against placed blocks.
-- **World bounds.** `spawnPos` picks random x/z in [-100, 100] but nothing
+   a: **Note:** Added fix: maxiumum block placing distance in world.cpp (not enforced in the server)
+- ~~**World bounds.** `spawnPos` picks random x/z in [-100, 100] but nothing
   stops a player (or a bullet) from wandering or falling forever outside
   that range. A void/out-of-bounds check that triggers a respawn (reusing
-  the existing `Respawn` message) would tidy this up.
+  the existing `Respawn` message) would tidy this up.~~: Not needed (intended)
 - **Ammo/reload.** Firing is currently free and instant - hold left click,
   bullets spawn every click with no cooldown enforced server-side (see the
   anti-cheat note below). A magazine size + reload delay would also
@@ -67,15 +68,15 @@ protocol is to cheat on - noting it here so it doesn't get lost:
   constants and into either more `--flags` or a small config file, now
   that `--ws-port` has established the CLI-flag pattern.
 
-
 ## human stuff
 
-- names above players
-- better player things
-- hold to shoot
-- fix kills menu
-- a gun
-- better crosshair
-- a bit bigger player (or a stickman instead of an uncooked frenc hfry).
-- building color blocks (changed by player, each player has their own color)
-- block durability
+- [x] names above players (*Needs improvement*)
+- [ ] better player things
+- [ ] hold to shoot
+- [ ] fix kills menu
+- [ ] a gun
+- [ ] better crosshair
+- [ ] a bit bigger player (or a stickman instead of an uncooked french fry).
+- [ ] building color blocks (changed by player, each player has their own color)
+- [ ] block durability
+  

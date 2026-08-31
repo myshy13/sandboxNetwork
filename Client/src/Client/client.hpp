@@ -59,11 +59,7 @@ class Client {
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
-#ifdef CHEATS
-  void createBullet(Vector3 pos);
-#else
   void createBullet();
-#endif
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);

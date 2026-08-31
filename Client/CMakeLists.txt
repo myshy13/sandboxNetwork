@@ -85,6 +85,16 @@ endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
+# Native macOS: bundle into a .app. Emscripten sets its own .html suffix
+# below, so keep this off for the web build.
+if(APPLE AND NOT BUILD_WEB)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.sandboxnetwork.client"
+        MACOSX_BUNDLE_BUNDLE_NAME "${PROJECT_NAME}"
+    )
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/src"

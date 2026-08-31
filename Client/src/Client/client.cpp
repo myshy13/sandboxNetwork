@@ -21,32 +21,10 @@ void Client::sendPlayerPosition(const Transform &transform, float pitch, float y
   transport->send(bytes, false);
 };
 
-#ifndef CHEATS
 void Client::createBullet() {
-#else
-void Client::createBullet(Vector3 pos) {
-  OnlinePlayer *closest = nullptr;
-  float bestDist        = FLT_MAX;
-  for (auto &p : players) {
-    if (p.id == playerId)
-      continue;
-    float d = Vector3DistanceSqr(pos, p.pos);
-    if (d < bestDist) {
-      bestDist = d;
-      closest  = &p;
-    }
-  }
-
-  if (closest != nullptr) {
-    Vector3 delta   = Vector3Subtract(closest->pos, pos);
-    float horizDist = sqrtf(delta.x * delta.x + delta.z * delta.z);
-    float pitch     = atan2f(delta.y, horizDist);
-
-    sendPlayerPosition({pos, {0, 0, 0, 0}, {0, 0, 0}}, pitch, 0.0f);
-  }
-#endif
   if (playerId == -1)
     return;
+  // The server fires along the aim it already has from our PlayerUpdates.
   auto bytes = proto::pack(proto::Type::CreateBullet, proto::CreateBullet{playerId});
   transport->send(bytes, true);
 }

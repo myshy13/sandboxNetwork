@@ -2,7 +2,6 @@
 #include "Models/Object.hpp"
 #include "Raylib/text3D.hpp"
 #include <cstdlib>
-#include <optional>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -12,7 +11,7 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &blocks) {
-  if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+  if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !IsCursorHidden()) {
     DisableCursor();
   }
 
