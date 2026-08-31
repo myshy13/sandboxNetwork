@@ -2,6 +2,7 @@
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
 #include "World/world.hpp"
+
 #include <iostream>
 #include <optional>
 #include <raylib.h>
@@ -54,6 +55,9 @@ int main() {
     for (int id : client.takeRemovedObjects()) {
       world.removeObject(id);
     }
+    for (int id : client.takeDamagedObjects()) {
+      world.damageObject(id);
+    }
 
     if (IsKeyPressed(KEY_ESCAPE)) {
       if (!inChat) {
@@ -68,7 +72,7 @@ int main() {
         chatInput.clear();
       }
     }
-
+#ifdef CHAT
     // ==== chat input ==== //
     if (inChat) {
       int ch;
@@ -118,6 +122,7 @@ int main() {
       paused    = false;
       chatInput = "/";
     }
+#endif
 
     if (!paused) {
       // Chat freezes input, not the world: the player keeps falling/sliding
@@ -133,10 +138,12 @@ int main() {
     }
 
     if (!paused && !inChat) {
-      if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        client.createBullet(camera);
+      } else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
         bulletCooldown -= dt;
         if (bulletCooldown <= 0) {
-          client.createBullet();
+          client.createBullet(camera);
           bulletCooldown = 0.1f;
         }
       }
@@ -188,6 +195,7 @@ int main() {
       DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
     }
 
+#ifdef CHAT
     // ==== chat (bottom left) ==== //
     {
       constexpr int VISIBLE_CHAT_MESSAGES    = 8;
@@ -237,6 +245,7 @@ int main() {
         DrawText(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
       }
     }
+#endif
 
     if (IsKeyDown(KEY_TAB)) {
       // Tab Kills UI - hold Tab for the scoreboard, sorted by kills.

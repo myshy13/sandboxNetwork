@@ -6,12 +6,14 @@
 #include <vector>
 
 class World {
-  private:
-    std::vector<Object> objects{};
-  public:
-    void draw();
-    void placeBlock(Ray aim, Client &client);
-    void addObject(const Object &object);
-    void removeObject(int id);
-    const std::vector<Object> &getObjects() const;
+private:
+  std::vector<Object> objects{};
+
+public:
+  void draw();
+  void placeBlock(Ray aim, Client &client);
+  void addObject(const Object &object);
+  void removeObject(int id);
+  void damageObject(int id);
+  const std::vector<Object> &getObjects() const;
 };

@@ -1,6 +1,7 @@
 #pragma once
 #include "Models/Object.hpp"
 #include "raylib.h"
+#include "raymath.h"
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
 #include <cstdint>
@@ -28,7 +29,8 @@ enum class Type : uint8_t {
   SetName,
   PlaceObject,
   NewObject,
-  RemoveObject
+  RemoveObject,
+  DamageObject
 };
 
 struct PlayerUpdate {
@@ -47,8 +49,12 @@ struct DeletePlayer {
   template <class A> void serialize(A &ar) { ar(id); }
 };
 struct CreateBullet { // clients telling server
-  int playerId;
-  template <class A> void serialize(A &ar) { ar(playerId); }
+  // The aim ray, captured client-side at click time. The server trusts the
+  // connection for *who* fired, but only the client knows *where* it was
+  // looking that frame (PlayerUpdate is unreliable and lags a few frames).
+  Vector3 origin;
+  Vector3 dir;
+  template <class A> void serialize(A &ar) { ar(origin, dir); }
 };
 struct DeleteBullet { // clients telling server
   int id;
@@ -90,6 +96,10 @@ struct NewObject {
   template <class A> void serialize(A &ar) { ar(object); }
 };
 struct RemoveObject {
+  int id; // both directions
+  template <class A> void serialize(A &ar) { ar(id); }
+};
+struct DamageObject {
   int id; // both directions
   template <class A> void serialize(A &ar) { ar(id); }
 };

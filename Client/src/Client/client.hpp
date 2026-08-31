@@ -46,6 +46,7 @@ class Client {
 
   std::vector<Object> pendingObjects{};
   std::vector<int> pendingRemovals{};
+  std::vector<int> pendingDamage{};
 
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
@@ -59,7 +60,7 @@ class Client {
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
-  void createBullet();
+  void createBullet(const Camera3D &camera);
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);
@@ -114,6 +115,9 @@ public:
   }
   std::vector<int> takeRemovedObjects() {
     return std::exchange(pendingRemovals, {});
+  }
+  std::vector<int> takeDamagedObjects() {
+    return std::exchange(pendingDamage, {});
   }
   void updateBullets(float dt) {
     for (Bullet &b : bullets) {

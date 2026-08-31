@@ -75,6 +75,14 @@ void World::removeObject(int id) {
   std::erase_if(objects, [id](const Object &o) { return o.getId() == id; });
 }
 
+void World::damageObject(int id) {
+  for (Object &o : objects) {
+    if (o.getId() == id) {
+      o.damage();
+    }
+  }
+}
+
 const std::vector<Object> &World::getObjects() const {
   return objects;
 }

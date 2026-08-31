@@ -21,11 +21,15 @@ void Client::sendPlayerPosition(const Transform &transform, float pitch, float y
   transport->send(bytes, false);
 };
 
-void Client::createBullet() {
+void Client::createBullet(const Camera3D &camera) {
   if (playerId == -1)
     return;
-  // The server fires along the aim it already has from our PlayerUpdates.
-  auto bytes = proto::pack(proto::Type::CreateBullet, proto::CreateBullet{playerId});
+  // Send the exact ray the camera has this frame. The server can't derive it
+  // itself: our PlayerUpdate aim is unreliable and a few frames stale, so
+  // reconstructing the ray there missed slightly - worse the further the target.
+  Vector3 dir = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+  auto bytes = proto::pack(proto::Type::CreateBullet,
+                           proto::CreateBullet{camera.position, dir});
   transport->send(bytes, true);
 }
 
@@ -130,6 +134,10 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::SetName: {
     proto::SetName msg = proto::unpack<proto::SetName>(data);
+    if (msg.id == playerId) {
+      playerName = msg.name;
+      return;
+    }
     OnlinePlayer *p    = findPlayer(msg.id);
     if (p) {
       p->name = msg.name;
@@ -143,6 +151,10 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::RemoveObject: {
     pendingRemovals.push_back(proto::unpack<proto::RemoveObject>(data).id);
+    break;
+  }
+  case proto::Type::DamageObject: {
+    pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).id);
     break;
   }
   default:
@@ -160,7 +172,6 @@ void Client::sendChatMessage(const std::string &msg) {
 void Client::setName(const std::string &newname) {
   if (playerId == -1)
     return;
-  playerName = newname;
   auto bytes = proto::pack(proto::Type::SetName, proto::SetName{newname, playerId});
   transport->send(bytes, true);
 }

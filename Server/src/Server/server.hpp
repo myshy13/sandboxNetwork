@@ -59,7 +59,7 @@ class Server {
     return nullptr;
   }
   void deletePlayer(int id);
-  std::optional<Bullet> createBullet(int playerId);
+  std::optional<Bullet> createBullet(int playerId, Vector3 origin, Vector3 dir);
 
   // ==== transport-agnostic game logic ==== //
   int handleConnect(std::unique_ptr<Connection> connection);

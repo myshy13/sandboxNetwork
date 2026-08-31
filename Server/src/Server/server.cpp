@@ -96,25 +96,26 @@ void Server::deletePlayer(int id) {
 // ==== Bullet handling ==== //
 constexpr float BULLET_SPEED = 150.0f;
 
-std::optional<Bullet> Server::createBullet(int playerId) {
+std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
+                                           Vector3 dir) {
   Player *player = findPlayer(playerId);
   if (player == nullptr) {
     return std::nullopt;
   }
 
-  Quaternion aim = QuaternionFromEuler(player->pitch, player->yaw, 0.0f);
-  Vector3 forward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, aim);
+  // The client sends the aim ray straight from its camera, so we fire exactly
+  // where the shooter was looking that frame. Identity still comes from the
+  // connection (playerId), never the payload.
+  Vector3 forward = Vector3Normalize(dir);
 
   Bullet bullet;
   bullet.bulletId = nextBulletId;
   nextBulletId++;
   bullet.playerId = player->id;
-  // player->pos is the player's feet, so lift to the head before pushing the
-  // spawn forward - otherwise the bullet renders point-blank on the camera.
-  constexpr Vector3 HEAD_OFFSET = {0.0f, 10.0f, 0.0f};
+  // origin is the client's eye; nudge forward so the bullet doesn't render
+  // point-blank on the camera.
   constexpr float MUZZLE_DISTANCE = 3.0f;
-  Vector3 headPos = Vector3Add(player->pos, HEAD_OFFSET);
-  bullet.pos = Vector3Add(headPos, Vector3Scale(forward, MUZZLE_DISTANCE));
+  bullet.pos = Vector3Add(origin, Vector3Scale(forward, MUZZLE_DISTANCE));
   bullet.vel = Vector3Scale(forward, BULLET_SPEED);
 
   bullets.push_back(bullet);
@@ -182,7 +183,8 @@ void Server::handleReceive(int playerId, const std::string &data) {
   }
 
   case proto::Type::CreateBullet: {
-    std::optional<Bullet> bullet = createBullet(playerId);
+    auto msg = proto::unpack<proto::CreateBullet>(data);
+    std::optional<Bullet> bullet = createBullet(playerId, msg.origin, msg.dir);
     if (bullet.has_value()) {
       proto::NewBullet packetMsg;
       packetMsg.bulletId = bullet->bulletId;
@@ -202,8 +204,14 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
   case proto::Type::SetName: {
     auto msg = proto::unpack<proto::SetName>(data);
-    if (auto *p = findPlayer(msg.id)) {
-      p->displayName = msg.name;
+    if (auto *player = findPlayer(msg.id)) {
+      for (Player &p : players) {
+        if (msg.name == p.displayName) {
+          break;
+          break;
+        }
+      }
+      player->displayName = msg.name;
       broadcast(data, true);
     }
     break;
@@ -215,13 +223,6 @@ void Server::handleReceive(int playerId, const std::string &data) {
     objects.push_back(msg.object);
     broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
               true); // reliable
-    break;
-  }
-  case proto::Type::RemoveObject: {
-    auto msg = proto::unpack<proto::RemoveObject>(data);
-    std::erase_if(objects,
-                  [&](const Object &o) { return o.getId() == msg.id; });
-    broadcast(data, true);
     break;
   }
 
@@ -270,19 +271,29 @@ void Server::tick(float dt) {
     Vector3 prevPos = b.pos;
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
 
-    std::erase_if(objects, [&](const Object &object) {
-      ObjectTransform t = object.getTransform();
+    for (Object &o : objects) {
+      ObjectTransform t = o.getTransform();
       Vector3 half = Vector3Scale(t.scale, 0.5f);
       BoundingBox box{Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
       if (!SegmentIntersectsBox(prevPos, b.pos, box)) {
-        return false;
+        continue;
       }
       b.deathCountdown = 0.0f;
-      broadcast(proto::pack(proto::Type::RemoveObject,
-                            proto::RemoveObject{object.getId()}),
-                true);
-      return true;
-    });
+
+      o.damage();
+      if (o.getDurability() <= 0) {
+        broadcast(proto::pack(proto::Type::RemoveObject,
+                              proto::RemoveObject{o.getId()}),
+                  true);
+      } else {
+        broadcast(proto::pack(proto::Type::DamageObject,
+                              proto::DamageObject{o.getId()}),
+                  true);
+      }
+      break; // bullet is spent on the first block it hits
+    }
+    std::erase_if(objects,
+                  [](const Object &o) { return o.getDurability() <= 0; });
 
     for (auto &p : players) {
       if (b.deathCountdown <= 0.0f) {
@@ -403,7 +414,6 @@ void Server::pumpWebSockets() {
 }
 
 // ==== main loop ==== //
-
 void Server::poll() {
   static auto lastTick = std::chrono::steady_clock::now();
 
