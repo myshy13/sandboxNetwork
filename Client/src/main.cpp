@@ -140,6 +140,10 @@ int main() {
           bulletCooldown = 0.1f;
         }
       }
+      if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+        world.placeBlock(GetScreenToWorldRay(centre, camera), client);
+      }
     }
 
     // ==== Draw ====
