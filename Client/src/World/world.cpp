@@ -32,7 +32,6 @@ static Vector3 snapToCell(Vector3 p) {
 }
 
 void World::placeBlock(Ray aim, Client &client) {
-  // 1. Nearest block face the ray hits.
   RayCollision best{};
   best.distance = FLT_MAX;
   for (Object &o : objects) {
@@ -42,30 +41,29 @@ void World::placeBlock(Ray aim, Client &client) {
     }
   }
 
-  // 2. Point that lands us in the target cell.
   Vector3 target;
   if (best.distance != FLT_MAX) {
-    // Half a block out along the hit face's normal -> the empty neighbour cell.
     target = Vector3Add(best.point, Vector3Multiply(best.normal, Vector3Scale(blockSize, 0.5f)));
   } else if (aim.direction.y < 0.0f) {
-    // Missed everything - drop it where the ray crosses the ground (y = 0).
     float dist = -aim.position.y / aim.direction.y;
     target     = Vector3Add(aim.position, Vector3Scale(aim.direction, dist));
   } else {
     return; // aiming at the sky
   }
 
+  constexpr float REACH = 50.0f;
+  if (Vector3Distance(aim.position, target) > REACH) {
+    return; // too far away
+  }
+
   Vector3 cell = snapToCell(target);
 
-  // 3. Don't stack a second block in a cell that's already full. Snapped
-  //    centres are exact, so an equality-ish check is enough.
   for (Object &o : objects) {
     if (Vector3DistanceSqr(o.getTransform().pos, cell) < 0.01f) {
       return;
     }
   }
 
-  // id -1 = unassigned; the server stamps the real id and echoes NewObject.
   client.placeObject(Object{-1, ObjectTransform{cell, blockSize}});
 }
 
