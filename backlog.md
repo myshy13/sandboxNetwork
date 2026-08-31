@@ -66,3 +66,16 @@ protocol is to cheat on - noting it here so it doesn't get lost:
 - Move server config (map bounds, tick rate, max players) out of hardcoded
   constants and into either more `--flags` or a small config file, now
   that `--ws-port` has established the CLI-flag pattern.
+
+
+## human stuff
+
+- names above players
+- better player things
+- hold to shoot
+- fix kills menu
+- a gun
+- better crosshair
+- a bit bigger player (or a stickman instead of an uncooked frenc hfry).
+- building color blocks (changed by player, each player has their own color)
+- block durability
