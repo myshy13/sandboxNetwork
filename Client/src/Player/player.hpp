@@ -52,7 +52,7 @@ public:
   }
   Player();
 
-  static void DrawPlayer(const Transform &transform);
+  static void DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos);
 };
 
 #endif

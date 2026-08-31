@@ -166,7 +166,11 @@ int main() {
         transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
         transform.scale       = {1, 10, 1};
         transform.translation = p.pos;
-        player.DrawPlayer(transform);
+        if (p.name.has_value()) {
+          player.DrawPlayer(transform, p.name.value(), player.getTransform().translation);
+        } else {
+          player.DrawPlayer(transform, "Player " + std::to_string(p.id), player.getTransform().translation);
+        }
       }
       client.updateBullets(dt);
       for (auto &b : client.getBullets()) {

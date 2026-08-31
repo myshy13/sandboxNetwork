@@ -1,6 +1,8 @@
 #include "Player/player.hpp"
 #include "Models/Object.hpp"
+#include "Raylib/text3D.hpp"
 #include <cstdlib>
+#include <optional>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -195,11 +197,11 @@ void Player::Draw() const {
   if (perspective == ThirdPerson) {
     Transform bodyTransform = transform;
     bodyTransform.rotation  = QuaternionFromEuler(0.0f, yaw, 0.0f);
-    DrawPlayer(bodyTransform);
+    DrawPlayer(bodyTransform, "", transform.translation);
   }
 };
 
-void Player::DrawPlayer(const Transform &transform) {
+void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
   Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
   Matrix matRotation = QuaternionToMatrix(transform.rotation);
   Matrix matTranslation =
@@ -211,5 +213,17 @@ void Player::DrawPlayer(const Transform &transform) {
   rlMultMatrixf(MatrixToFloat(matTransform));
   DrawCubeV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, WHITE);
   DrawCubeWiresV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, BLACK);
+  rlPopMatrix();
+
+  Vector3 p                 = transform.translation + Vector3{0, transform.scale.y + 2.0f, 0};
+  constexpr float FONT_SIZE = 2, SPACING = 0.05f;
+  float halfW = MeasureTextEx(GetFontDefault(), name.c_str(), FONT_SIZE, SPACING).x * 0.5f;
+  Vector3 d   = Vector3Subtract(localPos, p); // pos difference
+
+  rlPushMatrix();
+  rlTranslatef(p.x, p.y, p.z);
+  rlRotatef(atan2f(d.x, d.z) * RAD2DEG, 0.0f, 1.0f, 0.0f);
+  rlRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+  DrawText3D(GetFontDefault(), name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING, 1.0f, true, WHITE);
   rlPopMatrix();
 }
