@@ -11,7 +11,7 @@ private:
 
 public:
   void draw();
-  void placeBlock(Ray aim, Client &client);
+  void placeBlock(Ray aim, Client &client, const Vector3 &playerPos);
   void addObject(const Object &object);
   void removeObject(int id);
   void damageObject(int id);

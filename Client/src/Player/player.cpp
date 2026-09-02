@@ -98,7 +98,7 @@ void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &block
     velocity.x    = horizontalVel.x;
     velocity.z    = horizontalVel.y;
   }
-  float damping = powf(onGround ? 0.7f : 1.0f, dt * 60.0f);
+  float damping = powf(onGround ? 0.7f : 0.9f, dt * 60.0f);
   velocity.x *= damping;
   velocity.z *= damping;
   if (!onGround) {
@@ -155,10 +155,6 @@ void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &block
 
   transform.rotation = QuaternionFromEuler(pitch, yaw, 0.0f);
 
-  if (inputEnabled && IsKeyPressed(KEY_C)) {
-    perspective = perspective == FirstPerson ? ThirdPerson : FirstPerson;
-  }
-
   UpdateCamera(camera);
 }
 
@@ -168,15 +164,9 @@ void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &block
 void Player::UpdateCamera(Camera3D &camera) const {
   Vector3 lookForward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
 
-  Vector3 head = Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
-  if (perspective == ThirdPerson) {
-    Vector3 up      = {0.0f, 1.0f, 0.0f};
-    camera.position = Vector3Add(head, Vector3Subtract(up, Vector3Scale(lookForward, 5.0f)));
-    camera.target   = head;
-  } else {
-    camera.position = head;
-    camera.target   = Vector3Add(head, lookForward);
-  }
+  Vector3 head    = Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
+  camera.position = head;
+  camera.target   = Vector3Add(head, lookForward);
 }
 
 Player::Player() {
@@ -191,14 +181,6 @@ Player::Player() {
 
   DisableCursor();
 }
-
-void Player::Draw() const {
-  if (perspective == ThirdPerson) {
-    Transform bodyTransform = transform;
-    bodyTransform.rotation  = QuaternionFromEuler(0.0f, yaw, 0.0f);
-    DrawPlayer(bodyTransform, "", transform.translation);
-  }
-};
 
 void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
   Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);

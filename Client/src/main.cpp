@@ -1,6 +1,7 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
+#include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 
 #include <iostream>
@@ -22,7 +23,7 @@ int main() {
 
   GameState &gameState = GameState::shared();
 
-  int playerPosCooldown = 1;
+  float playerPosCooldown = 0.1667;
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
   InitWindow(screenWidth, screenHeight, "Sandbox Network");
@@ -39,6 +40,9 @@ int main() {
   Player player;
   Client client;
   World world;
+  Lighting lighting; // shaders
+
+  lighting.addDirectional({0, 0, 0}, {-1, -2, -1}, WHITE);
 
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
@@ -129,12 +133,12 @@ int main() {
       // while you type, and other clients keep seeing you move.
       player.inputEnabled = !inChat;
       player.Update(dt, camera, world.getObjects());
+    }
 
-      playerPosCooldown--;
-      if (playerPosCooldown <= 0) {
-        client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
-        playerPosCooldown = 3;
-      }
+    playerPosCooldown -= dt;
+    if (playerPosCooldown <= 0) {
+      client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
+      playerPosCooldown = 0.1667;
     }
 
     if (!paused && !inChat) {
@@ -149,7 +153,7 @@ int main() {
       }
       if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-        world.placeBlock(GetScreenToWorldRay(centre, camera), client);
+        world.placeBlock(GetScreenToWorldRay(centre, camera), client, player.getTransform().translation);
       }
     }
 
@@ -158,8 +162,10 @@ int main() {
       BeginDrawing();
       ClearBackground({5, 5, 5, 255});
       BeginMode3D(camera);
-      // ==== draw online players
-      for (auto &p : client.getPlayers()) {
+      lighting.begin();
+      lighting.setViewPos(camera.position);
+      // ==== draw online players ====
+      for (const auto &p : client.getPlayers()) {
         Transform transform;
         transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
         transform.scale       = {1, 10, 1};
@@ -175,8 +181,8 @@ int main() {
         DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
         DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
       }
-      player.Draw();
       world.draw();
+      lighting.end();
       EndMode3D();
     }
 
@@ -204,9 +210,6 @@ int main() {
       constexpr int FONT_SIZE                = 18;
       const auto &chat                       = client.getChat();
 
-      // Walk backward from the newest message. receivedAt is stamped with
-      // GetTime() as each message arrives, so it only ever increases -
-      // the first stale entry we hit means everything before it is stale too.
       std::vector<int> visible;
       for (int i = (int)chat.size() - 1; i >= 0 && (int)visible.size() < VISIBLE_CHAT_MESSAGES; i--) {
         if (GetTime() - chat[i].receivedAt > CHAT_MESSAGE_LIFETIME) {

@@ -169,10 +169,6 @@
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
 
     <script type='text/javascript'>
-      // Stop Firefox/Zen "quick find" (/ and ') from stealing keys meant for
-      // the game - but only while NOT typing in the in-game chat, otherwise
-      // those chars would never reach it. Mirrors the open/close chat keys in
-      // Client/src/main.cpp (/ or T opens, Enter/Escape closes).
       var inChat = false;
       window.addEventListener('keydown', function (e) {
         if (inChat) {

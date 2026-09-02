@@ -4,7 +4,6 @@
 #include "Protocol/protocol.hpp"
 
 #include "structs.hpp"
-#include <cfloat>
 #include <cstddef>
 #include <raylib.h>
 #include <raymath.h>

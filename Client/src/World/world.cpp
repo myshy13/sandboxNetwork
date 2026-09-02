@@ -22,7 +22,7 @@ void World::draw() {
 };
 
 // Every placed block is this size, and the build grid has cells this size.
-constexpr Vector3 blockSize = {5,5,5};
+constexpr Vector3 blockSize = {5, 5, 5};
 
 // Snap a world point to the centre of its blockSize-grid cell.
 static Vector3 snapToCell(Vector3 p) {
@@ -31,7 +31,7 @@ static Vector3 snapToCell(Vector3 p) {
           (floorf(p.z / blockSize.z) + 0.5f) * blockSize.z};
 }
 
-void World::placeBlock(Ray aim, Client &client) {
+void World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   RayCollision best{};
   best.distance = FLT_MAX;
   for (Object &o : objects) {
@@ -64,7 +64,19 @@ void World::placeBlock(Ray aim, Client &client) {
     }
   }
 
-  client.placeObject(Object{-1, ObjectTransform{cell, blockSize}});
+  constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
+
+  BoundingBox player;
+  player.min = Vector3Subtract(
+      playerPos, {PLAYER_SCALE.x * 0.5f, 0.0f, PLAYER_SCALE.z * 0.5f});
+  player.max = Vector3Add(player.min, PLAYER_SCALE);
+
+  // cell is the block's centre (see objectBox / snapToCell), not a corner.
+  BoundingBox block = objectBox(ObjectTransform{cell, blockSize});
+
+  if (!CheckCollisionBoxes(player, block)) {
+    client.placeObject(Object{-1, ObjectTransform{cell, blockSize}});
+  }
 }
 
 void World::addObject(const Object &object) {
