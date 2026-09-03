@@ -33,6 +33,7 @@ struct Player {
 };
 
 class Server {
+  const std::string savePath{"save.bin"};
   int port{9798};
   ENetHost *host;
 
@@ -50,6 +51,9 @@ class Server {
   std::vector<Player> players{};
   std::vector<Object> objects{};
   std::vector<Bullet> bullets;
+
+  float saveCountdownTime = 30;
+  float saveCountdown{saveCountdownTime};
 
   Player *findPlayer(int id) {
     for (auto &p : players) {
@@ -73,6 +77,10 @@ class Server {
   // ==== transport plumbing ==== //
   void pumpEnet();
   void pumpWebSockets();
+
+  // ==== World saving ==== //
+  void saveWorld();
+  void loadWorld();
 
 public:
   void poll();

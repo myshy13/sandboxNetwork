@@ -1,18 +1,21 @@
+
 #include "Server/server.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 #include "enet/enet.h"
 #include "raylib.h"
 #include <algorithm>
+#include <cereal/types/vector.hpp>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <optional>
 #include <raymath.h>
 #include <string>
+#include <vector>
 
 namespace {
-
 // An ENet client. The WebSocket equivalent lives in Net/ws_proxy.cpp.
 class EnetConnection final : public Connection {
 public:
@@ -43,11 +46,7 @@ Server::Server(int wsPort) {
   }
   std::printf("ENet initialized\n");
 
-  ENetAddress address;
-  enet_address_set_host(&address, "192.168.10.111");
-  address.port = port;
-
-  host = enet_host_create(&address, 32, 2, 0, 0);
+  host = enet_host_create(ENET_HOST_ANY, 32, 2, 0, 0);
   if (host == nullptr) {
     std::fprintf(stderr, "Failed to create ENet server host\n");
     std::exit(EXIT_FAILURE);
@@ -59,9 +58,12 @@ Server::Server(int wsPort) {
       wsProxy.reset(); // it already explained itself on stderr
     }
   }
+
+  loadWorld();
 }
 
 Server::~Server() {
+  saveWorld();
   connections.clear(); // before the proxy and host they point into
   if (host != nullptr) {
     enet_host_destroy(host);
@@ -69,8 +71,47 @@ Server::~Server() {
   enet_deinitialize();
 }
 
-// ==== sending ==== //
+struct WorldSave {
+  std::vector<Object> objects{};
+  int nextObjectId{1};
+  template <class A> void serialize(A &ar) { ar(objects, nextObjectId); }
+};
 
+// ==== World saving ==== //
+void Server::saveWorld() {
+  WorldSave save;
+  save.objects = this->objects;
+  save.nextObjectId = this->nextObjectId;
+
+  std::ofstream os(savePath, std::ios::binary);
+  cereal::BinaryOutputArchive ar(os);
+  ar(save);
+}
+
+void Server::loadWorld() {
+  std::ifstream is(savePath, std::ios::binary);
+  if (!is) {
+    std::printf("no save at %s, starting fresh\n", savePath.c_str());
+    return;
+  }
+
+  try {
+    WorldSave save;
+    cereal::BinaryInputArchive ar(is);
+    ar(save); // reads objects + nextObjectId back out
+
+    objects = std::move(save.objects);
+    nextObjectId = save.nextObjectId;
+    std::printf("loaded %zu objects from %s\n", objects.size(),
+                savePath.c_str());
+  } catch (const cereal::Exception &e) {
+    std::fprintf(stderr, "save file corrupt (%s), starting fresh\n", e.what());
+    objects.clear();
+    nextObjectId = 1;
+  }
+}
+
+// ==== sending ==== //
 void Server::sendTo(int playerId, const std::string &bytes, bool reliable) {
   auto it = connections.find(playerId);
   if (it != connections.end()) {
@@ -94,7 +135,7 @@ void Server::deletePlayer(int id) {
 }
 
 // ==== Bullet handling ==== //
-constexpr float BULLET_SPEED = 150.0f;
+constexpr float BULLET_SPEED = 300.0f;
 
 std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
                                            Vector3 dir) {
@@ -264,6 +305,12 @@ bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
 }
 
 void Server::tick(float dt) {
+  saveCountdown -= dt;
+  if (saveCountdown <= 0) {
+    saveCountdown = saveCountdownTime;
+    std::cout << "Saving world...\n";
+    saveWorld();
+  }
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;

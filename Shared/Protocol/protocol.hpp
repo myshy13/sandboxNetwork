@@ -1,7 +1,6 @@
 #pragma once
 #include "Models/Object.hpp"
 #include "raylib.h"
-#include "raymath.h"
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
 #include <cstdint>

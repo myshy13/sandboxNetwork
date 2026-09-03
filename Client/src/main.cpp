@@ -26,7 +26,9 @@ int main() {
   float playerPosCooldown = 0.1667;
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
-  InitWindow(screenWidth, screenHeight, "Sandbox Network");
+  InitWindow(screenWidth, screenHeight, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
+
+  SetTargetFPS(144);
 
   SetExitKey(KEY_NULL);
 

@@ -7,3 +7,7 @@ Client/build-web/
 Server/build/
 **/.DS_Store
 Client/src/env.hpp
+
+# server save file
+*.bin
+save.bin
