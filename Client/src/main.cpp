@@ -207,12 +207,6 @@ int main() {
       }
     }
 
-    if (!client.isConnected()) {
-      const char *msg = GetTime() < 5.0 ? "Connecting..." : "Failed to connect to server";
-      Color col       = GetTime() < 5.0 ? WHITE : RED;
-      DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
-    }
-
 #ifdef CHAT
     // ==== chat (bottom left) ==== //
     {
