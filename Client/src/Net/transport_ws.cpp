@@ -49,6 +49,13 @@ public:
     emscripten_websocket_set_onmessage_callback(socket, this, onMessage);
   }
 
+  void disconnect() override {
+    if (socket > 0)
+      emscripten_websocket_close(socket, 1000, "leaving");
+    socket    = 0;
+    connected = false;
+  }
+
   bool isConnected() const override { return connected; }
 
   // WebSocket rides on TCP, so every message is already reliable and ordered.

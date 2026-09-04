@@ -15,6 +15,11 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 }
 
 namespace proto {
+
+// Bump on any wire-format change (a struct field, a Type entry). The handshake
+// rejects a client whose value doesn't match the server's.
+constexpr int PROTOCOL_VERSION = 1;
+
 enum class Type : uint8_t {
   PlayerUpdate,
   GivenId,
@@ -29,7 +34,10 @@ enum class Type : uint8_t {
   PlaceObject,
   NewObject,
   RemoveObject,
-  DamageObject
+  DamageObject,
+  clientHandshake,
+  kick
+  // kickPlayer
 };
 
 struct PlayerUpdate {
@@ -48,9 +56,8 @@ struct DeletePlayer {
   template <class A> void serialize(A &ar) { ar(id); }
 };
 struct CreateBullet { // clients telling server
-  // The aim ray, captured client-side at click time. The server trusts the
-  // connection for *who* fired, but only the client knows *where* it was
-  // looking that frame (PlayerUpdate is unreliable and lags a few frames).
+  // Aim ray captured client-side at click time; server can't rederive it since
+  // PlayerUpdate aim is unreliable and a few frames stale.
   Vector3 origin;
   Vector3 dir;
   template <class A> void serialize(A &ar) { ar(origin, dir); }
@@ -102,6 +109,21 @@ struct DamageObject {
   int id; // both directions
   template <class A> void serialize(A &ar) { ar(id); }
 };
+struct clientHandshake {
+  int ver; // client version
+  template <class A> void serialize(A &ar) { ar(ver); }
+};
+struct kick {
+  int playerId;
+  std::string reason;
+  template <class A> void serialize(A &ar) { ar(playerId, reason); }
+};
+// TODO: Implement player permissions
+// struct kickPlayer {
+//   int playerId; // who to kick
+//   std::string reason;
+//   template <class A> void serialize(A &ar) { ar(playerId, reason); }
+// };
 
 // ==== pack: struct -> bytes, tag prepended ==== //
 template <typename T> std::string pack(Type type, const T &msg) {

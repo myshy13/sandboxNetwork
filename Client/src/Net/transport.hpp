@@ -14,18 +14,18 @@ class Transport {
 public:
   virtual ~Transport() = default;
 
-  // Non-blocking. Browsers can't block on a connect, so neither do we:
-  // fire it off and watch isConnected().
+  // Non-blocking - fire it off and watch isConnected() (browsers can't block).
   virtual void connect(const std::string &host, int port) = 0;
+  // Graceful close; safe to call when already disconnected.
+  virtual void disconnect()                               = 0;
+
   virtual bool isConnected() const = 0;
 
-  // `reliable` is a hint. Transports that physically cannot drop a packet
-  // (WebSocket, being TCP) ignore it and deliver everything reliably.
+  // `reliable` is a hint; TCP-backed transports (WebSocket) ignore it.
   virtual void send(const std::string &bytes, bool reliable) = 0;
 
-  // Pumps the transport and returns the next inbound message, if any.
-  // This is what drives the connection state machine, so call it every
-  // frame - in a loop, until it returns nullopt.
+  // Pumps the transport and returns the next inbound message. Drives the
+  // connection state machine, so call it every frame in a loop until nullopt.
   virtual std::optional<std::string> receive() = 0;
 };
 

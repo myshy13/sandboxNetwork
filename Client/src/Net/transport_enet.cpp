@@ -47,6 +47,15 @@ public:
     }
   }
 
+  void disconnect() override {
+    if (peer != nullptr) {
+      enet_peer_disconnect_now(peer, 0);
+      enet_host_flush(host);
+      peer = nullptr;
+    }
+    connected = false;
+  }
+
   bool isConnected() const override { return connected; }
 
   void send(const std::string &bytes, bool reliable) override {

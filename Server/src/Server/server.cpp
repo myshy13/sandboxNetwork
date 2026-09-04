@@ -46,7 +46,12 @@ Server::Server(int wsPort) {
   }
   std::printf("ENet initialized\n");
 
-  host = enet_host_create(ENET_HOST_ANY, 32, 2, 0, 0);
+  // Bind to the listen port - a null address makes a client-only host that
+  // never accepts connections.
+  ENetAddress address;
+  address.host = ENET_HOST_ANY;
+  address.port = static_cast<enet_uint16>(port);
+  host = enet_host_create(&address, 32, 2, 0, 0);
   if (host == nullptr) {
     std::fprintf(stderr, "Failed to create ENet server host\n");
     std::exit(EXIT_FAILURE);
@@ -208,8 +213,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
   // ==== pos update handler ==== //
   case proto::Type::PlayerUpdate: {
     auto msg = proto::unpack<proto::PlayerUpdate>(data);
-    // Trust the connection, not the payload - a client only speaks for itself.
-    msg.id = playerId;
+    msg.id = playerId; // trust the connection, not the payload
 
     Player *player = findPlayer(playerId);
     if (player != nullptr) {
@@ -264,6 +268,21 @@ void Server::handleReceive(int playerId, const std::string &data) {
     objects.push_back(msg.object);
     broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
               true); // reliable
+    break;
+  }
+
+  case proto::Type::clientHandshake: {
+    auto msg = proto::unpack<proto::clientHandshake>(data);
+    if (msg.ver != proto::PROTOCOL_VERSION) {
+      auto kickBytes = proto::pack(
+          proto::Type::kick,
+          proto::kick{
+              playerId,
+              "Mismatch Client version: " + std::to_string(msg.ver) +
+                  ". Server version: " +
+                  std::to_string(proto::PROTOCOL_VERSION)});
+      sendTo(playerId, kickBytes, true);
+    }
     break;
   }
 

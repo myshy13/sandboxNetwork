@@ -23,12 +23,9 @@ void Client::sendPlayerPosition(const Transform &transform, float pitch, float y
 void Client::createBullet(const Camera3D &camera) {
   if (playerId == -1)
     return;
-  // Send the exact ray the camera has this frame. The server can't derive it
-  // itself: our PlayerUpdate aim is unreliable and a few frames stale, so
-  // reconstructing the ray there missed slightly - worse the further the target.
   Vector3 dir = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-  auto bytes = proto::pack(proto::Type::CreateBullet,
-                           proto::CreateBullet{camera.position, dir});
+  auto bytes  = proto::pack(proto::Type::CreateBullet,
+                            proto::CreateBullet{camera.position, dir});
   transport->send(bytes, true);
 }
 
@@ -44,6 +41,12 @@ void Client::poll() {
     if (!data->empty()) {
       handleMessage(*data);
     }
+  }
+  if (!handshakeSent && transport->isConnected()) {
+    transport->send(proto::pack(proto::Type::clientHandshake,
+                                proto::clientHandshake{proto::PROTOCOL_VERSION}),
+                    true);
+    handshakeSent = true;
   }
 }
 
@@ -137,7 +140,7 @@ void Client::handleMessage(const std::string &data) {
       playerName = msg.name;
       return;
     }
-    OnlinePlayer *p    = findPlayer(msg.id);
+    OnlinePlayer *p = findPlayer(msg.id);
     if (p) {
       p->name = msg.name;
     }
@@ -154,6 +157,14 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::DamageObject: {
     pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).id);
+    break;
+  }
+  case proto::Type::kick: {
+    auto msg = proto::unpack<proto::kick>(data);
+    if (msg.playerId == playerId) {
+      kickReason = msg.reason;
+      disconnect();
+    }
     break;
   }
   default:

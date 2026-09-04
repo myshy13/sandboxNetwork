@@ -1,6 +1,7 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
+#include "Protocol/protocol.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 
@@ -16,6 +17,10 @@ bool paused          = false;
 float bulletCooldown = 0.0f;
 
 int main() {
+  std::cout << "SandboxNetwork game init\n";
+  std::cout << "Game version: " << VERSION;
+  std::cout << "protocol version: " << proto::PROTOCOL_VERSION << "\n";
+
   int screenWidth  = 1280;
   int screenHeight = 720;
   bool inChat      = false;
@@ -26,11 +31,13 @@ int main() {
   float playerPosCooldown = 0.1667;
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
+  std::cout << "Create window\n";
   InitWindow(screenWidth, screenHeight, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
 
   SetTargetFPS(144);
 
   SetExitKey(KEY_NULL);
+  SetTraceLogLevel(LOG_WARNING);
 
   Camera3D camera;
   camera.position   = {10.0f, 10.0f, 10.0f};
@@ -39,16 +46,19 @@ int main() {
   camera.fovy       = 70.0f;
   camera.projection = CAMERA_PERSPECTIVE;
 
-  Player player;
   Client client;
+  // shaders
+  Lighting lighting;
+  Player player;
   World world;
-  Lighting lighting; // shaders
 
+  // Temporary
   lighting.addDirectional({0, 0, 0}, {-1, -2, -1}, WHITE);
+  // TODO: Sunrise and sunset
 
   while (!WindowShouldClose()) {
     float dt = GetFrameTime();
-    // ==== Server communication
+    // ==== Server communication ==== //
     client.poll();
     if (auto pos = client.takeRespawn()) {
       player.setPosition(*pos);
@@ -295,7 +305,14 @@ int main() {
       DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {10, 100, 10, 50});
       gameState.greenFlashTimer -= dt;
     }
-    if (!paused) {
+    if (!client.isConnected()) {
+      const char *msg =
+          client.getKickReason() ? client.getKickReason()->c_str()
+          : GetTime() < 5.0      ? "Connecting..."
+                                 : "Failed to connect to server";
+      Color col = GetTime() < 5.0 && !client.getKickReason() ? WHITE : RED;
+      DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
+    } else if (!paused) {
       // ==== draw crosshair ==== //
       Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
       DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
@@ -308,6 +325,7 @@ int main() {
 
     EndDrawing();
   }
+  client.disconnect();
 
   CloseWindow();
   return 0;

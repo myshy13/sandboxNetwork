@@ -31,11 +31,13 @@ struct ChatEntry {
 };
 
 class Client {
+private:
   int port{SERVER_PORT};
   std::unique_ptr<Transport> transport;
 
   std::vector<OnlinePlayer> players{};
   std::vector<Bullet> bullets{};
+  std::optional<std::string> kickReason{};
   std::vector<ChatEntry> chat{};
   std::optional<std::string> playerName;
   std::unordered_map<int, int> kills;
@@ -47,6 +49,7 @@ class Client {
   std::vector<Object> pendingObjects{};
   std::vector<int> pendingRemovals{};
   std::vector<int> pendingDamage{};
+  bool handshakeSent{false};
 
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
@@ -64,6 +67,7 @@ public:
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);
+  void disconnect() { transport->disconnect(); }
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
       if (p.id == id)
@@ -77,6 +81,9 @@ public:
   }
   const std::vector<OnlinePlayer> &getPlayers() const {
     return players;
+  };
+  const std::optional<std::string> &getKickReason() const {
+    return kickReason;
   };
   const std::vector<Bullet> &getBullets() const {
     return bullets;
