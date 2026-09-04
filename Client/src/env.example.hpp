@@ -6,5 +6,6 @@
 
 // #define SERVER_WSS
 #define DEBUG
+#define VERSION "0.1.0"
 
 // #define CHEATS
