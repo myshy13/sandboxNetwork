@@ -3,6 +3,7 @@
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
+#include "env.hpp"
 
 #include <enet/enet.h>
 #include <memory>
@@ -18,23 +19,21 @@ struct Bullet {
   int playerId;
   int bulletId;
 
-  float deathCountdown = 3;
+  float deathCountdown = env::BULLET_LIFETIME;
 };
-
-constexpr int PLAYER_MAX_HEALTH = 3;
 
 struct Player {
   int id;
   Vector3 pos;
   float pitch{0.0f};
   float yaw{0.0f};
-  int health{PLAYER_MAX_HEALTH};
+  int health{env::PLAYER_MAX_HEALTH};
   std::optional<std::string> displayName;
 };
 
 class Server {
   const std::string savePath{"save.bin"};
-  int port{9798};
+  int port{env::PORT};
   ENetHost *host;
 
   std::unique_ptr<WsProxy> wsProxy;
@@ -52,7 +51,7 @@ class Server {
   std::vector<Object> objects{};
   std::vector<Bullet> bullets;
 
-  float saveCountdownTime = 30;
+  float saveCountdownTime = env::WORLD_SAVE_PERIOD;
   float saveCountdown{saveCountdownTime};
 
   Player *findPlayer(int id) {

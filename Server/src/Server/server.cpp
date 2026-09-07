@@ -140,8 +140,6 @@ void Server::deletePlayer(int id) {
 }
 
 // ==== Bullet handling ==== //
-constexpr float BULLET_SPEED = 300.0f;
-
 std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
                                            Vector3 dir) {
   Player *player = findPlayer(playerId);
@@ -160,9 +158,8 @@ std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
   bullet.playerId = player->id;
   // origin is the client's eye; nudge forward so the bullet doesn't render
   // point-blank on the camera.
-  constexpr float MUZZLE_DISTANCE = 3.0f;
-  bullet.pos = Vector3Add(origin, Vector3Scale(forward, MUZZLE_DISTANCE));
-  bullet.vel = Vector3Scale(forward, BULLET_SPEED);
+  bullet.pos = Vector3Add(origin, Vector3Scale(forward, env::MUZZLE_DISTANCE));
+  bullet.vel = Vector3Scale(forward, env::BULLET_SPEED);
 
   bullets.push_back(bullet);
   return bullet;
@@ -294,8 +291,6 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
 // ==== fixed-rate tick (bullet lifetime etc.) ==== //
 
-constexpr float TICK_RATE = 1.0f / 60.0f;
-
 // same as the client's default Player scale (Client/src/Player/player.cpp)
 constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
 
@@ -381,7 +376,7 @@ void Server::tick(float dt) {
           spawnPos.x = rand() % 200 - 100;
           spawnPos.z = rand() % 200 - 100;
           spawnPos.y = 10;
-          p.health = PLAYER_MAX_HEALTH;
+          p.health = env::PLAYER_MAX_HEALTH;
           p.pos = spawnPos;
           sendTo(p.id,
                  proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}),
@@ -487,7 +482,7 @@ void Server::poll() {
 
   auto now = std::chrono::steady_clock::now();
   float dt = std::chrono::duration<float>(now - lastTick).count();
-  if (dt >= TICK_RATE) {
+  if (dt >= env::TICK_RATE) {
     tick(dt);
     lastTick = now;
   }
