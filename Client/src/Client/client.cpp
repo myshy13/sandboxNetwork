@@ -31,6 +31,7 @@ void Client::createBullet(const Camera3D &camera) {
 
 // ==== connection setup ==== //
 Client::Client() {
+  std::cout << "Joining server: " << SERVER_IP << " at port " << port << "\n";
   transport = makeTransport();
   transport->connect(SERVER_IP, port);
 }
@@ -47,6 +48,7 @@ void Client::poll() {
                                 proto::clientHandshake{proto::PROTOCOL_VERSION}),
                     true);
     handshakeSent = true;
+    std::cout << "Connected to server\n";
   }
 }
 

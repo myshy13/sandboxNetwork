@@ -249,7 +249,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
   case proto::Type::SetName: {
     auto msg = proto::unpack<proto::SetName>(data);
-    if (auto *player = findPlayer(msg.id)) {
+    if (auto *player = findPlayer(playerId)) {
       for (Player &p : players) {
         if (msg.name == p.displayName) {
           break;
@@ -327,7 +327,6 @@ void Server::tick(float dt) {
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;
-    std::cout << "Saving world...\n";
     saveWorld();
   }
   // ==== hit detection ==== //

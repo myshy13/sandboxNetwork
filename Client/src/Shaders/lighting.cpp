@@ -16,7 +16,7 @@ Lighting::Lighting() {
   }
   viewPosLoc = GetShaderLocation(shader, "viewPos");
 
-  float ambient[4] = {2.0f, 2.0f, 2.0f, 1.0f};
+  float ambient[4] = {0.3f, 0.3f, 0.3f, 1.0f};
   SetShaderValue(shader, GetShaderLocation(shader, "ambient"), ambient, SHADER_UNIFORM_VEC4);
 }
 

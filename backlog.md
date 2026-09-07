@@ -13,7 +13,7 @@ focus, in order.
 The server is currently in-memory only — every block vanishes on restart.
 Goal: the built world survives a server reboot.
 
-- [ ] Server serialises `objects` to a file on a timer + on clean shutdown
+- [x] Server serialises `objects` to a file on a timer + on clean shutdown
       (`world.bin` via cereal, same as the wire format — reuse
       `Object::serialize`).
 - [ ] Server loads that file on startup, re-assigns ids, broadcasts nothing
@@ -71,7 +71,7 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 ## Lighting & rendering
 
 - [x] per-fragment lighting (`Lighting` class, raylib `lighting.fs` + rlights)
-- [ ] call `setViewPos` each frame so specular highlights track the camera
+- [x] call `setViewPos` each frame so specular highlights track the camera
 - [ ] a second light (warm point light) to show off the system
 - [ ] day/night: rotate the directional light over time, server broadcasts
       the time-of-day so everyone matches

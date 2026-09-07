@@ -31,7 +31,7 @@ static Vector3 snapToCell(Vector3 p) {
           (floorf(p.z / blockSize.z) + 0.5f) * blockSize.z};
 }
 
-void World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
+bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   RayCollision best{};
   best.distance = FLT_MAX;
   for (Object &o : objects) {
@@ -48,19 +48,19 @@ void World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
     float dist = -aim.position.y / aim.direction.y;
     target     = Vector3Add(aim.position, Vector3Scale(aim.direction, dist));
   } else {
-    return; // aiming at the sky
+    return false; // aiming at the sky
   }
 
   constexpr float REACH = 50.0f;
   if (Vector3Distance(aim.position, target) > REACH) {
-    return; // too far away
+    return false; // too far away
   }
 
   Vector3 cell = snapToCell(target);
 
   for (Object &o : objects) {
     if (Vector3DistanceSqr(o.getTransform().pos, cell) < 0.01f) {
-      return;
+      return false;
     }
   }
 
@@ -76,6 +76,9 @@ void World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
 
   if (!CheckCollisionBoxes(player, block)) {
     client.placeObject(Object{-1, ObjectTransform{cell, blockSize}});
+    return true;
+  } else {
+    return false;
   }
 }
 
