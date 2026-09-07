@@ -12,6 +12,9 @@ static BoundingBox objectBox(const ObjectTransform &t) {
 }
 
 void World::draw() {
+  // A real plane (unlike DrawGrid's lines) carries an up-normal, so the
+  // lighting shader actually lights the floor instead of leaving it near-black.
+  DrawPlane({0, 0, 0}, {800, 800}, Color{70, 90, 70, 255});
   DrawGrid(40, 20);
 
   for (Object &o : objects) {
