@@ -1,11 +1,14 @@
-
 #pragma once
 
-#define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 9798
+// ==== connection config ==== //
+namespace env {
+constexpr const char *SERVER_IP = "127.0.0.1";
+constexpr int SERVER_PORT       = 9798;
+} // namespace env
 
-// #define SERVER_WSS
+// Compile-time toggles live as #define because #ifdef needs them.
+// #define SERVER_WSS  // wss:// instead of ws:// (define when the page is https)
 #define DEBUG
-#define VERSION "0.1.0"
 
-// #define CHEATS
+#define CHEATS // debug stuff (for testing)
+#define CHAT

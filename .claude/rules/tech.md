@@ -32,12 +32,15 @@
   client can only speak for itself (see `PlayerUpdate` handling in
   `Server/src/Server/server.cpp`). Keep that pattern for any new
   client->server message that carries an id.
-- `Client/src/env.hpp` holds connection config as compile-time `#define`s
-  (`SERVER_IP`, `SERVER_PORT`, `SERVER_WSS`): `SERVER_IP` is a bare
-  hostname (no scheme), and `SERVER_WSS` toggles `wss://` vs `ws://` in
-  `transport_ws.cpp` — define it when the page is served over https (e.g.
-  a dev tunnel), since browsers block plain `ws://` from an https page as
-  mixed content.
+- `Client/src/env.hpp` holds connection config: `env::SERVER_IP` /
+  `env::SERVER_PORT` as `constexpr` in `namespace env`, and the feature
+  toggles (`SERVER_WSS`, `DEBUG`, `CHEATS`, `CHAT`) as `#define` because
+  `#ifdef` needs them. `SERVER_IP` is a bare hostname (no scheme);
+  `SERVER_WSS` toggles `wss://` vs `ws://` in `transport_ws.cpp` — define
+  it when the page is served over https (e.g. a dev tunnel), since
+  browsers block plain `ws://` from an https page as mixed content.
+- `Server/src/env.hpp` mirrors this for the server: `namespace env` of
+  `constexpr` tunables (tick rate, bullet speed/lifetime, save period).
 
 ## Testing
 

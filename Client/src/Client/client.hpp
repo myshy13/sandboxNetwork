@@ -32,7 +32,7 @@ struct ChatEntry {
 
 class Client {
 private:
-  int port{SERVER_PORT};
+  int port{env::SERVER_PORT};
   std::unique_ptr<Transport> transport;
 
   std::vector<OnlinePlayer> players{};
@@ -42,7 +42,7 @@ private:
   std::optional<std::string> playerName;
   std::unordered_map<int, int> kills;
 
-  int health{3};
+  int health{20};
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 
