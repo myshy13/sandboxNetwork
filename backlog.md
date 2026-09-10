@@ -19,11 +19,8 @@ Goal: the built world survives a server reboot.
 - [x] Server loads that file on startup (restores `objects` + `nextObjectId`),
       broadcasts nothing — clients get the world via `NewObject` on connect.
 - [x] `--world <path>` CLI arg (default `world.bin`), `--no-save` to opt out.
-- [ ] Decide the save cadence: every N seconds *and* debounced after the last
+- [x] Decide the save cadence: every N seconds *and* debounced after the last
       edit, so an idle server isn't rewriting the file forever.
-- [ ] **Rules update**: `product.md` lists "no persistence" as a non-goal.
-      That line changes when this lands — persistence of *world geometry*
-      only, still no accounts / player state.
 
 ### 2. Block colours (player picks their own)
 
