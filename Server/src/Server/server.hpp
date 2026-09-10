@@ -32,7 +32,7 @@ struct Player {
 };
 
 class Server {
-  const std::string savePath{"save.bin"};
+  const std::string savePath;
   int port{env::PORT};
   ENetHost *host;
 
@@ -84,6 +84,6 @@ class Server {
 public:
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
-  explicit Server(int wsPort = 0);
+  explicit Server(int wsPort = 0, const std::string savePath = "save.bin");
   ~Server();
 };

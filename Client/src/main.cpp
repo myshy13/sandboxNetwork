@@ -17,6 +17,8 @@ bool paused          = false;
 float bulletCooldown = 0.0f;
 float placeCooldown  = 0.0f;
 
+#define VERSION "0.1.1"
+
 #ifdef DEBUG
 bool showDebug = false;
 #endif

@@ -5,6 +5,7 @@
 #include "Models/Object.hpp"
 #include <raylib.h>
 #include <raymath.h>
+#include <string>
 #include <vector>
 
 class Player : public Entity {

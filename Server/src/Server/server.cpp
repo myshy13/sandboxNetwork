@@ -38,7 +38,7 @@ private:
 
 // ==== connection setup ==== //
 
-Server::Server(int wsPort) {
+Server::Server(int wsPort, std::string savePath) : savePath(std::move(savePath)) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
