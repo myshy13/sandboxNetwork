@@ -18,7 +18,7 @@ Goal: the built world survives a server reboot.
       `Object::serialize`).
 - [x] Server loads that file on startup (restores `objects` + `nextObjectId`),
       broadcasts nothing — clients get the world via `NewObject` on connect.
-- [ ] `--world <path>` CLI arg (default `world.bin`), `--no-save` to opt out.
+- [x] `--world <path>` CLI arg (default `world.bin`), `--no-save` to opt out.
 - [ ] Decide the save cadence: every N seconds *and* debounced after the last
       edit, so an idle server isn't rewriting the file forever.
 - [ ] **Rules update**: `product.md` lists "no persistence" as a non-goal.

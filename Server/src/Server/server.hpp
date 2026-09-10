@@ -33,6 +33,7 @@ struct Player {
 
 class Server {
   const std::string savePath;
+  const int saveTime;
   int port{env::PORT};
   ENetHost *host;
 
@@ -51,7 +52,7 @@ class Server {
   std::vector<Object> objects{};
   std::vector<Bullet> bullets;
 
-  float saveCountdownTime = env::WORLD_SAVE_PERIOD;
+  float saveCountdownTime = saveTime;
   float saveCountdown{saveCountdownTime};
 
   Player *findPlayer(int id) {
@@ -84,6 +85,6 @@ class Server {
 public:
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
-  explicit Server(int wsPort = 0, const std::string savePath = "save.bin");
+  explicit Server(int wsPort = 0, const std::string savePath = "save.bin", const int saveTime = 30);
   ~Server();
 };
