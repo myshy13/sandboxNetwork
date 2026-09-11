@@ -12,14 +12,26 @@ static BoundingBox objectBox(const ObjectTransform &t) {
   return {Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
 }
 
-void World::draw() {
+void World::draw(const Ray &facing) {
   DrawPlane({0, 0, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
   DrawGrid(40, 20);
 
+  Object *targeted   = nullptr;
+  float bestDistance = FLT_MAX;
   for (Object &o : objects) {
     ObjectTransform t = o.getTransform();
     DrawCubeV(t.pos, t.scale, o.getColor());
-    DrawCubeWiresV(t.pos, t.scale, BLACK);
+    RayCollision rc = GetRayCollisionBox(facing, objectBox(t));
+    if (rc.hit && rc.distance < bestDistance) {
+      bestDistance = rc.distance;
+      targeted     = &o;
+    }
+  }
+  if (targeted != nullptr) {
+    ObjectTransform t = targeted->getTransform();
+    if (bestDistance <= REACH) {
+      DrawCubeWiresV(t.pos, t.scale, BLACK);
+    }
   }
 };
 
@@ -73,7 +85,6 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
     return false; // aiming at the sky
   }
 
-  constexpr float REACH = 50.0f;
   if (Vector3Distance(aim.position, target) > REACH) {
     return false; // too far away
   }

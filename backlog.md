@@ -39,6 +39,27 @@ mostly client wiring.
       grey — make it *tint toward* grey instead so a damaged red block still
       reads as red.
 
+### Pre-3. Rendering optimisations
+
+Each block currently costs two immediate-mode draw calls
+(`DrawCubeV` + `DrawCubeWiresV` in `World::draw`), so 30 blocks is 60 calls
+before players/bullets — the web build (WebGL via Emscripten) pays far more
+per-draw-call overhead than native, hence it lagging first.
+
+- [ ] Batch the wireframe: draw one `DrawCubeWiresV` outline only for the
+      block under the crosshair / recently placed, not every block every
+      frame — the outlines are the cheapest thing to cut and add nothing
+      once the scene is dense.
+- [ ] Instance the cubes: `DrawMeshInstanced` with one cube mesh and a
+      per-instance transform/color, instead of one `DrawCubeV` call per
+      `Object` — collapses N draw calls into 1 regardless of block count.
+- [ ] Frustum-cull `objects` before drawing (raylib has
+      `GetCameraFrustum` / bounding-box checks) so blocks behind the camera
+      aren't submitted at all.
+- [ ] Re-check block count where it stops being smooth after each change
+      above (30, 100, 300) so this list can stop once it's fast enough
+      rather than chasing a perfect renderer.
+
 ### 3. A real starting world instead of the bare grid
 
 Right now `World::draw` just draws `DrawGrid`. Spawn into something.

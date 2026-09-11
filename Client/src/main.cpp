@@ -182,17 +182,24 @@ int main() {
 #endif
         }
       }
+#ifdef CHEATS
+
+      constexpr float placeCooldownTime = 0;
+#else
+
+      constexpr float placeCooldownTime = 0.2f;
+#endif
       if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
         if (world.placeBlock(GetScreenToWorldRay(centre, camera), client, player.getTransform().translation)) {
-          placeCooldown = 0.2f;
+          placeCooldown = placeCooldownTime;
         }
       } else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         placeCooldown -= dt;
         if (placeCooldown <= 0) {
           Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
           if (world.placeBlock(GetScreenToWorldRay(centre, camera), client, player.getTransform().translation)) {
-            placeCooldown = 0.2f;
+            placeCooldown = placeCooldownTime;
           }
         }
       }
@@ -220,7 +227,10 @@ int main() {
         }
       }
       client.updateBullets(dt);
-      world.draw();
+      {
+        Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+        world.draw(GetScreenToWorldRay(centre, camera));
+      }
       lighting.end();
       for (auto &b : client.getBullets()) {
         DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
