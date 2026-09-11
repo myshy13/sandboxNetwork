@@ -7,17 +7,12 @@
 #include <sstream>
 #include <string>
 
-// Vector3 must already be defined before this header is included
-// (via <raylib.h> on the Client, or "models.hpp" on the Server) -
-// both define a compatible {x, y, z} float struct.
 template <class Archive> void serialize(Archive &ar, Vector3 &v) {
   ar(v.x, v.y, v.z);
 }
 
 namespace proto {
 
-// Bump on any wire-format change (a struct field, a Type entry). The handshake
-// rejects a client whose value doesn't match the server's.
 constexpr int PROTOCOL_VERSION = 1;
 
 enum class Type : uint8_t {

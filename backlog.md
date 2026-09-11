@@ -6,6 +6,8 @@ focus, in order.
 
 ---
 
+> **Note:** [/] means decided not to.
+
 ## Now
 
 ### 1. World saving / loading
@@ -27,13 +29,13 @@ Goal: the built world survives a server reboot.
 `Object` already has a `color` field and it's already on the wire — this is
 mostly client wiring.
 
-- [ ] Colour palette UI (number keys 1–8, or a small swatch bar).
-- [ ] `placeBlock` stamps the selected colour onto the `Object` before
+- [x] Colour palette UI (number keys 1–8, or a small swatch bar).
+- [x] `placeBlock` stamps the selected colour onto the `Object` before
       `client.placeObject` (right now it always sends default white).
-- [ ] Server: trust the colour from `PlaceObject` (it's cosmetic, no reason
+- [/] Server: trust the colour from `PlaceObject` (it's cosmetic, no reason
       to validate) but clamp to the palette so it can't be abused for
       messages / eye-strain colours.
-- [ ] Durability shading (`Object::damage`) currently overwrites colour with
+- [x] Durability shading (`Object::damage`) currently overwrites colour with
       grey — make it *tint toward* grey instead so a damaged red block still
       reads as red.
 

@@ -20,17 +20,7 @@ public:
   int getId() const { return id; }
   void damage() {
     durability--;
-    switch (durability) {
-    case 2:
-      color = LIGHTGRAY;
-      break;
-    case 1:
-      color = GRAY;
-      break;
-    case 0:
-      color = DARKGRAY;
-      break;
-    }
+    color = ColorBrightness(color, -0.25f); // darken toward black, keep hue
   }
 
   void setId(int newId) { id = newId; }
@@ -41,6 +31,8 @@ public:
     transform.pos = pos;
   }
   Object(int objectId, ObjectTransform t) : id(objectId), transform(t) {}
+  Object(int objectId, ObjectTransform t, Color c)
+      : id(objectId), transform(t), color(c) {}
 
   // cereal: send the fields the other side needs to draw + identify the block.
   // Vector3's serializer is the free function in Shared/Protocol/protocol.hpp.
