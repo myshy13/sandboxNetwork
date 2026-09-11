@@ -5,14 +5,20 @@
 #include <raylib.h>
 #include <vector>
 
+#define MAX_COLOURS 5
+
 class World {
 private:
+  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED};
+  int activeColor                 = 0;
   std::vector<Object> objects{};
 
 public:
   void draw();
+  void drawHud();
   bool placeBlock(Ray aim, Client &client, const Vector3 &playerPos);
   void addObject(const Object &object);
+  void update();
   void removeObject(int id);
   void damageObject(int id);
   const std::vector<Object> &getObjects() const;

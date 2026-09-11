@@ -2,6 +2,7 @@
 #include "Client/client.hpp"
 #include "Models/Object.hpp"
 #include <cfloat>
+#include <cmath>
 #include <raylib.h>
 #include <raymath.h>
 
@@ -12,9 +13,7 @@ static BoundingBox objectBox(const ObjectTransform &t) {
 }
 
 void World::draw() {
-  // A real plane (unlike DrawGrid's lines) carries an up-normal, so the
-  // lighting shader actually lights the floor instead of leaving it near-black.
-  DrawPlane({0, 0, 0}, {800, 800}, Color{70, 90, 70, 255});
+  DrawPlane({0, 0, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
   DrawGrid(40, 20);
 
   for (Object &o : objects) {
@@ -23,6 +22,26 @@ void World::draw() {
     DrawCubeWiresV(t.pos, t.scale, BLACK);
   }
 };
+
+void World::drawHud() {
+  constexpr float BOXSIZE = 50.0f; // square
+  for (int i = 0; i < MAX_COLOURS; i++) {
+    const Color &color = colors[i];
+    if (activeColor == i) {
+      DrawRectangle(GetScreenWidth() - BOXSIZE * MAX_COLOURS + i * BOXSIZE, GetScreenHeight() - BOXSIZE, BOXSIZE, BOXSIZE, WHITE);
+    } else {
+      DrawRectangle(GetScreenWidth() - BOXSIZE * MAX_COLOURS + i * BOXSIZE, GetScreenHeight() - BOXSIZE, BOXSIZE, BOXSIZE, GRAY);
+    }
+    DrawRectangle(GetScreenWidth() - BOXSIZE * MAX_COLOURS + i * BOXSIZE + 5, GetScreenHeight() - BOXSIZE + 5, BOXSIZE - 10, BOXSIZE - 10, color);
+  }
+}
+
+void World::update() {
+  int key = GetKeyPressed();
+  if (key >= KEY_ONE && key < KEY_ONE + MAX_COLOURS) {
+    activeColor = key - KEY_ONE;
+  }
+}
 
 // Every placed block is this size, and the build grid has cells this size.
 constexpr Vector3 blockSize = {5, 5, 5};
@@ -78,7 +97,7 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   BoundingBox block = objectBox(ObjectTransform{cell, blockSize});
 
   if (!CheckCollisionBoxes(player, block)) {
-    client.placeObject(Object{-1, ObjectTransform{cell, blockSize}});
+    client.placeObject(Object{-1, ObjectTransform{cell, blockSize}, colors[activeColor]});
     return true;
   } else {
     return false;

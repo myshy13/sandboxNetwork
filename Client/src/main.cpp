@@ -198,6 +198,8 @@ int main() {
       }
     }
 
+    world.update();
+
     // ==== Draw ====
     {
       BeginDrawing();
@@ -226,6 +228,8 @@ int main() {
       }
       EndMode3D();
     }
+
+    world.drawHud();
 
     // ==== health bar ==== //
     {
