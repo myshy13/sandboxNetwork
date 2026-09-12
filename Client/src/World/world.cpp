@@ -14,9 +14,6 @@ static BoundingBox objectBox(const ObjectTransform &t) {
 }
 
 void World::draw(const Ray &facing, const Shader &shader, int colorLoc) {
-  DrawPlane({0, 0, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
-  DrawGrid(40, 20);
-
   static Mesh cubeMesh          = GenMeshCube(1, 1, 1);
   static Model cubeModel        = LoadModelFromMesh(cubeMesh);
   cubeModel.materials[0].shader = shader;

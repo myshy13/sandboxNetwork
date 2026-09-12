@@ -5,7 +5,7 @@
 #include <raylib.h>
 #include <vector>
 
-#define MAX_COLOURS 6
+#define MAX_COLOURS 5
 #define REACH 50.0f
 
 class World {
