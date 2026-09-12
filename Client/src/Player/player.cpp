@@ -103,9 +103,8 @@ void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &block
   velocity.z *= damping;
   if (!onGround) {
     velocity.y -= GRAVITY * dt;
-    // Terminal velocity: cap how fast we can fall. Upper bound is jumpPower so
-    // an upward launch is never clamped away.
-    constexpr float TERMINAL_VELOCITY = -60.0f;
+    // Terminal velocity: cap how fast we can fall.
+    constexpr float TERMINAL_VELOCITY = -80.0f;
     velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
   }
   // to stop tiny fractions

@@ -4,6 +4,7 @@
 #include "Protocol/protocol.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
+#include "env.hpp"
 
 #include <iostream>
 #include <optional>
@@ -16,8 +17,6 @@
 bool paused          = false;
 float bulletCooldown = 0.0f;
 float placeCooldown  = 0.0f;
-
-#define VERSION "0.1.1"
 
 #ifdef DEBUG
 bool showDebug = false;
@@ -229,7 +228,7 @@ int main() {
       client.updateBullets(dt);
       {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-        world.draw(GetScreenToWorldRay(centre, camera));
+        world.draw(GetScreenToWorldRay(centre, camera), lighting.getShader(), lighting.getColorLoc());
       }
       lighting.end();
       for (auto &b : client.getBullets()) {

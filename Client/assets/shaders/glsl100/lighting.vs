@@ -5,18 +5,17 @@ attribute vec3 vertexPosition;
 attribute vec2 vertexTexCoord;
 attribute vec3 vertexNormal;
 attribute vec4 vertexColor;
+attribute mat4 instanceTransform;   // per-instance model matrix
+attribute vec4 instanceColor;
 
 // Input uniform values
-uniform mat4 mvp;
-uniform mat4 matModel;
+uniform mat4 mvp;   // here: projection * view (raylib supplies it this way for instancing)
 
 // Output vertex attributes (to fragment shader)
 varying vec3 fragPosition;
 varying vec2 fragTexCoord;
 varying vec4 fragColor;
 varying vec3 fragNormal;
-
-// NOTE: Add here your custom variables
 
 // https://github.com/glslify/glsl-inverse
 mat3 inverse(mat3 m)
@@ -47,13 +46,13 @@ mat3 transpose(mat3 m)
 void main()
 {
     // Send vertex attributes to fragment shader
-    fragPosition = vec3(matModel*vec4(vertexPosition, 1.0));
+    fragPosition = vec3(instanceTransform*vec4(vertexPosition, 1.0));
     fragTexCoord = vertexTexCoord;
-    fragColor = vertexColor;
+    fragColor = vertexColor * instanceColor;
 
-    mat3 normalMatrix = transpose(inverse(mat3(matModel)));
+    mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
     fragNormal = normalize(normalMatrix*vertexNormal);
 
     // Calculate final vertex position
-    gl_Position = mvp*vec4(vertexPosition, 1.0);
+    gl_Position = mvp*instanceTransform*vec4(vertexPosition, 1.0);
 }

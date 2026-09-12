@@ -18,6 +18,8 @@ Lighting::Lighting() {
 
   float ambient[4] = {0.3f, 0.3f, 0.3f, 1.0f};
   SetShaderValue(shader, GetShaderLocation(shader, "ambient"), ambient, SHADER_UNIFORM_VEC4);
+
+  colorLoc = GetShaderLocationAttrib(shader, "instanceColor");
 }
 
 Lighting::~Lighting() {
