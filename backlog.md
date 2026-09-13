@@ -53,11 +53,11 @@ per-draw-call overhead than native, hence it lagging first.
 - [x] Instance the cubes: `DrawMeshInstanced` with one cube mesh and a
       per-instance transform/color, instead of one `DrawCubeV` call per
       `Object` — collapses N draw calls into 1 regardless of block count.
-- [ ] Frustum-cull `objects` before drawing (raylib has no built-in
+- [x] Frustum-cull `objects` before drawing (raylib has no built-in
       frustum API — extract 6 planes from the view-projection matrix
       manually, test each object's BoundingBox against them) so blocks
       behind the camera aren't submitted at all.
-- [ ] Re-check block count where it stops being smooth after each change
+- [/] Re-check block count where it stops being smooth after each change
       above (30, 100, 300) so this list can stop once it's fast enough
       rather than chasing a perfect renderer.
 
