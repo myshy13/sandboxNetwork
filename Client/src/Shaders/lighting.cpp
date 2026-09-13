@@ -20,6 +20,9 @@ Lighting::Lighting() {
   SetShaderValue(shader, GetShaderLocation(shader, "ambient"), ambient, SHADER_UNIFORM_VEC4);
 
   colorLoc = GetShaderLocationAttrib(shader, "instanceColor");
+  transformLoc = GetShaderLocationAttrib(shader, "instanceTransform");
+
+  shader.locs[SHADER_LOC_MATRIX_MODEL] = transformLoc;
 }
 
 Lighting::~Lighting() {

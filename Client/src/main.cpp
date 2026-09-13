@@ -2,6 +2,7 @@
 #include "GameState/gameState.hpp"
 #include "Player/player.hpp"
 #include "Protocol/protocol.hpp"
+#include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
@@ -57,6 +58,7 @@ int main() {
   Lighting lighting;
   Player player;
   World world;
+  Renderer renderer;
 
   // ==== lighting ==== //
   lighting.addDirectional(
@@ -228,7 +230,11 @@ int main() {
       client.updateBullets(dt);
       {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-        world.draw(GetScreenToWorldRay(centre, camera), lighting.getShader(), lighting.getColorLoc());
+        Object *targeted = renderer.drawObjects(world.getObjects(), GetScreenToWorldRay(centre, camera), lighting, camera);
+        if (targeted != nullptr) {
+          ObjectTransform t = targeted->getTransform();
+          DrawCubeWiresV(t.pos, t.scale, BLACK);
+        }
       }
       lighting.end();
       for (auto &b : client.getBullets()) {
@@ -236,7 +242,7 @@ int main() {
         DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
       }
 
-      DrawPlane({0, 0, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
+      DrawPlane({0, -0.01, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
       DrawGrid(40, 20);
 
       EndMode3D();
@@ -388,8 +394,8 @@ int main() {
 
       const char *fps = TextFormat("FPS: %d", GetFPS());
       DrawText(fps, 10, rowPos, FONTSIZE, LIME);
-
       rowPos += ROWSIZE;
+
       Vector3 pos = player.getTransform().translation;
 
       DrawText("Player pos:", 10, rowPos, FONTSIZE, LIME);
@@ -401,6 +407,34 @@ int main() {
       DrawText(TextFormat("Y: %f", pos.y), 10, rowPos, FONTSIZE, LIME);
       rowPos += ROWSIZE;
       DrawText(TextFormat("Z: %f", pos.z), 10, rowPos, FONTSIZE, LIME);
+      rowPos += ROWSIZE;
+
+      rowPos += ROWSIZE / 2; // small gap before the next section
+
+      DrawText("World:", 10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Shown (post-cull): %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      rowPos += ROWSIZE / 2;
+
+      DrawText("Network:", 10, rowPos, FONTSIZE, YELLOW);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"), 10, rowPos, FONTSIZE, YELLOW);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 10, rowPos, FONTSIZE, YELLOW);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 10, rowPos, FONTSIZE, YELLOW);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos, FONTSIZE, YELLOW);
       rowPos += ROWSIZE;
     }
 #endif

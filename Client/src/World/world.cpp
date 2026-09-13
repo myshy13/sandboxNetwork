@@ -8,65 +8,10 @@
 #include <raymath.h>
 
 // Axis-aligned box centred on an object (pos is the centre; see placeBlock).
-static BoundingBox objectBox(const ObjectTransform &t) {
+inline BoundingBox objectBox(const ObjectTransform &t) {
   Vector3 half = Vector3Scale(t.scale, 0.5f);
   return {Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
 }
-
-void World::draw(const Ray &facing, const Shader &shader, int colorLoc) {
-  static Mesh cubeMesh          = GenMeshCube(1, 1, 1);
-  static Model cubeModel        = LoadModelFromMesh(cubeMesh);
-  cubeModel.materials[0].shader = shader;
-  Material cubeMat              = cubeModel.materials[0];
-  shader.locs[SHADER_LOC_MATRIX_MODEL] =
-      GetShaderLocationAttrib(shader, "instanceTransform");
-
-  Object *targeted   = nullptr;
-  float bestDistance = FLT_MAX;
-
-  std::vector<Matrix> instanceMats;
-  std::vector<Vector4> instanceColors;
-  instanceMats.reserve(objects.size());
-  instanceColors.reserve(objects.size());
-
-  for (Object &o : objects) {
-    ObjectTransform t = o.getTransform();
-    Matrix scaleM     = MatrixScale(t.scale.x, t.scale.y, t.scale.z);
-    Matrix translate  = MatrixTranslate(t.pos.x, t.pos.y, t.pos.z);
-    instanceMats.push_back(MatrixMultiply(scaleM, translate));
-    Color c = o.getColor();
-    instanceColors.push_back({c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f});
-
-    RayCollision rc = GetRayCollisionBox(facing, objectBox(t));
-    if (rc.hit && rc.distance < bestDistance) {
-      bestDistance = rc.distance;
-      targeted     = &o;
-    }
-  }
-  if (!instanceMats.empty()) {
-    unsigned int colorVBO = rlLoadVertexBuffer(
-        instanceColors.data(),
-        (int)(instanceColors.size() * sizeof(Vector4)),
-        false);
-
-    rlEnableVertexArray(cubeMesh.vaoId);
-    rlEnableVertexAttribute(colorLoc);
-    rlSetVertexAttribute(colorLoc, 4, RL_FLOAT, false, sizeof(Vector4), 0);
-    rlSetVertexAttributeDivisor(colorLoc, 1);
-    rlDisableVertexArray();
-
-    DrawMeshInstanced(cubeMesh, cubeMat, instanceMats.data(),
-                      static_cast<int>(instanceMats.size()));
-
-    rlUnloadVertexBuffer(colorVBO);
-  }
-  if (targeted != nullptr) {
-    ObjectTransform t = targeted->getTransform();
-    if (bestDistance <= REACH) {
-      DrawCubeWiresV(t.pos, t.scale, BLACK);
-    }
-  }
-};
 
 void World::drawHud() {
   constexpr float BOXSIZE = 50.0f; // square
@@ -164,6 +109,6 @@ void World::damageObject(int id) {
   }
 }
 
-const std::vector<Object> &World::getObjects() const {
+std::vector<Object> &World::getObjects() {
   return objects;
 }
