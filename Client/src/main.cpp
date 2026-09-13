@@ -179,7 +179,7 @@ int main() {
 #ifdef CHEATS
           bulletCooldown = 0.0f;
 #else
-          bulletCooldown = 0.1f;
+          bulletCooldown = 0.05f;
 #endif
         }
       }
@@ -242,7 +242,6 @@ int main() {
         DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
       }
 
-      DrawPlane({0, -0.01, 0}, {800, 800}, Color{45, 55, 45, 255}); // dark enough for the grid lines to read against it
       DrawGrid(40, 20);
 
       EndMode3D();

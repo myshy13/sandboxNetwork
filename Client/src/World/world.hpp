@@ -5,11 +5,11 @@
 #include <raylib.h>
 #include <vector>
 
-#define MAX_COLOURS 5
+#define MAX_COLOURS 6
 
 class World {
 private:
-  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED};
+  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED, BLUE};
   int activeColor                 = 0;
   std::vector<Object> objects{};
 
