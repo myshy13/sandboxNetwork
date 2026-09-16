@@ -2,16 +2,15 @@
 #define SANDBOXNET_PLAYER
 
 #include "Entity/entity.hpp"
-#include "Models/Object.hpp"
+#include "World/world.hpp"
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
-#include <vector>
 
 class Player : public Entity {
 private:
   const float speed = 90.0f;
-  float jumpPower   = 40.0f;
+  float jumpPower   = 90.0f;
 
   float yaw   = 0.0f;
   float pitch = 0.0f;
@@ -21,7 +20,7 @@ public:
   // ignores keyboard/mouse - used while the chat box has focus.
   bool inputEnabled = true;
 
-  void Update(float dt, Camera3D &camera, const std::vector<Object> &blocks);
+  void Update(float dt, Camera3D &camera, const World &world);
   void UpdateCamera(Camera3D &camera) const;
   Transform getTransform() {
     return transform;

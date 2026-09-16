@@ -142,8 +142,8 @@ std::vector<Object> &World::getObjects() {
 
 void World::rebuildOccupiedCells() {
   occupiedCells.clear();
-  for (Object &o : objects) {
-    occupiedCells.insert(cellKey(o.getTransform().pos));
+  for (int i = 0; i < (int)objects.size(); i++) {
+    occupiedCells[cellKey(objects[i].getTransform().pos)] = i;
   }
   cellsDirty = false;
 }
@@ -169,4 +169,29 @@ bool World::isOccluded(const Object &o) const {
   if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, 0, -blockSize.z}))))
     return false;
   return true;
+}
+
+bool World::boxCollides(BoundingBox box) const {
+  // Blocks are one-per-cell on the fixed blockSize grid, so only the cells
+  // box's own extent spans can possibly contain a hit.
+  int minX = (int)floorf(box.min.x / blockSize.x);
+  int maxX = (int)floorf(box.max.x / blockSize.x);
+  int minY = (int)floorf(box.min.y / blockSize.y);
+  int maxY = (int)floorf(box.max.y / blockSize.y);
+  int minZ = (int)floorf(box.min.z / blockSize.z);
+  int maxZ = (int)floorf(box.max.z / blockSize.z);
+
+  for (int y = minY; y <= maxY; y++) {
+    for (int z = minZ; z <= maxZ; z++) {
+      for (int x = minX; x <= maxX; x++) {
+        Vector3 cellPos = {(x + 0.5f) * blockSize.x, (y + 0.5f) * blockSize.y, (z + 0.5f) * blockSize.z};
+        auto it = occupiedCells.find(cellKey(cellPos));
+        if (it == occupiedCells.end())
+          continue;
+        if (CheckCollisionBoxes(box, objectBox(objects[it->second].getTransform())))
+          return true;
+      }
+    }
+  }
+  return false;
 }

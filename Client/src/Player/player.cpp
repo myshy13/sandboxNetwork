@@ -1,5 +1,4 @@
 #include "Player/player.hpp"
-#include "Models/Object.hpp"
 #include "Raylib/text3D.hpp"
 #include <cstdlib>
 #include <raylib.h>
@@ -10,7 +9,7 @@
 
 constexpr float GRAVITY = 140.0f;
 
-void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &blocks) {
+void Player::Update(float dt, Camera3D &camera, const World &world) {
   if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !IsCursorHidden()) {
     DisableCursor();
   }
@@ -35,14 +34,7 @@ void Player::Update(float dt, Camera3D &camera, const std::vector<Object> &block
 
   // True if a box overlaps any placed block.
   auto hitsBlock = [&](BoundingBox b) {
-    for (const Object &o : blocks) {
-      ObjectTransform t = o.getTransform();
-      Vector3 h         = Vector3Scale(t.scale, 0.5f);
-      if (CheckCollisionBoxes(b, {Vector3Subtract(t.pos, h), Vector3Add(t.pos, h)})) {
-        return true;
-      }
-    }
-    return false;
+    return world.boxCollides(b);
   };
   // The player's body box, bottom at the feet (translation), scale tall.
   auto blocked = [&](Vector3 feet) {

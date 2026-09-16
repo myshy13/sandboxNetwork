@@ -168,7 +168,7 @@ int main() {
 #ifdef DEBUG
       double t0 = GetTime();
 #endif
-      player.Update(dt, camera, world.getObjects());
+      player.Update(dt, camera, world);
 #ifdef DEBUG
       playerUpdateMs = (GetTime() - t0) * 1000.0;
 #endif
