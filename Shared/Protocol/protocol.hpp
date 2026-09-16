@@ -3,9 +3,11 @@
 #include "raylib.h"
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
 #include <cstdint>
 #include <sstream>
 #include <string>
+#include <vector>
 
 template <class Archive> void serialize(Archive &ar, Vector3 &v) {
   ar(v.x, v.y, v.z);
@@ -13,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 1;
+constexpr int PROTOCOL_VERSION = 2; // added initBlocks
 
 enum class Type : uint8_t {
   PlayerUpdate,
@@ -31,7 +33,8 @@ enum class Type : uint8_t {
   RemoveObject,
   DamageObject,
   clientHandshake,
-  kick
+  kick,
+  initBlocks
   // kickPlayer
 };
 
@@ -112,6 +115,10 @@ struct kick {
   int playerId;
   std::string reason;
   template <class A> void serialize(A &ar) { ar(playerId, reason); }
+};
+struct initBlocks {
+  std::vector<Object> objects;
+  template <class A> void serialize(A &ar) { ar(objects); }
 };
 // TODO: Implement player permissions
 // struct kickPlayer {

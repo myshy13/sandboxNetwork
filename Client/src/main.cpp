@@ -81,6 +81,9 @@ int main() {
       client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
       player.UpdateCamera(camera);
     }
+    if (auto init = client.takeInitBlocks()) {
+      world.setObjects(std::move(*init));
+    }
     for (const Object &o : client.takeNewObjects()) {
       world.addObject(o);
     }
@@ -230,7 +233,7 @@ int main() {
       client.updateBullets(dt);
       {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-        Object *targeted = renderer.drawObjects(world.getObjects(), GetScreenToWorldRay(centre, camera), lighting, camera);
+        Object *targeted = renderer.drawObjects(world.getObjects(), world.getVersion(), world, GetScreenToWorldRay(centre, camera), lighting, camera);
         if (targeted != nullptr) {
           ObjectTransform t = targeted->getTransform();
           DrawCubeWiresV(t.pos, t.scale, BLACK);
@@ -383,6 +386,9 @@ int main() {
 #ifdef DEBUG
     if (IsKeyPressed(KEY_F3)) {
       showDebug = !showDebug;
+    }
+    if (IsKeyPressed(KEY_R)) {
+      client.reconnect();
     }
 
     constexpr int ROWSIZE  = 30;

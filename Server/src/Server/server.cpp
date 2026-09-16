@@ -7,12 +7,14 @@
 #include <algorithm>
 #include <cereal/types/vector.hpp>
 #include <chrono>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <raymath.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -38,7 +40,8 @@ private:
 
 // ==== connection setup ==== //
 
-Server::Server(int wsPort, std::string savePath, int saveTime) : savePath(std::move(savePath)), saveTime(saveTime)  {
+Server::Server(int wsPort, std::string savePath, int saveTime)
+    : savePath(std::move(savePath)), saveTime(saveTime) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -97,6 +100,7 @@ void Server::loadWorld() {
   std::ifstream is(savePath, std::ios::binary);
   if (!is) {
     std::printf("no save at %s, starting fresh\n", savePath.c_str());
+    generateWorld();
     return;
   }
 
@@ -113,7 +117,90 @@ void Server::loadWorld() {
     std::fprintf(stderr, "save file corrupt (%s), starting fresh\n", e.what());
     objects.clear();
     nextObjectId = 1;
+    generateWorld();
   }
+}
+
+void Server::generateWorld() {
+  std::cout << "Generating World\n";
+  // World spans [-WORLD_SIZE, WORLD_SIZE) on both axes; SPAN is the grid's
+  // actual width/height, and toIndex offsets x/z so they're never negative.
+  constexpr int WORLD_SIZE = 200;
+  constexpr int SPAN = 2 * WORLD_SIZE;
+  auto toIndex = [](int x, int z) {
+    return (z + WORLD_SIZE) * SPAN + (x + WORLD_SIZE);
+  };
+
+  std::vector<int> heightMap(SPAN * SPAN);
+  Vector3 blockSize = {5, 5, 5};
+
+  std::cout << "Generating Terrain\n";
+  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
+    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
+      heightMap[toIndex(x, z)] = rand() % 10;
+    }
+  }
+
+  std::cout << "Smoothing terrain\n";
+  for (int i = 0; i < 7; i++) {
+    std::vector<int> smoothed(heightMap.size());
+    for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
+      for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
+        int sum = 0, count = 0;
+        for (int dz = -1; dz <= 1; dz++) {
+          for (int dx = -1; dx <= 1; dx++) {
+            int nx = x + dx, nz = z + dz;
+            if (nx < -WORLD_SIZE || nx >= WORLD_SIZE || nz < -WORLD_SIZE ||
+                nz >= WORLD_SIZE)
+              continue;
+            sum += heightMap[toIndex(nx, nz)];
+            count++;
+          }
+        }
+        smoothed[toIndex(x, z)] = sum / count;
+      }
+    }
+    heightMap = std::move(smoothed);
+  }
+
+  std::cout << "Lowest terrain\n";
+  int lowest = INT_MAX;
+  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
+    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
+      lowest = std::min(lowest, heightMap[toIndex(x, z)]);
+    }
+  }
+
+  std::cout << "Lowering terrain\n";
+  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
+    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
+      heightMap[toIndex(x, z)] -= lowest;
+    }
+  }
+
+  std::cout << "Building terrain\n";
+  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
+    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
+      int height = heightMap[toIndex(x, z)];
+      float blockX = x * blockSize.x + (blockSize.x / 2);
+      float blockY = height * blockSize.y + (blockSize.y / 2);
+      float blockZ = z * blockSize.z + (blockSize.z / 2);
+
+      objects.emplace_back(nextObjectId,
+                           ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+                           GREEN);
+      nextObjectId++;
+
+      for (int i = height; i > 0; i--) {
+        blockY -= blockSize.y;
+        objects.emplace_back(
+            nextObjectId, ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+            BROWN);
+        nextObjectId++;
+      }
+    }
+  }
+  std::cout << "Done building world\n";
 }
 
 // ==== sending ==== //
@@ -147,17 +234,12 @@ std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
     return std::nullopt;
   }
 
-  // The client sends the aim ray straight from its camera, so we fire exactly
-  // where the shooter was looking that frame. Identity still comes from the
-  // connection (playerId), never the payload.
   Vector3 forward = Vector3Normalize(dir);
 
   Bullet bullet;
   bullet.bulletId = nextBulletId;
   nextBulletId++;
   bullet.playerId = player->id;
-  // origin is the client's eye; nudge forward so the bullet doesn't render
-  // point-blank on the camera.
   bullet.pos = Vector3Add(origin, Vector3Scale(forward, env::MUZZLE_DISTANCE));
   bullet.vel = Vector3Scale(forward, env::BULLET_SPEED);
 
@@ -182,12 +264,10 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
 
+  // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
-
-  // Catch the newcomer up on blocks placed before they joined.
-  for (const Object &o : objects) {
-    sendTo(id, proto::pack(proto::Type::NewObject, proto::NewObject{o}), true);
-  }
+  sendTo(id, proto::pack(proto::Type::initBlocks, proto::initBlocks{objects}),
+         true);
   return id;
 }
 
@@ -273,11 +353,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
     if (msg.ver != proto::PROTOCOL_VERSION) {
       auto kickBytes = proto::pack(
           proto::Type::kick,
-          proto::kick{
-              playerId,
-              "Mismatch Client version: " + std::to_string(msg.ver) +
-                  ". Server version: " +
-                  std::to_string(proto::PROTOCOL_VERSION)});
+          proto::kick{playerId,
+                      "Mismatch Client version: " + std::to_string(msg.ver) +
+                          ". Server version: " +
+                          std::to_string(proto::PROTOCOL_VERSION)});
       sendTo(playerId, kickBytes, true);
     }
     break;

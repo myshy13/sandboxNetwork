@@ -47,6 +47,7 @@ private:
   std::optional<Vector3> respawnTo{};
 
   std::vector<Object> pendingObjects{};
+  std::optional<std::vector<Object>> pendingInit{};
   std::vector<int> pendingRemovals{};
   std::vector<int> pendingDamage{};
   bool handshakeSent{false};
@@ -68,6 +69,9 @@ public:
   void setName(const std::string &msg);
   void placeObject(const Object &object);
   void disconnect() { transport->disconnect(); }
+#ifdef DEBUG
+  void reconnect();
+#endif
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
       if (p.id == id)
@@ -119,6 +123,11 @@ public:
   }
   std::vector<Object> takeNewObjects() {
     return std::exchange(pendingObjects, {});
+  }
+  // A full-world snapshot (initBlocks) replaces rather than merges, so it
+  // skips the per-object dedupe World::addObject does for incremental adds.
+  std::optional<std::vector<Object>> takeInitBlocks() {
+    return std::exchange(pendingInit, std::nullopt);
   }
   std::vector<int> takeRemovedObjects() {
     return std::exchange(pendingRemovals, {});

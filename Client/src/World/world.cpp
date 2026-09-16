@@ -6,11 +6,18 @@
 #include <cmath>
 #include <raylib.h>
 #include <raymath.h>
+#include <vector>
 
 // Axis-aligned box centred on an object (pos is the centre; see placeBlock).
 inline BoundingBox objectBox(const ObjectTransform &t) {
   Vector3 half = Vector3Scale(t.scale, 0.5f);
   return {Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
+}
+
+void World::setObjects(std::vector<Object> newObjects) {
+  objects    = std::move(newObjects);
+  cellsDirty = true;
+  version++;
 }
 
 void World::drawHud() {
@@ -31,6 +38,9 @@ void World::update() {
   if (key >= KEY_ONE && key < KEY_ONE + MAX_COLOURS) {
     activeColor = key - KEY_ONE;
   }
+  if (cellsDirty) {
+    rebuildOccupiedCells();
+  }
 }
 
 // Every placed block is this size, and the build grid has cells this size.
@@ -41,6 +51,19 @@ static Vector3 snapToCell(Vector3 p) {
   return {(floorf(p.x / blockSize.x) + 0.5f) * blockSize.x,
           (floorf(p.y / blockSize.y) + 0.5f) * blockSize.y,
           (floorf(p.z / blockSize.z) + 0.5f) * blockSize.z};
+}
+
+// Packs a grid cell's (x, y, z) into one hashable key, offset so negative
+// coordinates don't collide with positive ones once shifted into place.
+static int64_t cellKey(Vector3 coord) {
+  Vector3 cell = Vector3Divide(coord, blockSize);
+
+  constexpr int64_t OFFSET = 1 << 20;
+  int64_t x                = std::lround(cell.x) + OFFSET;
+  int64_t y                = std::lround(cell.y) + OFFSET;
+  int64_t z                = std::lround(cell.z) + OFFSET;
+
+  return (x << 42) | (y << 21) | z;
 }
 
 bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
@@ -95,10 +118,14 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
 
 void World::addObject(const Object &object) {
   objects.push_back(object);
+  version++;
+  cellsDirty = true;
 }
 
 void World::removeObject(int id) {
   std::erase_if(objects, [id](const Object &o) { return o.getId() == id; });
+  version++;
+  cellsDirty = true;
 }
 
 void World::damageObject(int id) {
@@ -111,4 +138,35 @@ void World::damageObject(int id) {
 
 std::vector<Object> &World::getObjects() {
   return objects;
+}
+
+void World::rebuildOccupiedCells() {
+  occupiedCells.clear();
+  for (Object &o : objects) {
+    occupiedCells.insert(cellKey(o.getTransform().pos));
+  }
+  cellsDirty = false;
+}
+
+bool World::isOccluded(const Object &o) const {
+  Vector3 pos = o.getTransform().pos;
+  // +x
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {blockSize.x, 0, 0}))))
+    return false;
+  // -x
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {-blockSize.x, 0, 0}))))
+    return false;
+  // +y
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, blockSize.y, 0}))))
+    return false;
+  // -y
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, -blockSize.y, 0}))))
+    return false;
+  // +z
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, 0, blockSize.z}))))
+    return false;
+  // -z
+  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, 0, -blockSize.z}))))
+    return false;
+  return true;
 }

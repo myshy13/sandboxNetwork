@@ -65,7 +65,7 @@ per-draw-call overhead than native, hence it lagging first.
 
 Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 
-- [ ] A flat floor of blocks (generated once on the server at startup if the
+- [x] A flat floor of blocks (generated once on the server at startup if the
       save file is empty) so bullets/placement have something to land on.
 - [ ] Keep it server-authoritative — the floor is just `objects` like any
       placed block, not special-cased client geometry.

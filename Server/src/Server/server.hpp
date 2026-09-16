@@ -82,6 +82,9 @@ class Server {
   void saveWorld();
   void loadWorld();
 
+  // ==== World generation ==== //
+  void generateWorld();
+
 public:
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.

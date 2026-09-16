@@ -36,6 +36,17 @@ Client::Client() {
   transport->connect(env::SERVER_IP, port);
 }
 
+#ifdef DEBUG
+void Client::reconnect() {
+  std::cout << "Reconnecting to server: " << env::SERVER_IP << " at port " << port << "\n";
+  transport->disconnect();
+  transport = makeTransport();
+  transport->connect(env::SERVER_IP, port);
+  handshakeSent = false;
+  playerId      = -1;
+}
+#endif
+
 // ==== incoming message handling ==== //
 void Client::poll() {
   while (auto data = transport->receive()) {
@@ -167,6 +178,11 @@ void Client::handleMessage(const std::string &data) {
       kickReason = msg.reason;
       disconnect();
     }
+    break;
+  }
+  case proto::Type::initBlocks: {
+    auto msg    = proto::unpack<proto::initBlocks>(data);
+    pendingInit = std::move(msg.objects);
     break;
   }
   default:
