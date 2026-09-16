@@ -29,6 +29,7 @@ Do not do any code unless you have concrete evidence that they already would kno
   amount that you contributed is over ~50% of the code in that 1 commit.
 - After making 3 or more commits in a session that haven't been pushed
   yet, push the current branch to its remote.
+- Before writing any code, you should check with the creator, but you should also check the git status for uncommited code.
 
 ## Formatting guide
 
