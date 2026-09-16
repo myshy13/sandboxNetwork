@@ -61,6 +61,33 @@ per-draw-call overhead than native, hence it lagging first.
       above (30, 100, 300) so this list can stop once it's fast enough
       rather than chasing a perfect renderer.
 
+### 2.5. Collision is now the bottleneck, not rendering
+
+Added debug instrumentation to find the laggiest thing after the 400x400
+world-generation change (`Server::generateWorld`, `WORLD_SIZE = 200`):
+client HUD (F3) now shows `Player.Update` and `drawObjects` timing in ms,
+and the server prints `tick: N ms (objects=... bullets=... players=...)`
+once a second.
+
+Findings: rendering (frustum-cull + instancing, done in Pre-3 below) is no
+longer the problem. The remaining hot paths are both **unindexed linear
+scans over every object in the world**, scaling with world size, not with
+what's on screen:
+
+- Client: `Player::hitsBlock` (`Client/src/Player/player.cpp:38`) scans
+  `blocks` (all of `world.getObjects()`) and runs it up to 4x per frame
+  (ground check + 3 axis-blocked checks) — this is `Player.Update` in the
+  HUD.
+- Server: `Server::tick`'s hit-detection loop (`Server/src/Server/server.cpp`,
+  the `for (Object &o : objects)` inside `for (auto &b : bullets)`) scans
+  every object for every live bullet, every tick.
+
+- [ ] Reuse `World`'s existing spatial hash (`occupiedCells` /
+      `Renderer`'s grid) — or a shared one — to look up nearby blocks
+      instead of scanning the whole vector, for both the client collision
+      check and the server bullet hit-scan.
+- [ ] Re-check the HUD numbers after that change on the full-size world.
+
 ### 3. A real starting world instead of the bare grid
 
 Right now `World::draw` just draws `DrawGrid`. Spawn into something.

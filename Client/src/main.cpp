@@ -20,7 +20,9 @@ float bulletCooldown = 0.0f;
 float placeCooldown  = 0.0f;
 
 #ifdef DEBUG
-bool showDebug = false;
+bool showDebug        = false;
+double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
+double drawObjectsMs  = 0.0; // Renderer::drawObjects, incl. frustum cull + instancing
 #endif
 
 int main() {
@@ -163,7 +165,13 @@ int main() {
       // Chat freezes input, not the world: the player keeps falling/sliding
       // while you type, and other clients keep seeing you move.
       player.inputEnabled = !inChat;
+#ifdef DEBUG
+      double t0 = GetTime();
+#endif
       player.Update(dt, camera, world.getObjects());
+#ifdef DEBUG
+      playerUpdateMs = (GetTime() - t0) * 1000.0;
+#endif
     }
 
     playerPosCooldown -= dt;
@@ -233,7 +241,13 @@ int main() {
       client.updateBullets(dt);
       {
         Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+#ifdef DEBUG
+        double t1 = GetTime();
+#endif
         Object *targeted = renderer.drawObjects(world.getObjects(), world.getVersion(), world, GetScreenToWorldRay(centre, camera), lighting, camera);
+#ifdef DEBUG
+        drawObjectsMs = (GetTime() - t1) * 1000.0;
+#endif
         if (targeted != nullptr) {
           ObjectTransform t = targeted->getTransform();
           DrawCubeWiresV(t.pos, t.scale, BLACK);
@@ -423,6 +437,12 @@ int main() {
       rowPos += ROWSIZE;
 
       DrawText(TextFormat("Shown (post-cull): %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("Player.Update: %.2f ms", playerUpdateMs), 10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
       rowPos += ROWSIZE;
 
       rowPos += ROWSIZE / 2;

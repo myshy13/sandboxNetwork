@@ -403,6 +403,7 @@ void Server::tick(float dt) {
     saveCountdown = saveCountdownTime;
     saveWorld();
   }
+  auto tickStart = std::chrono::steady_clock::now();
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;
@@ -485,6 +486,19 @@ void Server::tick(float dt) {
       std::remove_if(bullets.begin(), bullets.end(),
                      [](const Bullet &b) { return b.deathCountdown <= 0.0f; }),
       bullets.end());
+
+  // Hit detection is a brute-force scan of every object per bullet per tick,
+  // so this is where a big world (see generateWorld) is expected to hurt.
+  static float debugPrintCountdown = 0.0f;
+  debugPrintCountdown -= dt;
+  if (debugPrintCountdown <= 0.0f) {
+    debugPrintCountdown = 1.0f;
+    double tickMs = std::chrono::duration<double, std::milli>(
+                        std::chrono::steady_clock::now() - tickStart)
+                        .count();
+    std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
+                tickMs, objects.size(), bullets.size(), players.size());
+  }
 }
 
 // ==== transport plumbing ==== //
