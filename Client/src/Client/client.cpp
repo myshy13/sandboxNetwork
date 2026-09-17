@@ -181,8 +181,8 @@ void Client::handleMessage(const std::string &data) {
     break;
   }
   case proto::Type::initBlocks: {
-    auto msg    = proto::unpack<proto::initBlocks>(data);
-    pendingInit = std::move(msg.objects);
+    auto msg = proto::unpack<proto::initBlocks>(data);
+    pendingInitChunks.push_back(std::move(msg.objects));
     break;
   }
   default:

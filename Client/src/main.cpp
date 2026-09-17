@@ -83,8 +83,8 @@ int main() {
       client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
       player.UpdateCamera(camera);
     }
-    if (auto init = client.takeInitBlocks()) {
-      world.setObjects(std::move(*init));
+    for (const std::vector<Object> &chunk : client.takeInitChunks()) {
+      world.addObjects(chunk);
     }
     for (const Object &o : client.takeNewObjects()) {
       world.addObject(o);
@@ -444,6 +444,10 @@ int main() {
 
       DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
       rowPos += ROWSIZE;
+
+      DrawText(TextFormat("  cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);
+      rowPos += FONTSIZE;
+      DrawText(TextFormat("  gpu upload/draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos, FONTSIZE, RED);
 
       rowPos += ROWSIZE / 2;
 

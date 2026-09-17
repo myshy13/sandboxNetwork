@@ -2,6 +2,7 @@
 #include "Client/client.hpp"
 #include "Models/Object.hpp"
 #include "rlgl.h"
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <raylib.h>
@@ -12,12 +13,6 @@
 inline BoundingBox objectBox(const ObjectTransform &t) {
   Vector3 half = Vector3Scale(t.scale, 0.5f);
   return {Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
-}
-
-void World::setObjects(std::vector<Object> newObjects) {
-  objects    = std::move(newObjects);
-  cellsDirty = true;
-  version++;
 }
 
 void World::drawHud() {
@@ -37,9 +32,6 @@ void World::update() {
   int key = GetKeyPressed();
   if (key >= KEY_ONE && key < KEY_ONE + MAX_COLOURS) {
     activeColor = key - KEY_ONE;
-  }
-  if (cellsDirty) {
-    rebuildOccupiedCells();
   }
 }
 
@@ -116,16 +108,42 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   }
 }
 
+void World::indexObject() {
+  occupiedCells[cellKey(objects.back().getTransform().pos)] = (int)objects.size() - 1;
+}
+
 void World::addObject(const Object &object) {
   objects.push_back(object);
+  indexObject();
   version++;
-  cellsDirty = true;
+}
+
+void World::addObjects(const std::vector<Object> &newObjects) {
+  objects.reserve(objects.size() + newObjects.size());
+  for (const Object &o : newObjects) {
+    objects.push_back(o);
+    indexObject();
+  }
+  version++;
 }
 
 void World::removeObject(int id) {
-  std::erase_if(objects, [id](const Object &o) { return o.getId() == id; });
+  auto it = std::find_if(objects.begin(), objects.end(),
+                         [id](const Object &o) { return o.getId() == id; });
+  if (it == objects.end())
+    return;
+
+  occupiedCells.erase(cellKey(it->getTransform().pos));
+
+  // Swap-and-pop instead of erase, so only the moved object's index needs
+  // fixing up - not every index after it.
+  int removedIdx = (int)(it - objects.begin());
+  if (removedIdx != (int)objects.size() - 1) {
+    objects[removedIdx] = objects.back();
+    occupiedCells[cellKey(objects[removedIdx].getTransform().pos)] = removedIdx;
+  }
+  objects.pop_back();
   version++;
-  cellsDirty = true;
 }
 
 void World::damageObject(int id) {
@@ -138,14 +156,6 @@ void World::damageObject(int id) {
 
 std::vector<Object> &World::getObjects() {
   return objects;
-}
-
-void World::rebuildOccupiedCells() {
-  occupiedCells.clear();
-  for (int i = 0; i < (int)objects.size(); i++) {
-    occupiedCells[cellKey(objects[i].getTransform().pos)] = i;
-  }
-  cellsDirty = false;
 }
 
 bool World::isOccluded(const Object &o) const {

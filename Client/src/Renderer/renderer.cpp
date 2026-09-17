@@ -14,11 +14,26 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
-  if (transformVBO)
-    rlUnloadVertexBuffer(transformVBO);
-  if (colorVBO)
-    rlUnloadVertexBuffer(colorVBO);
+  for (int i = 0; i < BUFFER_COUNT; i++) {
+    if (transformVBO[i])
+      rlUnloadVertexBuffer(transformVBO[i]);
+    if (colorVBO[i])
+      rlUnloadVertexBuffer(colorVBO[i]);
+  }
   UnloadMesh(cubeMesh);
+}
+void Renderer::ensureBufferCapacity(int slot, size_t count) {
+  if (count <= bufferCapacity[slot])
+    return;
+  bufferCapacity[slot] = count;
+
+  if (transformVBO[slot])
+    rlUnloadVertexBuffer(transformVBO[slot]);
+  if (colorVBO[slot])
+    rlUnloadVertexBuffer(colorVBO[slot]);
+
+  transformVBO[slot] = rlLoadVertexBuffer(nullptr, (int)(count * sizeof(Matrix)), true);
+  colorVBO[slot]     = rlLoadVertexBuffer(nullptr, (int)(count * sizeof(Vector4)), true);
 }
 
 bool Renderer::boxInFrustum(const Frustum &f, BoundingBox box) {
@@ -32,37 +47,6 @@ bool Renderer::boxInFrustum(const Frustum &f, BoundingBox box) {
       return false;
   }
   return true;
-}
-
-void Renderer::ensureBufferCapacity(size_t count, int transformLoc, int colorLoc) {
-  if (count <= bufferCapacity)
-    return; // change this if needed
-  bufferCapacity = count;
-
-  if (transformVBO)
-    rlUnloadVertexBuffer(transformVBO);
-  if (colorVBO)
-    rlUnloadVertexBuffer(colorVBO);
-
-  transformVBO = rlLoadVertexBuffer(nullptr, (int)(count * sizeof(Matrix)), true);
-  colorVBO     = rlLoadVertexBuffer(nullptr, (int)(count * sizeof(Vector4)), true);
-
-  rlEnableVertexArray(cubeMesh.vaoId);
-
-  rlEnableVertexBuffer(transformVBO);
-  for (int i = 0; i < 4; i++) {
-    int loc = transformLoc + i;
-    rlEnableVertexAttribute(loc);
-    rlSetVertexAttribute(loc, 4, RL_FLOAT, false, sizeof(Matrix), i * sizeof(Vector4));
-    rlSetVertexAttributeDivisor(loc, 1);
-  }
-
-  rlEnableVertexBuffer(colorVBO);
-  rlEnableVertexAttribute(colorLoc);
-  rlSetVertexAttribute(colorLoc, 4, RL_FLOAT, false, sizeof(Vector4), 0);
-  rlSetVertexAttributeDivisor(colorLoc, 1);
-
-  rlDisableVertexArray();
 }
 
 static int64_t cellKey(int cx, int cz) {
@@ -109,6 +93,8 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
   Object *targeted   = nullptr;
   float bestDistance = FLT_MAX;
 
+  double cullStart = GetTime();
+
   for (auto &[key, cell] : grid) {
     if (!boxInFrustum(frustum, cell.bounds))
       continue; // whole cell is off-screen, skip every block in it
@@ -118,14 +104,14 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
       ObjectTransform t = o.getTransform();
       BoundingBox box   = objectBox(t);
 
+      if (!boxInFrustum(frustum, box))
+        continue;
+
       RayCollision rc = GetRayCollisionBox(facing, box);
       if (rc.hit && rc.distance < bestDistance) {
         bestDistance = rc.distance;
         targeted     = &o;
       }
-
-      if (!boxInFrustum(frustum, box))
-        continue;
 
       Matrix scaleM    = MatrixScale(t.scale.x, t.scale.y, t.scale.z);
       Matrix translate = MatrixTranslate(t.pos.x, t.pos.y, t.pos.z);
@@ -136,19 +122,39 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
     }
   }
 
-  if (!instanceMats.empty()) {
-    int colorLoc     = lighting.getColorLoc();
-    int transformLoc = lighting.getTransformLoc();
-    ensureBufferCapacity(instanceMats.size(), transformLoc, colorLoc);
+  lastCullMs      = (GetTime() - cullStart) * 1000.0;
+  double gpuStart = GetTime();
 
-    rlUpdateVertexBuffer(transformVBO, instanceMats.data(),
+  if (!instanceMats.empty()) {
+    currentBuffer    = (currentBuffer + 1) % BUFFER_COUNT;
+    int transformLoc = lighting.getTransformLoc();
+    int colorLoc     = lighting.getColorLoc();
+    ensureBufferCapacity(currentBuffer, instanceMats.size());
+
+    rlUpdateVertexBuffer(transformVBO[currentBuffer], instanceMats.data(),
                          (int)(instanceMats.size() * sizeof(Matrix)), 0);
-    rlUpdateVertexBuffer(colorVBO, instanceColors.data(),
+    rlUpdateVertexBuffer(colorVBO[currentBuffer], instanceColors.data(),
                          (int)(instanceColors.size() * sizeof(Vector4)), 0);
+
+    rlEnableVertexArray(cubeMesh.vaoId);
+    rlEnableVertexBuffer(transformVBO[currentBuffer]);
+    for (int i = 0; i < 4; i++) {
+      int loc = transformLoc + i;
+      rlEnableVertexAttribute(loc);
+      rlSetVertexAttribute(loc, 4, RL_FLOAT, false, sizeof(Matrix), i * sizeof(Vector4));
+      rlSetVertexAttributeDivisor(loc, 1);
+    }
+    rlEnableVertexBuffer(colorVBO[currentBuffer]);
+    rlEnableVertexAttribute(colorLoc);
+    rlSetVertexAttribute(colorLoc, 4, RL_FLOAT, false, sizeof(Vector4), 0);
+    rlSetVertexAttributeDivisor(colorLoc, 1);
+    rlDisableVertexArray();
 
     cubeMat.shader = lighting.getShader();
     DrawMeshInstanced(cubeMesh, cubeMat, instanceMats.data(), (int)instanceMats.size());
   }
+
+  lastGpuMs = (GetTime() - gpuStart) * 1000.0;
 
   return (targeted != nullptr && bestDistance <= REACH) ? targeted : nullptr;
 }

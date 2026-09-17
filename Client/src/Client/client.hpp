@@ -47,7 +47,10 @@ private:
   std::optional<Vector3> respawnTo{};
 
   std::vector<Object> pendingObjects{};
-  std::optional<std::vector<Object>> pendingInit{};
+  // initBlocks arrives as several chunks (see Server::handleConnect), queued
+  // here in order so the client can index each one incrementally instead of
+  // stalling on one huge world snapshot.
+  std::vector<std::vector<Object>> pendingInitChunks{};
   std::vector<int> pendingRemovals{};
   std::vector<int> pendingDamage{};
   bool handshakeSent{false};
@@ -124,10 +127,11 @@ public:
   std::vector<Object> takeNewObjects() {
     return std::exchange(pendingObjects, {});
   }
-  // A full-world snapshot (initBlocks) replaces rather than merges, so it
-  // skips the per-object dedupe World::addObject does for incremental adds.
-  std::optional<std::vector<Object>> takeInitBlocks() {
-    return std::exchange(pendingInit, std::nullopt);
+  // Drains whatever initBlocks chunks have arrived since the last call;
+  // each is appended via World::addObjects, so the world fills in over
+  // several frames instead of one big stall.
+  std::vector<std::vector<Object>> takeInitChunks() {
+    return std::exchange(pendingInitChunks, {});
   }
   std::vector<int> takeRemovedObjects() {
     return std::exchange(pendingRemovals, {});
