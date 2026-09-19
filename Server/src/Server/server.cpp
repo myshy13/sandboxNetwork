@@ -3,9 +3,11 @@
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 #include "enet/enet.h"
+#include "env.hpp"
 #include "raylib.h"
 #include <algorithm>
 #include <cereal/types/vector.hpp>
+#include <cfloat>
 #include <chrono>
 #include <climits>
 #include <cstdio>
@@ -79,6 +81,23 @@ Server::~Server() {
   enet_deinitialize();
 }
 
+// ==== block grid ==== //
+constexpr float BLOCK_SIZE =
+    5.0f; // same as the client's blockSize (Client/src/World/world.cpp)
+
+// Packs a grid cell's (x, y, z) into one hashable key, offset so negative cells
+// don't collide.
+static int64_t cellKey(int x, int y, int z) {
+  constexpr int64_t OFFSET = 1 << 20;
+  return ((x + OFFSET) << 42) | ((y + OFFSET) << 21) | (z + OFFSET);
+}
+
+static int64_t blockKey(Vector3 pos) {
+  return cellKey((int)floorf(pos.x / BLOCK_SIZE),
+                 (int)floorf(pos.y / BLOCK_SIZE),
+                 (int)floorf(pos.z / BLOCK_SIZE));
+}
+
 struct WorldSave {
   std::vector<Object> objects{};
   int nextObjectId{1};
@@ -111,11 +130,15 @@ void Server::loadWorld() {
 
     objects = std::move(save.objects);
     nextObjectId = save.nextObjectId;
+    for (int i = 0; i < (int)objects.size(); i++) {
+      occupiedCells[blockKey(objects[i].getTransform().pos)] = i;
+    }
     std::printf("loaded %zu objects from %s\n", objects.size(),
                 savePath.c_str());
   } catch (const cereal::Exception &e) {
     std::fprintf(stderr, "save file corrupt (%s), starting fresh\n", e.what());
     objects.clear();
+    occupiedCells.clear();
     nextObjectId = 1;
     generateWorld();
   }
@@ -186,16 +209,24 @@ void Server::generateWorld() {
       float blockY = height * blockSize.y + (blockSize.y / 2);
       float blockZ = z * blockSize.z + (blockSize.z / 2);
 
-      objects.emplace_back(nextObjectId,
-                           ObjectTransform{{blockX, blockY, blockZ}, blockSize},
-                           GREEN);
+      Object o(nextObjectId,
+               ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
+      int damage = rand() % 2;
+      for (int i = 0; i < damage; i++) {
+        o.damage();
+      }
+      addBlock(o);
       nextObjectId++;
 
       for (int i = height; i > 0; i--) {
         blockY -= blockSize.y;
-        objects.emplace_back(
-            nextObjectId, ObjectTransform{{blockX, blockY, blockZ}, blockSize},
-            BROWN);
+        Object o(nextObjectId,
+                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BROWN);
+        int damage = rand() % 3;
+        for (int i = 0; i < damage; i++) {
+          o.damage();
+        }
+        addBlock(o);
         nextObjectId++;
       }
     }
@@ -266,8 +297,15 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
-  sendTo(id, proto::pack(proto::Type::initBlocks, proto::initBlocks{objects}),
-         true);
+
+  // Stream the world in chunks rather than one huge message, so the client
+  // indexes it incrementally instead of stalling on a single collision-grid
+  // rebuild for the whole world.
+  for (size_t i = 0; i < objects.size(); i += env::WORLD_SYNC_CHUNK_SIZE) {
+    size_t end = std::min(i + env::WORLD_SYNC_CHUNK_SIZE, objects.size());
+    proto::initBlocks chunk{{objects.begin() + i, objects.begin() + end}};
+    sendTo(id, proto::pack(proto::Type::initBlocks, chunk), true);
+  }
   return id;
 }
 
@@ -341,8 +379,11 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
   case proto::Type::PlaceObject: {
     auto msg = proto::unpack<proto::PlaceObject>(data);
+    if (occupiedCells.contains(blockKey(msg.object.getTransform().pos))) {
+      break; // one block per cell
+    }
     msg.object.setId(nextObjectId++); // server owns ids, clients send -1
-    objects.push_back(msg.object);
+    addBlock(msg.object);
     broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
               true); // reliable
     break;
@@ -397,6 +438,60 @@ bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
          clipAxis(start.z, dir.z, box.min.z, box.max.z);
 }
 
+// ==== blocks ==== //
+void Server::addBlock(const Object &block) {
+  objects.push_back(block);
+  occupiedCells[blockKey(block.getTransform().pos)] = (int)objects.size() - 1;
+}
+
+void Server::removeBlock(int index) {
+  occupiedCells.erase(blockKey(objects[index].getTransform().pos));
+
+  // Swap-and-pop, so only the moved block's index needs fixing up.
+  int last = (int)objects.size() - 1;
+  if (index != last) {
+    objects[index] = objects[last];
+    occupiedCells[blockKey(objects[index].getTransform().pos)] = index;
+  }
+  objects.pop_back();
+}
+
+int Server::findBlockHit(Vector3 from, Vector3 to) const {
+  Vector3 lo = Vector3Min(from, to);
+  Vector3 hi = Vector3Max(from, to);
+
+  int best = -1;
+  float bestDistSq = FLT_MAX;
+
+  // Only the cells the segment's bounding box spans can hold a block it
+  // touches.
+  for (int y = (int)floorf(lo.y / BLOCK_SIZE);
+       y <= (int)floorf(hi.y / BLOCK_SIZE); y++) {
+    for (int z = (int)floorf(lo.z / BLOCK_SIZE);
+         z <= (int)floorf(hi.z / BLOCK_SIZE); z++) {
+      for (int x = (int)floorf(lo.x / BLOCK_SIZE);
+           x <= (int)floorf(hi.x / BLOCK_SIZE); x++) {
+        auto it = occupiedCells.find(cellKey(x, y, z));
+        if (it == occupiedCells.end())
+          continue;
+
+        const ObjectTransform &t = objects[it->second].getTransform();
+        Vector3 half = Vector3Scale(t.scale, 0.5f);
+        BoundingBox box{Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
+        if (!SegmentIntersectsBox(from, to, box))
+          continue;
+
+        float distSq = Vector3DistanceSqr(from, t.pos);
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq;
+          best = it->second;
+        }
+      }
+    }
+  }
+  return best;
+}
+
 void Server::tick(float dt) {
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
@@ -411,29 +506,23 @@ void Server::tick(float dt) {
     Vector3 prevPos = b.pos;
     b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
 
-    for (Object &o : objects) {
-      ObjectTransform t = o.getTransform();
-      Vector3 half = Vector3Scale(t.scale, 0.5f);
-      BoundingBox box{Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
-      if (!SegmentIntersectsBox(prevPos, b.pos, box)) {
-        continue;
-      }
-      b.deathCountdown = 0.0f;
+    int hit = findBlockHit(prevPos, b.pos);
+    if (hit >= 0) {
+      b.deathCountdown = 0.0f; // bullet is spent on the first block it hits
 
+      Object &o = objects[hit];
       o.damage();
       if (o.getDurability() <= 0) {
         broadcast(proto::pack(proto::Type::RemoveObject,
                               proto::RemoveObject{o.getId()}),
                   true);
+        removeBlock(hit); // invalidates `o`
       } else {
         broadcast(proto::pack(proto::Type::DamageObject,
                               proto::DamageObject{o.getId()}),
                   true);
       }
-      break; // bullet is spent on the first block it hits
     }
-    std::erase_if(objects,
-                  [](const Object &o) { return o.getDurability() <= 0; });
 
     for (auto &p : players) {
       if (b.deathCountdown <= 0.0f) {
@@ -496,8 +585,8 @@ void Server::tick(float dt) {
     double tickMs = std::chrono::duration<double, std::milli>(
                         std::chrono::steady_clock::now() - tickStart)
                         .count();
-    std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
-                tickMs, objects.size(), bullets.size(), players.size());
+    std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n", tickMs,
+                objects.size(), bullets.size(), players.size());
   }
 }
 

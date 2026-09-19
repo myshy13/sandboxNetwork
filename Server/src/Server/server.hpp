@@ -50,6 +50,8 @@ class Server {
   int nextObjectId{1};
   std::vector<Player> players{};
   std::vector<Object> objects{};
+  // Grid cell -> index into `objects`; blocks are one per cell, so bullets test a few cells, not every block.
+  std::unordered_map<int64_t, int> occupiedCells;
   std::vector<Bullet> bullets;
 
   float saveCountdownTime = saveTime;
@@ -77,6 +79,13 @@ class Server {
   // ==== transport plumbing ==== //
   void pumpEnet();
   void pumpWebSockets();
+
+  // ==== Blocks ==== //
+  // Both keep `objects` and `occupiedCells` in sync (removal is swap-and-pop).
+  void addBlock(const Object &block);
+  void removeBlock(int index);
+  // Index of the nearest block the segment from -> to passes through, or -1.
+  int findBlockHit(Vector3 from, Vector3 to) const;
 
   // ==== World saving ==== //
   void saveWorld();
