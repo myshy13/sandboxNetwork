@@ -6,7 +6,10 @@ Client/src/
   Net/         transport interface + one file per backend (transport_enet.cpp / transport_ws.cpp)
   Player/      local player movement, camera, drawing
   Entity/      shared drawable/entity helpers
-main.cpp       InitWindow, game loop, draws online players + bullets
+  Game/        Game class: owns every subsystem + per-frame state, frame() = update then draw
+  World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks
+  Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)
+main.cpp       opens nothing itself: constructs Game and calls Game::frame() in a loop
 
 Server/src/
   Server/      game loop (Server::tick), hit detection, bullet lifetime, player bookkeeping
