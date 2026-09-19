@@ -12,6 +12,7 @@ private:
 
   // ==== settings ==== //
   int renderDistance{500};
+  bool interpolation{true};
 
 public:
   static GameState &shared() {
@@ -43,6 +44,12 @@ public:
   }
   const int &getRenderDistance() const {
     return renderDistance;
+  }
+  void toggleInterpolation() {
+    interpolation = !interpolation;
+  }
+  bool getInterpolation() const {
+    return interpolation;
   }
 
 private:

@@ -31,7 +31,7 @@ private:
   bool paused = false;
   bool inChat = false;
   std::string chatInput;
-  float playerPosCooldown = 0.1667f;
+  float playerPosCooldown = Client::POS_UPDATE_INTERVAL;
   float bulletCooldown    = 0.0f;
   float placeCooldown     = 0.0f;
 #ifdef DEBUG

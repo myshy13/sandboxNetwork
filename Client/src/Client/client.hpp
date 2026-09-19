@@ -26,7 +26,9 @@ struct OnlinePlayer {
   float pitch{0.0f};
   float yaw{0.0f};
   std::optional<std::string> name;
+  // interpolation
   std::array<Vector3, 2> last2pos{{{0, 0, 0}, {0, 0, 0}}};
+  double updatedAt{0.0};
 };
 
 struct ChatEntry {
@@ -81,6 +83,8 @@ public:
     return waiting;
   }
   static constexpr double CONNECT_TIMEOUT = 5.0; // seconds before an attempt counts as failed
+  static constexpr double POS_UPDATE_INTERVAL = 1.0 / 12.0;
+  static constexpr float SNAP_DISTANCE        = 20;
 
   // Starts a fresh session (old connection and state dropped); true if one started.
   // Safe to call every frame: it waits out an attempt in flight and never retries after a kick.
@@ -162,4 +166,5 @@ public:
       b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
     }
   }
+  void updatePlayers();
 };

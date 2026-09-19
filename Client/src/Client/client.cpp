@@ -92,15 +92,27 @@ void Client::handleMessage(const std::string &data) {
       OnlinePlayer *player = findPlayer(msg.id);
       if (player == nullptr) {
         OnlinePlayer newPlayer;
-        newPlayer.id    = msg.id;
-        newPlayer.pos   = msg.pos;
-        newPlayer.pitch = msg.pitch;
-        newPlayer.yaw   = msg.yaw;
+        newPlayer.id          = msg.id;
+        newPlayer.pos         = msg.pos;
+        newPlayer.pitch       = msg.pitch;
+        newPlayer.yaw         = msg.yaw;
+        newPlayer.last2pos[0] = {msg.pos};
+        newPlayer.last2pos[1] = {msg.pos};
+        newPlayer.updatedAt   = GetTime();
         players.push_back(newPlayer);
       } else {
-        player->pos   = msg.pos;
-        player->pitch = msg.pitch;
-        player->yaw   = msg.yaw;
+        player->updatedAt = GetTime();
+        player->pitch     = msg.pitch;
+        player->yaw       = msg.yaw;
+        // large jump, skip interpolation
+        if (Vector3Distance(msg.pos, player->last2pos[1]) > SNAP_DISTANCE) {
+          player->last2pos[0] = msg.pos;
+          player->last2pos[1] = msg.pos;
+          player->pos         = msg.pos;
+        } else {
+          player->last2pos[0] = player->pos;
+          player->last2pos[1] = msg.pos;
+        }
       }
     }
     break;
@@ -225,4 +237,14 @@ void Client::placeObject(const Object &object) {
     return;
   auto bytes = proto::pack(proto::Type::PlaceObject, proto::PlaceObject{object});
   transport->send(bytes, true);
+};
+
+void Client::updatePlayers() {
+  for (OnlinePlayer &p : players) {
+    float alpha = Clamp(static_cast<float>((GetTime() - p.updatedAt) / POS_UPDATE_INTERVAL), 0.0f, 1.0f);
+    if (!GameState::shared().getInterpolation()) {
+      alpha = 1.0f;
+    }
+    p.pos = Vector3Lerp(p.last2pos[0], p.last2pos[1], alpha);
+  }
 };

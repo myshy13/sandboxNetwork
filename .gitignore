@@ -11,3 +11,6 @@ Client/src/env.hpp
 # server save file
 *.bin
 save.bin
+
+# user files
+note.md

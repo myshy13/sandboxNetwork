@@ -168,7 +168,7 @@ void Game::sendPosition(float dt) {
   playerPosCooldown -= dt;
   if (playerPosCooldown <= 0) {
     client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
-    playerPosCooldown = 0.0833f;
+    playerPosCooldown = Client::POS_UPDATE_INTERVAL;
   }
 }
 
@@ -217,6 +217,7 @@ void Game::drawScene(float dt) {
   lighting.begin();
   lighting.setViewPos(camera.position);
   client.updateBullets(dt);
+  client.updatePlayers();
   Object *targeted = nullptr;
   {
     Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
@@ -399,8 +400,7 @@ void Game::drawOverlays(float dt) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
-  }
-  if (client.isWaiting()) {
+  } else if (client.isWaiting()) {
     DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 30) / 2, 60, 30, WHITE);
   }
 }
