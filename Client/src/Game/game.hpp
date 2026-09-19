@@ -8,8 +8,6 @@
 #include <raylib.h>
 #include <string>
 
-// Owns every subsystem and the per-frame state; main() just calls frame() in a loop.
-// The window must already be open when a Game is constructed (Lighting/Renderer need a GL context).
 class Game {
 public:
   Game();
