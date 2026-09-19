@@ -365,6 +365,7 @@ void Game::drawOverlays(float dt) {
       DrawRectangleRec(exitButton, LIGHTGRAY);
       if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         client.disconnect();
+        paused = false;
         gameState.setMenuState(MenuState::HOME);
       }
     } else {

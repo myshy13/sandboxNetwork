@@ -1,4 +1,5 @@
 #include "Renderer/renderer.hpp"
+#include "GameState/gameState.hpp"
 #include "env.hpp"
 #include <cfloat>
 #include <raylib.h>
@@ -97,7 +98,7 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
   for (auto &[key, cell] : grid) {
     if (!boxInFrustum(frustum, cell.bounds))
       continue; // whole cell is off-screen, skip ever block in it
-    if (Vector3Distance(Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5), camera.position) > 400.0f)
+    if (Vector3Distance(Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5), camera.position) > GameState::shared().getRenderDistance())
       continue;
 
     for (int i : cell.indices) {

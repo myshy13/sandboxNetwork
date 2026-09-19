@@ -9,6 +9,9 @@ Client/src/
   Game/        Game class: owns every subsystem + per-frame state, frame() = update then draw
   World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks
   Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)
+  Menu/        home menu screen (per-frame draw + button hit tests)
+  Settings/    settings screen (reached from the menu; writes values into GameState)
+  GameState/   singleton shared by menu/settings/game: current MenuState + user settings (e.g. render distance)
 main.cpp       opens nothing itself: constructs Game and calls Game::frame() in a loop
 
 Server/src/

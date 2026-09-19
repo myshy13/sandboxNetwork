@@ -10,6 +10,9 @@ class GameState {
 private:
   MenuState menu{MenuState::HOME};
 
+  // ==== settings ==== //
+  int renderDistance{500};
+
 public:
   static GameState &shared() {
     static GameState instance;
@@ -28,11 +31,18 @@ public:
     greenFlashTimer = flashDuration;
   }
 
+  // ==== set and get ==== //
   const MenuState &getMenu() const {
     return menu;
   }
   void setMenuState(const MenuState &m) {
     menu = m;
+  }
+  void setRenderDistance(int distance) {
+    renderDistance = distance;
+  }
+  const int &getRenderDistance() const {
+    return renderDistance;
   }
 
 private:
