@@ -1,14 +1,23 @@
 #pragma once
 
+enum class MenuState {
+  HOME,
+  SETTINGS,
+  PLAYING
+};
+
 class GameState {
+private:
+  MenuState menu{MenuState::HOME};
+
 public:
   static GameState &shared() {
     static GameState instance;
     return instance;
   }
 
-  float damageFlashTimer          = 0.0f;
-  const float flashDuration       = 0.1f;
+  float damageFlashTimer    = 0.0f;
+  const float flashDuration = 0.1f;
 
   float greenFlashTimer = 0.0f;
 
@@ -17,6 +26,13 @@ public:
   }
   void TriggerGreenFlash() {
     greenFlashTimer = flashDuration;
+  }
+
+  const MenuState &getMenu() const {
+    return menu;
+  }
+  void setMenuState(const MenuState &m) {
+    menu = m;
   }
 
 private:
