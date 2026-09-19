@@ -6,7 +6,7 @@ focus, in order.
 
 ---
 
-> **Note:** [/] means decided not to.
+> **Note:** [/] means skipped or unnecessary
 
 ## Now
 

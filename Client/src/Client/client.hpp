@@ -16,7 +16,7 @@
 #if __has_include("env.hpp")
 #include "env.hpp"
 #else
-#error Env.hpp should be included
+#error env.hpp should be included
 #error cp src/env.example.hpp src/env.hpp
 #endif
 

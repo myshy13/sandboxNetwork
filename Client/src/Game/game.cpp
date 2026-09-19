@@ -400,8 +400,6 @@ void Game::drawOverlays(float dt) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
-  } else if (client.isWaiting()) {
-    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 30) / 2, 60, 30, WHITE);
   }
 }
 

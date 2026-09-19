@@ -56,8 +56,7 @@ void Settings::frame() {
   DrawText("VSync:", screenDistance5th, 295, 30, WHITE);
   DrawText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off", screenDistance5th * 4 - vsyncRec.width * 0.7, 295, 30, WHITE);
 
-  // ==== vsync toggle ==== //
-  // raylib owns the flag, so ask it instead of mirroring the state in GameState
+  // ==== interpolation toggle ==== //
   const Rectangle interpolationRec = {static_cast<float>(screenDistance5th * 4) - 100, 350, 100, 50};
   const bool interpolationHovered  = CheckCollisionPointRec(GetMousePosition(), interpolationRec);
   if (interpolationHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
