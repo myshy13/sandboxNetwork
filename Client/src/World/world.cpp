@@ -191,6 +191,15 @@ void World::damageObject(int id) {
   }
 }
 
+void World::clear() {
+  for (const auto &[key, blocks] : chunks) {
+    dirtyChunks.insert(key);
+  }
+  chunks.clear();
+  occupiedCells.clear();
+  objects.clear();
+}
+
 std::vector<Object> &World::getObjects() {
   return objects;
 }

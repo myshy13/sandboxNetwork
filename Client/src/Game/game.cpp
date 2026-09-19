@@ -53,23 +53,27 @@ void Game::frame() {
 
 // ==== update ==== //
 void Game::applyNetworkUpdates() {
-  client.poll();
-  if (auto pos = client.takeRespawn()) {
-    player.setPosition(*pos);
-    client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
-    player.UpdateCamera(camera);
-  }
-  for (const std::vector<Object> &chunk : client.takeInitChunks()) {
-    world.addObjects(chunk);
-  }
-  for (const Object &o : client.takeNewObjects()) {
-    world.addObject(o);
-  }
-  for (int id : client.takeRemovedObjects()) {
-    world.removeObject(id);
-  }
-  for (int id : client.takeDamagedObjects()) {
-    world.damageObject(id);
+  if (client.isConnected()) {
+    client.poll();
+    if (auto pos = client.takeRespawn()) {
+      player.setPosition(*pos);
+      client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
+      player.UpdateCamera(camera);
+    }
+    for (const std::vector<Object> &chunk : client.takeInitChunks()) {
+      world.addObjects(chunk);
+    }
+    for (const Object &o : client.takeNewObjects()) {
+      world.addObject(o);
+    }
+    for (int id : client.takeRemovedObjects()) {
+      world.removeObject(id);
+    }
+    for (int id : client.takeDamagedObjects()) {
+      world.damageObject(id);
+    }
+  } else if (client.connect()) {
+    world.clear(); // the server re-streams every block on join
   }
 }
 
@@ -381,19 +385,17 @@ void Game::drawOverlays(float dt) {
     gameState.greenFlashTimer -= dt;
   }
   if (!client.isConnected()) {
-    const char *msg =
-        client.getKickReason() ? client.getKickReason()->c_str()
-        : GetTime() < 5.0      ? "Connecting..."
-                               : "Failed to connect to server";
-    Color col = GetTime() < 5.0 && !client.getKickReason() ? WHITE : RED;
+    // Client::connect() retries on its own, so there's no separate "failed" state to show.
+    const char *msg = client.getKickReason() ? client.getKickReason()->c_str() : "Connecting...";
+    Color col       = client.getKickReason() ? RED : WHITE;
     DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
-    if (GetTime() >= 5.0f) {
-      std::cout << "Failed to connect to server\n";
-    }
   } else if (!paused) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
+  }
+  if (client.isWaiting()) {
+    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 30) / 2, 60, 30, WHITE);
   }
 }
 
@@ -403,7 +405,7 @@ void Game::drawDebug() {
     showDebug = !showDebug;
   }
   if (IsKeyPressed(KEY_R)) {
-    client.reconnect();
+    client.disconnect(); // applyNetworkUpdates starts a fresh session next frame
   }
 
   constexpr int ROWSIZE  = 30;
@@ -413,19 +415,24 @@ void Game::drawDebug() {
     int rowPos = 10;
 
     const char *fps = TextFormat("FPS: %d", GetFPS());
+    DrawText(fps, 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(fps, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
     Vector3 pos = player.getTransform().translation;
 
+    DrawText("Player pos:", 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText("Player pos:", 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("X: %f", pos.x), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("X: %f", pos.x), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Y: %f", pos.y), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Y: %f", pos.y), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
+    DrawText(TextFormat("Z: %f", pos.z), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Z: %f", pos.z), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
@@ -440,30 +447,37 @@ void Game::drawDebug() {
     DrawText(TextFormat("Shown (post-cull): %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Player.Update: %.2f ms", playerUpdateMs), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("Player update: %.2f ms", playerUpdateMs), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
     DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("  cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);
-    rowPos += FONTSIZE;
-    DrawText(TextFormat("  gpu upload/draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);
+    rowPos += ROWSIZE;
+
+    DrawText(TextFormat("draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos, FONTSIZE, RED);
+    rowPos += ROWSIZE;
 
     rowPos += ROWSIZE / 2;
 
+    DrawText("Network:", 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText("Network:", 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
   }

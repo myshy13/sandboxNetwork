@@ -26,6 +26,8 @@ public:
   // indexes each object as it's added, no full rebuild.
   void addObjects(const std::vector<Object> &newObjects);
   void damageObject(int id);
+  // Empties the world (leaving a session); old chunks stay dirty so the renderer drops them.
+  void clear();
   std::vector<Object> &getObjects();
   bool isOccluded(const Object &o) const;
   // True if box overlaps a placed block. Only tests the handful of grid

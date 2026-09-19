@@ -38,7 +38,7 @@ void Settings::frame() {
   } else if (!changingRenderDistance && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec({sliderRec.x, static_cast<float>(GetMouseY())}, sliderRec)) {
     changingRenderDistance = true;
   }
-  DrawText(std::string("Render distance:" + std::to_string(currentRenderDistanceValue / 5)).c_str(), screenDistance5th, 150, 30, WHITE); // divided by 5 to match the block size
+  DrawText(std::string("Render distance:" + std::to_string(gameState.getRenderDistance() / 5)).c_str(), screenDistance5th, 150, 30, WHITE); // divided by 5 to match the block size
   DrawRectangle(screenDistance5th, 200, screenDistance5th * 3, 20, GRAY);
   DrawRectangleRec(sliderRec, WHITE);
 

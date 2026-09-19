@@ -52,6 +52,9 @@ private:
   std::vector<int> pendingRemovals{};
   std::vector<int> pendingDamage{};
   bool handshakeSent{false};
+  double connectStartedAt{0.0};
+  bool connecting{false};
+  bool waiting{false};
 
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
@@ -69,10 +72,24 @@ public:
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);
-  void disconnect() { transport->disconnect(); }
-#ifdef DEBUG
-  void reconnect();
-#endif
+  bool isWaiting() {
+    return waiting;
+  }
+  static constexpr double CONNECT_TIMEOUT = 5.0; // seconds before an attempt counts as failed
+
+  // Starts a fresh session (old connection and state dropped); true if one started.
+  // Safe to call every frame: it waits out an attempt in flight and never retries after a kick.
+  bool connect();
+  // Leaving on purpose: the next connect() starts clean.
+  void disconnect() {
+    if (transport)
+      transport->disconnect();
+    connecting = false;
+    kickReason.reset();
+  }
+  double secondsSinceConnect() const {
+    return GetTime() - connectStartedAt;
+  }
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
       if (p.id == id)
@@ -82,7 +99,7 @@ public:
   }
   // Connecting is asynchronous, so the game starts before this goes true.
   bool isConnected() const {
-    return transport->isConnected();
+    return transport && transport->isConnected();
   }
   const std::vector<OnlinePlayer> &getPlayers() const {
     return players;
@@ -140,5 +157,4 @@ public:
       b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
     }
   }
-  Client();
 };

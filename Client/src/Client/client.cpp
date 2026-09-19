@@ -30,25 +30,40 @@ void Client::createBullet(const Camera3D &camera) {
 }
 
 // ==== connection setup ==== //
-Client::Client() {
-  std::cout << "Joining server: " << env::SERVER_IP << " at port " << port << "\n";
-  transport = makeTransport();
-  transport->connect(env::SERVER_IP, port);
-}
+bool Client::connect() {
+  if (connecting && !isConnected() && (kickReason || secondsSinceConnect() < CONNECT_TIMEOUT))
+    return false;
 
-#ifdef DEBUG
-void Client::reconnect() {
-  std::cout << "Reconnecting to server: " << env::SERVER_IP << " at port " << port << "\n";
-  transport->disconnect();
+  std::cout << "Joining server: " << env::SERVER_IP << " at port " << port << "\n";
+  disconnect();
   transport = makeTransport();
   transport->connect(env::SERVER_IP, port);
-  handshakeSent = false;
-  playerId      = -1;
+
+  // ==== forget the last session ==== //
+  players.clear();
+  bullets.clear();
+  chat.clear();
+  kills.clear();
+  kickReason.reset();
+  playerName.reset();
+  respawnTo.reset();
+  pendingObjects.clear();
+  pendingInitChunks.clear();
+  pendingRemovals.clear();
+  pendingDamage.clear();
+  health           = env::MAX_HEALTH;
+  playerId         = -1;
+  handshakeSent    = false;
+  connectStartedAt = GetTime();
+  connecting       = true;
+  waiting          = true;
+  return true;
 }
-#endif
 
 // ==== incoming message handling ==== //
 void Client::poll() {
+  if (!transport)
+    return;
   while (auto data = transport->receive()) {
     if (!data->empty()) {
       handleMessage(*data);
@@ -176,14 +191,14 @@ void Client::handleMessage(const std::string &data) {
     auto msg = proto::unpack<proto::kick>(data);
     if (msg.playerId == playerId) {
       kickReason = msg.reason;
-      disconnect();
+      transport->disconnect(); // not disconnect(): that would forget the reason we were kicked
     }
     break;
   }
   case proto::Type::initBlocks: {
     auto msg = proto::unpack<proto::initBlocks>(data);
     pendingInitChunks.push_back(std::move(msg.objects));
-
+    waiting = false;
     break;
   }
   default:
