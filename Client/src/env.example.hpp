@@ -11,7 +11,7 @@ constexpr int MAX_HEALTH        = 20; // must match the server's env::PLAYER_MAX
 // #define SERVER_WSS  // wss:// instead of ws:// (define when the page is https)
 #define DEBUG
 
-#define CHEATS // debug stuff (for testing)
+// #define CHEATS // debug stuff (for testing)
 #define CHAT
 
 #ifdef CHEATS

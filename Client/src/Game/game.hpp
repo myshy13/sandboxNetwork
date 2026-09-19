@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
@@ -10,7 +11,7 @@
 
 class Game {
 public:
-  Game();
+  Game(const AssetManager &a);
   ~Game();
   Game(const Game &)            = delete;
   Game &operator=(const Game &) = delete;
@@ -18,6 +19,7 @@ public:
   void frame();
 
 private:
+  const AssetManager &assets;
   Camera3D camera{{10.0f, 10.0f, 10.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 70.0f, CAMERA_PERSPECTIVE};
   Client client;
   Lighting lighting;

@@ -29,7 +29,7 @@ int main() {
   // Own GPU resources, so this scope ends (and they unload) before CloseWindow() kills the GL context.
   {
     AssetManager assets; // declared before Game so it outlives it
-    Game game;
+    Game game(assets);
     Menu menu;
     Settings settings;
     EnableCursor(); // Player's constructor captured it; the menu needs a pointer

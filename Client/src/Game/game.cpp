@@ -1,4 +1,5 @@
 #include "Game/game.hpp"
+#include "AssetManager/manager.hpp"
 #include "GameState/gameState.hpp"
 #include "env.hpp"
 
@@ -10,7 +11,7 @@
 #include <vector>
 
 // ==== setup / teardown ==== //
-Game::Game() {
+Game::Game(const AssetManager &a) : assets(a) {
   // ==== lighting ==== //
   lighting.addDirectional(
       {50.0f, 100.0f, 40.0f},
@@ -215,6 +216,26 @@ void Game::drawScene(float dt) {
   BeginMode3D(camera);
   lighting.begin();
   lighting.setViewPos(camera.position);
+  client.updateBullets(dt);
+  Object *targeted = nullptr;
+  {
+    Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+#ifdef DEBUG
+    double t1 = GetTime();
+#endif
+    targeted = renderer.drawObjects(world.getObjects(), world, GetScreenToWorldRay(centre, camera), lighting, camera);
+#ifdef DEBUG
+    drawObjectsMs = (GetTime() - t1) * 1000.0;
+#endif
+  }
+  lighting.end();
+
+  // Everything below is drawn without the lighting shader: it multiplies every vertex by a
+  // per-instance matrix that only the block renderer supplies, so anything else would collapse to 0,0,0.
+  if (targeted != nullptr) {
+    ObjectTransform t = targeted->getTransform();
+    DrawCubeWiresV(t.pos, t.scale, BLACK);
+  }
   // ==== draw online players ====
   for (const auto &p : client.getPlayers()) {
     Transform transform;
@@ -227,22 +248,6 @@ void Game::drawScene(float dt) {
       player.DrawPlayer(transform, "Player " + std::to_string(p.id), player.getTransform().translation);
     }
   }
-  client.updateBullets(dt);
-  {
-    Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-#ifdef DEBUG
-    double t1 = GetTime();
-#endif
-    Object *targeted = renderer.drawObjects(world.getObjects(), world, GetScreenToWorldRay(centre, camera), lighting, camera);
-#ifdef DEBUG
-    drawObjectsMs = (GetTime() - t1) * 1000.0;
-#endif
-    if (targeted != nullptr) {
-      ObjectTransform t = targeted->getTransform();
-      DrawCubeWiresV(t.pos, t.scale, BLACK);
-    }
-  }
-  lighting.end();
   for (auto &b : client.getBullets()) {
     DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
     DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
@@ -252,9 +257,10 @@ void Game::drawScene(float dt) {
 }
 
 void Game::drawHealthBar() {
+  Texture2D heart = assets.get(Tex::Heart);
   for (int i = 0; i < env::MAX_HEALTH; i++) {
-    Color fill = i < client.getHealth() ? RED : Color{60, 60, 60, 255};
-    DrawRectangle(16 + i * 19, GetScreenHeight() - 32, 16, 16, fill);
+    Rectangle outRec = {static_cast<float>(16 + i * 19), static_cast<float>(GetScreenHeight() - 32), 16, 16};
+    DrawTexturePro(heart, {0, 0, static_cast<float>(heart.width), static_cast<float>(heart.height)}, outRec, {0, 0}, 0, i < client.getHealth() ? WHITE : DARKGRAY);
   }
 }
 

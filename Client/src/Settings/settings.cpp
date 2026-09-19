@@ -1,6 +1,5 @@
 #include "settings.hpp"
 #include "GameState/gameState.hpp"
-#include "env.hpp"
 #include <algorithm>
 #include <raylib.h>
 #include <string>
