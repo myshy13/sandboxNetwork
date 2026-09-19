@@ -14,8 +14,7 @@ public:
   ~Renderer();
 
   Object *drawObjects(std::vector<Object> &objects,
-                      int objectsVersion,
-                      const World &world,
+                      World &world,
                       const Ray &facing,
                       const Lighting &lighting,
                       const Camera3D &camera);
@@ -38,15 +37,16 @@ private:
 
   double lastCullMs = 0.0;
   double lastGpuMs  = 0.0;
+  // Visible (non-occluded) blocks of one World chunk, so the whole chunk can be
+  // frustum-culled at once. Keyed by the same chunk key World uses; only chunks
+  // World reports dirty get rebuilt, never the whole map.
   struct GridCell {
     std::vector<int> indices; // into the objects vector passed to drawObjects
     BoundingBox bounds{};
   };
-  static constexpr float CELL_SIZE = 15.0f; // world units per grid cell (3 blocks)
   std::unordered_map<int64_t, GridCell> grid;
-  int cachedVersion = -1;
 
-  void rebuildGrid(const std::vector<Object> &objects, const World &world);
+  void rebuildChunk(int64_t key, const std::vector<Object> &objects, const World &world);
   void ensureBufferCapacity(int slot, size_t count);
   static bool boxInFrustum(const Frustum &f, BoundingBox box);
 };

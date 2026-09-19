@@ -49,21 +49,19 @@ bool Renderer::boxInFrustum(const Frustum &f, BoundingBox box) {
   return true;
 }
 
-static int64_t cellKey(int cx, int cz) {
-  return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
-}
+void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, const World &world) {
+  grid.erase(key);
 
-void Renderer::rebuildGrid(const std::vector<Object> &objects, const World &world) {
-  grid.clear();
-  for (int i = 0; i < (int)objects.size(); i++) {
+  const std::vector<int> *blocks = world.getChunk(key);
+  if (!blocks)
+    return; // chunk is empty now
+
+  GridCell cell;
+  for (int i : *blocks) {
     if (world.isOccluded(objects[i]))
       continue; // fully buried, never contributes a visible pixel
 
-    ObjectTransform t = objects[i].getTransform();
-    int cx            = (int)floorf(t.pos.x / CELL_SIZE);
-    int cz            = (int)floorf(t.pos.z / CELL_SIZE);
-    GridCell &cell    = grid[cellKey(cx, cz)];
-    BoundingBox box   = objectBox(t);
+    BoundingBox box = objectBox(objects[i].getTransform());
     if (cell.indices.empty()) {
       cell.bounds = box;
     } else {
@@ -72,19 +70,20 @@ void Renderer::rebuildGrid(const std::vector<Object> &objects, const World &worl
     }
     cell.indices.push_back(i);
   }
+
+  if (!cell.indices.empty())
+    grid[key] = std::move(cell);
 }
 
 Object *Renderer::drawObjects(std::vector<Object> &objects,
-                              int objectsVersion,
-                              const World &world,
+                              World &world,
                               const Ray &facing,
                               const Lighting &lighting,
                               const Camera3D &camera) {
   Frustum frustum = extractFrustum(camera); // <-- replaces the manual matrix build
 
-  if (objectsVersion != cachedVersion) {
-    rebuildGrid(objects, world);
-    cachedVersion = objectsVersion;
+  for (int64_t key : world.takeDirtyChunks()) {
+    rebuildChunk(key, objects, world);
   }
 
   instanceMats.clear();
@@ -97,7 +96,9 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
 
   for (auto &[key, cell] : grid) {
     if (!boxInFrustum(frustum, cell.bounds))
-      continue; // whole cell is off-screen, skip every block in it
+      continue; // whole cell is off-screen, skip ever block in it
+    if (Vector3Distance(Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5), camera.position) > 400.0f)
+      continue;
 
     for (int i : cell.indices) {
       Object &o         = objects[i];
@@ -107,15 +108,24 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
       if (!boxInFrustum(frustum, box))
         continue;
 
-      RayCollision rc = GetRayCollisionBox(facing, box);
-      if (rc.hit && rc.distance < bestDistance) {
-        bestDistance = rc.distance;
-        targeted     = &o;
+      // Only blocks within REACH (+ one block, for the box's own extent) can be the pick target.
+      float pickRange = REACH + t.scale.x;
+      if (Vector3DistanceSqr(facing.position, t.pos) <= pickRange * pickRange) {
+        RayCollision rc = GetRayCollisionBox(facing, box);
+        if (rc.hit && rc.distance < bestDistance) {
+          bestDistance = rc.distance;
+          targeted     = &o;
+        }
       }
 
-      Matrix scaleM    = MatrixScale(t.scale.x, t.scale.y, t.scale.z);
-      Matrix translate = MatrixTranslate(t.pos.x, t.pos.y, t.pos.z);
-      instanceMats.push_back(MatrixMultiply(scaleM, translate));
+      Matrix m = MatrixIdentity();
+      m.m0     = t.scale.x;
+      m.m5     = t.scale.y;
+      m.m10    = t.scale.z;
+      m.m12    = t.pos.x;
+      m.m13    = t.pos.y;
+      m.m14    = t.pos.z;
+      instanceMats.push_back(m);
 
       Color c = o.getColor();
       instanceColors.push_back({c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f});
