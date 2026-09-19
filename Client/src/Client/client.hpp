@@ -4,6 +4,7 @@
 #include "Net/transport.hpp"
 #include "structs.hpp"
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <raylib.h>
 #include <raymath.h>
@@ -14,6 +15,9 @@
 
 #if __has_include("env.hpp")
 #include "env.hpp"
+#else
+#error Env.hpp should be included
+#error cp src/env.example.hpp src/env.hpp
 #endif
 
 struct OnlinePlayer {
@@ -22,6 +26,7 @@ struct OnlinePlayer {
   float pitch{0.0f};
   float yaw{0.0f};
   std::optional<std::string> name;
+  std::array<Vector3, 2> last2pos{{{0, 0, 0}, {0, 0, 0}}};
 };
 
 struct ChatEntry {

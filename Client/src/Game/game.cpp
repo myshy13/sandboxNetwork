@@ -168,7 +168,7 @@ void Game::sendPosition(float dt) {
   playerPosCooldown -= dt;
   if (playerPosCooldown <= 0) {
     client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
-    playerPosCooldown = 0.1667f;
+    playerPosCooldown = 0.0833f;
   }
 }
 
