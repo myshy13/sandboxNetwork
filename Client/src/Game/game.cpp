@@ -248,8 +248,7 @@ void Game::drawScene(float dt) {
 }
 
 void Game::drawHealthBar() {
-  constexpr int MAX_HEALTH = 3;
-  for (int i = 0; i < MAX_HEALTH; i++) {
+  for (int i = 0; i < env::MAX_HEALTH; i++) {
     Color fill = i < client.getHealth() ? RED : Color{60, 60, 60, 255};
     DrawRectangle(20 + i * 44, GetScreenHeight() - 32, 40, 16, fill);
   }

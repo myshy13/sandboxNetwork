@@ -23,7 +23,7 @@ the same server process. Both kinds of client land in the same game world.
   decides hits: a bullet swept through another player's box kills the bullet and
   damages that player (you can't hit yourself). Bullets expire after a few
   seconds if they hit nothing.
-- **Health & respawn** — 3 HP. The screen flashes red when you're hit, green when
+- **Health & respawn** — 20 HP. The screen flashes red when you're hit, green when
   you land a hit; at 0 HP the server respawns you.
 - **Chat** — press `T` (or `/`) to open the chat box. The world keeps simulating
   while you type. Commands: `/setname <name>`, `/clear`.

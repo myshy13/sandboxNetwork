@@ -42,7 +42,7 @@ private:
   std::optional<std::string> playerName;
   std::unordered_map<int, int> kills;
 
-  int health{20};
+  int health{env::MAX_HEALTH};
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 

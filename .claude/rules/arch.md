@@ -53,3 +53,8 @@ Shared/Protocol/
 must match, or server hit detection and client rendering disagree on the
 player's hitbox. There's a comment at each site pointing at the other —
 keep both in sync when either changes.
+
+Likewise `env::MAX_HEALTH` (`Client/src/env.hpp`, template in
+`env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH`
+(`Server/src/env.hpp`): the client sizes its health bar from its copy while the
+server decides when you die from its own.

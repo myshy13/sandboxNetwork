@@ -2,6 +2,7 @@
 #include "GameState/gameState.hpp"
 #include "Menu/menu.hpp"
 #include "Protocol/protocol.hpp"
+#include "Settings/settings.hpp"
 #include "env.hpp"
 
 #include <iostream>
@@ -26,13 +27,16 @@ int main() {
 
   Game game;
   Menu menu;
+  Settings settings;
   EnableCursor(); // Player's constructor captured it; the menu needs a pointer
 
   while (!WindowShouldClose()) {
     if (gameState.getMenu() == MenuState::PLAYING) {
       game.frame();
+    } else if (gameState.getMenu() == MenuState::HOME) {
+      menu.frame();
     } else {
-      menu.draw();
+      settings.frame();
     }
   }
   CloseWindow();

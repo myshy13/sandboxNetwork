@@ -4,5 +4,5 @@
 
 class Menu {
 public:
-  void draw();
+  void frame();
 };

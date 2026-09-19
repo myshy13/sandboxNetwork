@@ -4,6 +4,7 @@
 namespace env {
 constexpr const char *SERVER_IP = "127.0.0.1";
 constexpr int SERVER_PORT       = 9798;
+constexpr int MAX_HEALTH        = 20; // must match the server's env::PLAYER_MAX_HEALTH
 } // namespace env
 
 // Compile-time toggles
@@ -14,9 +15,9 @@ constexpr int SERVER_PORT       = 9798;
 #define CHAT
 
 #ifdef CHEATS
-#define REACH 100000.0f
+#define REACH 500.0f
 #else
 #define REACH 50.0f
 #endif
 
-#define VERSION "0.2.1" // added instancing
+#define VERSION "0.2.3.001" // added player health

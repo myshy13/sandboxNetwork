@@ -15,7 +15,7 @@ constexpr float BULLET_LIFETIME   = 20.0f; // seconds before a bullet expires on
 constexpr float MUZZLE_DISTANCE =
     1.0f; // spawn offset ahead of the shooter's eye
 
-constexpr int PLAYER_MAX_HEALTH = 20;
+constexpr int PLAYER_MAX_HEALTH = 20; // must match the client's env::MAX_HEALTH (Client/src/env.hpp)
 
 // Blocks per initBlocks message on connect - keeps one big world sync from
 // blocking the client on a single huge collision-grid rebuild.
