@@ -109,7 +109,9 @@ endif()
 if(BUILD_WEB)
     target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet)
+    # The ENet transport runs its network thread with std::thread.
+    find_package(Threads REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads)
 endif()
 
 # Treat raylib's headers as system headers so its own -Wall/-Wextra

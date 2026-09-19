@@ -3,8 +3,14 @@
 
 #include "Net/transport.hpp"
 
+#include <atomic>
 #include <cstdio>
+#include <deque>
 #include <enet/enet.h>
+#include <mutex>
+#include <optional>
+#include <thread>
+#include <utility>
 
 namespace {
 
@@ -107,8 +113,108 @@ private:
   bool connected{false};
 };
 
+// ==== network thread ==== //
+// Runs `inner` (ENet isn't thread-safe) on its own thread; the game thread only
+// touches the mutex-guarded queues, so a slow frame never stalls the socket.
+class ThreadedTransport final : public Transport {
+public:
+  explicit ThreadedTransport(std::unique_ptr<Transport> transport)
+      : inner(std::move(transport)), worker([this] { run(); }) {}
+
+  ~ThreadedTransport() override {
+    running = false;
+    worker.join();
+    inner->disconnect(); // worker is gone, so the game thread may touch inner again
+  }
+
+  void connect(const std::string &host, int port) override {
+    std::lock_guard lock(mutex);
+    connectRequest = {host, port};
+  }
+
+  void disconnect() override {
+    std::lock_guard lock(mutex);
+    disconnectRequested = true;
+    connected           = false;
+  }
+
+  bool isConnected() const override { return connected; }
+
+  void send(const std::string &bytes, bool reliable) override {
+    std::lock_guard lock(mutex);
+    outbound.push_back({bytes, reliable});
+  }
+
+  std::optional<std::string> receive() override {
+    std::lock_guard lock(mutex);
+    if (inbound.empty()) {
+      return std::nullopt;
+    }
+    std::string data = std::move(inbound.front());
+    inbound.pop_front();
+    return data;
+  }
+
+private:
+  struct Outgoing {
+    std::string bytes;
+    bool reliable;
+  };
+
+  void run() {
+    using namespace std::chrono_literals;
+    while (running) {
+      // Take everything the game thread queued in one short lock.
+      std::optional<std::pair<std::string, int>> toConnect;
+      std::deque<Outgoing> toSend;
+      bool toDisconnect;
+      {
+        std::lock_guard lock(mutex);
+        toConnect    = std::exchange(connectRequest, std::nullopt);
+        toDisconnect = std::exchange(disconnectRequested, false);
+        toSend       = std::exchange(outbound, {});
+      }
+
+      if (toConnect) {
+        inner->connect(toConnect->first, toConnect->second);
+      }
+      for (const Outgoing &o : toSend) {
+        inner->send(o.bytes, o.reliable);
+      }
+      if (toDisconnect) {
+        inner->disconnect();
+      }
+
+      bool received = false;
+      while (auto data = inner->receive()) {
+        received = true;
+        std::lock_guard lock(mutex);
+        inbound.push_back(std::move(*data));
+      }
+      if (!toDisconnect) {
+        connected = inner->isConnected();
+      }
+
+      // inner->receive() doesn't block, so idle briefly instead of spinning a core.
+      if (!received && toSend.empty()) {
+        std::this_thread::sleep_for(1ms);
+      }
+    }
+  }
+
+  std::unique_ptr<Transport> inner;
+  std::mutex mutex; // guards everything below except the atomics
+  std::deque<std::string> inbound;
+  std::deque<Outgoing> outbound;
+  std::optional<std::pair<std::string, int>> connectRequest;
+  bool disconnectRequested{false};
+  std::atomic<bool> connected{false};
+  std::atomic<bool> running{true};
+  std::thread worker; // last, so every member above exists before run() starts
+};
+
 } // namespace
 
 std::unique_ptr<Transport> makeTransport() {
-  return std::make_unique<EnetTransport>();
+  return std::make_unique<ThreadedTransport>(std::make_unique<EnetTransport>());
 }
