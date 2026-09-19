@@ -2,7 +2,7 @@
 
 ```
 Client/src/
-  Client/      network-facing game client (Client class: send/receive, player+bullet lists)
+  Client/      network-facing game client (Client class: send/receive, player+bullet lists; connect() starts a fresh session)
   Net/         transport interface + one file per backend (transport_enet.cpp / transport_ws.cpp)
   Player/      local player movement, camera, drawing
   Entity/      shared drawable/entity helpers
@@ -11,6 +11,7 @@ Client/src/
   Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)
   Menu/        home menu screen (per-frame draw + button hit tests)
   Settings/    settings screen (reached from the menu; writes values into GameState)
+  AssetManager/ owns loaded assets (textures now); enum-indexed get(); built in main.cpp, destroyed before CloseWindow()
   GameState/   singleton shared by menu/settings/game: current MenuState + user settings (e.g. render distance)
 main.cpp       opens nothing itself: constructs Game and calls Game::frame() in a loop
 

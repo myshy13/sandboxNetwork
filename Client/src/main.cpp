@@ -1,3 +1,4 @@
+#include "AssetManager/manager.hpp"
 #include "Game/game.hpp"
 #include "GameState/gameState.hpp"
 #include "Menu/menu.hpp"
@@ -20,23 +21,27 @@ int main() {
   std::cout << "protocol version: " << proto::PROTOCOL_VERSION << "\n";
 
   // The window (GL context) must exist before Game/Menu: Lighting and Renderer load GPU resources.
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI);
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI | FLAG_VSYNC_HINT);
   std::cout << "Create window\n";
   InitWindow(1280, 720, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
-  SetExitKey(KEY_NULL);
+  SetExitKey(KEY_F12); // force exit button instead of esc
 
-  Game game;
-  Menu menu;
-  Settings settings;
-  EnableCursor(); // Player's constructor captured it; the menu needs a pointer
+  // Own GPU resources, so this scope ends (and they unload) before CloseWindow() kills the GL context.
+  {
+    AssetManager assets; // declared before Game so it outlives it
+    Game game;
+    Menu menu;
+    Settings settings;
+    EnableCursor(); // Player's constructor captured it; the menu needs a pointer
 
-  while (!WindowShouldClose()) {
-    if (gameState.getMenu() == MenuState::PLAYING) {
-      game.frame();
-    } else if (gameState.getMenu() == MenuState::HOME) {
-      menu.frame();
-    } else {
-      settings.frame();
+    while (!WindowShouldClose()) {
+      if (gameState.getMenu() == MenuState::PLAYING) {
+        game.frame();
+      } else if (gameState.getMenu() == MenuState::HOME) {
+        menu.frame();
+      } else {
+        settings.frame();
+      }
     }
   }
   CloseWindow();
