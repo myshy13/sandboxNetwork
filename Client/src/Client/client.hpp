@@ -46,10 +46,8 @@ private:
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 
+  // ==== drain variables ==== //
   std::vector<Object> pendingObjects{};
-  // initBlocks arrives as several chunks (see Server::handleConnect), queued
-  // here in order so the client can index each one incrementally instead of
-  // stalling on one huge world snapshot.
   std::vector<std::vector<Object>> pendingInitChunks{};
   std::vector<int> pendingRemovals{};
   std::vector<int> pendingDamage{};
@@ -120,16 +118,14 @@ public:
   const int &getHealth() const {
     return health;
   };
-  // Returns a position exactly once per respawn, nullopt otherwise.
+  // ==== get respawn pos ====
   std::optional<Vector3> takeRespawn() {
     return std::exchange(respawnTo, std::nullopt);
   }
+  // ==== drains ==== //
   std::vector<Object> takeNewObjects() {
     return std::exchange(pendingObjects, {});
   }
-  // Drains whatever initBlocks chunks have arrived since the last call;
-  // each is appended via World::addObjects, so the world fills in over
-  // several frames instead of one big stall.
   std::vector<std::vector<Object>> takeInitChunks() {
     return std::exchange(pendingInitChunks, {});
   }

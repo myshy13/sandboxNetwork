@@ -108,14 +108,40 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   }
 }
 
+// ==== chunks ==== //
+static int64_t chunkKey(Vector3 pos) {
+  int cx = (int)floorf(pos.x / World::CHUNK_SIZE);
+  int cz = (int)floorf(pos.z / World::CHUNK_SIZE);
+  return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
+}
+
+void World::markDirty(Vector3 pos) {
+  dirtyChunks.insert(chunkKey(pos));
+  // Chunks span all y, so only the horizontal neighbours can be in another chunk.
+  const Vector3 offsets[] = {{blockSize.x, 0, 0}, {-blockSize.x, 0, 0}, {0, 0, blockSize.z}, {0, 0, -blockSize.z}};
+  for (const Vector3 &o : offsets) {
+    dirtyChunks.insert(chunkKey(Vector3Add(pos, o)));
+  }
+}
+
+const std::vector<int> *World::getChunk(int64_t key) const {
+  auto it = chunks.find(key);
+  return it == chunks.end() ? nullptr : &it->second;
+}
+
+// ==== object bookkeeping ==== //
 void World::indexObject() {
-  occupiedCells[cellKey(objects.back().getTransform().pos)] = (int)objects.size() - 1;
+  Vector3 pos = objects.back().getTransform().pos;
+  int idx     = (int)objects.size() - 1;
+
+  occupiedCells[cellKey(pos)] = idx;
+  chunks[chunkKey(pos)].push_back(idx);
+  markDirty(pos);
 }
 
 void World::addObject(const Object &object) {
   objects.push_back(object);
   indexObject();
-  version++;
 }
 
 void World::addObjects(const std::vector<Object> &newObjects) {
@@ -124,7 +150,6 @@ void World::addObjects(const std::vector<Object> &newObjects) {
     objects.push_back(o);
     indexObject();
   }
-  version++;
 }
 
 void World::removeObject(int id) {
@@ -133,17 +158,29 @@ void World::removeObject(int id) {
   if (it == objects.end())
     return;
 
-  occupiedCells.erase(cellKey(it->getTransform().pos));
+  Vector3 pos    = it->getTransform().pos;
+  int removedIdx = (int)(it - objects.begin());
+  int lastIdx    = (int)objects.size() - 1;
+
+  occupiedCells.erase(cellKey(pos));
+  std::vector<int> &list = chunks[chunkKey(pos)];
+  std::erase(list, removedIdx);
+  if (list.empty())
+    chunks.erase(chunkKey(pos));
+  markDirty(pos);
 
   // Swap-and-pop instead of erase, so only the moved object's index needs
-  // fixing up - not every index after it.
-  int removedIdx = (int)(it - objects.begin());
-  if (removedIdx != (int)objects.size() - 1) {
-    objects[removedIdx] = objects.back();
-    occupiedCells[cellKey(objects[removedIdx].getTransform().pos)] = removedIdx;
+  // fixing up - in occupiedCells and in its chunk - not every index after it.
+  if (removedIdx != lastIdx) {
+    Vector3 movedPos    = objects[lastIdx].getTransform().pos;
+    objects[removedIdx] = objects[lastIdx];
+
+    occupiedCells[cellKey(movedPos)] = removedIdx;
+    std::vector<int> &movedList      = chunks[chunkKey(movedPos)];
+    std::replace(movedList.begin(), movedList.end(), lastIdx, removedIdx);
+    dirtyChunks.insert(chunkKey(movedPos)); // its index changed, so the renderer must relist it
   }
   objects.pop_back();
-  version++;
 }
 
 void World::damageObject(int id) {
