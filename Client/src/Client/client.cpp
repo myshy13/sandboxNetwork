@@ -4,6 +4,7 @@
 #include "Protocol/protocol.hpp"
 
 #include "structs.hpp"
+#include <cmath>
 #include <cstddef>
 #include <raylib.h>
 #include <raymath.h>
@@ -98,20 +99,30 @@ void Client::handleMessage(const std::string &data) {
         newPlayer.yaw         = msg.yaw;
         newPlayer.last2pos[0] = {msg.pos};
         newPlayer.last2pos[1] = {msg.pos};
+        newPlayer.last2yaw[0] = msg.yaw;
+        newPlayer.last2yaw[1] = msg.yaw;
         newPlayer.updatedAt   = GetTime();
+        newPlayer.glideTime   = POS_UPDATE_INTERVAL;
         players.push_back(newPlayer);
       } else {
-        player->updatedAt = GetTime();
+        const double now = GetTime();
+        // glide for as long as the last gap between updates, so a dropped packet stretches it instead of stalling
+        player->glideTime = std::clamp(now - player->updatedAt, MIN_GLIDE_TIME, MAX_GLIDE_TIME);
+        player->updatedAt = now;
         player->pitch     = msg.pitch;
-        player->yaw       = msg.yaw;
         // large jump, skip interpolation
         if (Vector3Distance(msg.pos, player->last2pos[1]) > SNAP_DISTANCE) {
           player->last2pos[0] = msg.pos;
           player->last2pos[1] = msg.pos;
+          player->last2yaw[0] = msg.yaw;
+          player->last2yaw[1] = msg.yaw;
           player->pos         = msg.pos;
+          player->yaw         = msg.yaw;
         } else {
           player->last2pos[0] = player->pos;
           player->last2pos[1] = msg.pos;
+          player->last2yaw[0] = player->yaw;
+          player->last2yaw[1] = msg.yaw;
         }
       }
     }
@@ -241,10 +252,12 @@ void Client::placeObject(const Object &object) {
 
 void Client::updatePlayers() {
   for (OnlinePlayer &p : players) {
-    float alpha = Clamp(static_cast<float>((GetTime() - p.updatedAt) / POS_UPDATE_INTERVAL), 0.0f, 1.0f);
+    float alpha = Clamp(static_cast<float>((GetTime() - p.updatedAt) / p.glideTime), 0.0f, 1.0f);
     if (!GameState::shared().getInterpolation()) {
       alpha = 1.0f;
     }
     p.pos = Vector3Lerp(p.last2pos[0], p.last2pos[1], alpha);
+    // remainder() wraps the difference into -PI..PI, so yaw turns the short way round
+    p.yaw = p.last2yaw[0] + std::remainder(p.last2yaw[1] - p.last2yaw[0], 2.0f * PI) * alpha;
   }
 };

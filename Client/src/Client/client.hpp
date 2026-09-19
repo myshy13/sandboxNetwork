@@ -28,7 +28,9 @@ struct OnlinePlayer {
   std::optional<std::string> name;
   // interpolation
   std::array<Vector3, 2> last2pos{{{0, 0, 0}, {0, 0, 0}}};
+  std::array<float, 2> last2yaw{{0.0f, 0.0f}}; // glide start, glide end
   double updatedAt{0.0};
+  double glideTime{0.0}; // seconds the current glide takes, measured from the gap between updates
 };
 
 struct ChatEntry {
@@ -85,6 +87,8 @@ public:
   static constexpr double CONNECT_TIMEOUT = 5.0; // seconds before an attempt counts as failed
   static constexpr double POS_UPDATE_INTERVAL = 1.0 / 12.0;
   static constexpr float SNAP_DISTANCE        = 20;
+  static constexpr double MIN_GLIDE_TIME      = 0.02; // bounds for the measured gap between updates
+  static constexpr double MAX_GLIDE_TIME      = 0.25;
 
   // Starts a fresh session (old connection and state dropped); true if one started.
   // Safe to call every frame: it waits out an attempt in flight and never retries after a kick.
