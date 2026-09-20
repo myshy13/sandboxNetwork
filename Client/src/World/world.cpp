@@ -151,7 +151,7 @@ void World::addObject(const Object &object) {
 }
 
 void World::addObjects(const std::vector<Object> &newObjects) {
-  objects.reserve(objects.size() + newObjects.size());
+  // No reserve() here: it allocates exactly what you ask, so calling it per chunk copies the whole vector every time.
   for (const Object &o : newObjects) {
     objects.push_back(o);
     indexObject();
