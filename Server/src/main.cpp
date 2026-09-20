@@ -1,5 +1,6 @@
 #include "Server/server.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
@@ -16,11 +17,10 @@ void sigIntHandler(int signal_num) {
 }
 
 int main(int argc, char **argv) {
-
-  srand(std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count());
-
+  // The same seed (and WORLD_SIZE) gives the same terrain; defaults to the time.
+  unsigned seed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      std::chrono::system_clock::now().time_since_epoch())
+                      .count();
   int wsPort = 0;
   std::string savePath = "save.bin";
   int saveTime = 30;
@@ -32,16 +32,20 @@ int main(int argc, char **argv) {
       savePath = argv[++i];
     } else if (std::strcmp(argv[i], "--save-time") == 0 && i + 1 < argc) {
       saveTime = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
+      seed = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 10));
     } else if (std::strcmp(argv[i], "--help") == 0) {
       std::printf("usage: %s [--ws-port <port>] [--save-path <path>] "
-                  "[--save-time <seconds>]\n\n"
+                  "[--save-time <seconds>] [--seed <n>]\n\n"
                   "  --ws-port <port>  also accept browser clients over "
                   "WebSocket on <port>.\n"
                   "                    Needed for the Emscripten build, which "
                   "cannot use raw UDP.\n"
                   "  --save-path <path>  specify the path to save game data.\n"
                   "  --save-time <seconds>  specify the time interval between "
-                  "world saves.\n",
+                  "world saves.\n"
+                  "  --seed <n>  seed the terrain generator (default: the "
+                  "current time).\n",
                   argv[0]);
       return 0;
     } else {
@@ -50,6 +54,8 @@ int main(int argc, char **argv) {
     }
   }
 
+  std::printf("seed: %u\n", seed);
+  srand(seed); // before the Server exists: its constructor generates the world
   Server server(wsPort, savePath, saveTime);
   std::signal(SIGINT, sigIntHandler);
 
