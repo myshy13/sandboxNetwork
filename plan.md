@@ -50,25 +50,34 @@ Streaming means cost follows what is near each player, not how big the world is.
      last chunk at **11.31 s**, client memory under 1 GB. Froze during load: not recorded yet.
    - So the world still costs O(world size) per join (RAM, time, freeze); that is what streaming removes.
    - **Target after streaming** (radius 6 chunks ~ 169 chunks ~ 3.5 MB): a couple of seconds, flat as the world grows.
-2. **Server chunk index (no behaviour change).** Keep `objects` and `occupiedCells` as they are. Add
+2. **Server chunk index (done, no behaviour change).** Keep `objects` and `occupiedCells` as they are. Add
    `unordered_map<int64_t, vector<int>>` from chunk key to indices into `objects`, updated in `addBlock` and
    `removeBlock` (including the swap-and-pop fix-up; mirror `World::indexObject` / `removeObject` on the client).
    Chunk = 16x16 cells (80 units). Check: print chunk count and average blocks per chunk at startup.
-3. **Protocol** (`Shared/Protocol/protocol.hpp`): `ChunkData` (chunk key + blocks), `ChunkUnload` (key),
+3. **Protocol (done: 3a messages + tests, 3b position-addressed edits; `PROTOCOL_VERSION` 4).** (`Shared/Protocol/protocol.hpp`): `ChunkData` (chunk key + blocks), `ChunkUnload` (key),
    `SetViewRadius` (client -> server, in chunks), and cell-addressed Place/Remove/Damage. Bump `PROTOCOL_VERSION`.
    Keep the old `initBlocks` path working until step 4 replaces it.
-4. **Server: interest management.**
+   Edits are addressed by the block's **centre position** (`Vector3`), not cell integers: the server floors and the
+   client rounds, so each side turns the position into its own key and they never have to agree.
+4. **Server: interest management.** Done in two halves around step 5 so the game works after every commit:
+   **4a (done)** = views, load/unload, `SetViewRadius`, `sendChunk` (keep `initBlocks`, edits still global `broadcast`);
+   **4b** (after step 5) = edits via `broadcastToChunk`, delete the `initBlocks` loop and the TEMP calls.
    - Per client: the set of loaded chunks. Player chunk = floor(pos / 80).
    - At join and whenever the player's chunk changes: compute wanted chunks within radius R, send new ones
      **nearest first, at most K per tick** (a bandwidth budget), and unload ones beyond **R + 1**
      (the extra ring stops load/unload flicker at chunk borders).
-   - Per chunk: the list of subscribed players. Block edits are broadcast **only to subscribers**.
+   - No per-chunk subscriber list: an edit is sent to every player whose loaded set contains that chunk
+     (a loop over players). One source of truth, nothing to keep in sync. Block edits go **only to those players**.
    - Clamp the radius the client asks for to [2, MAX].
-5. **Client: chunk-aware `World`.** `addChunk` / `unloadChunk`. Simplest first version: keep the
-   `objects` vector with swap-and-pop and unload a chunk by removing its blocks one by one
-   (cost is per chunk, not per world). Apply **at most N chunks per frame** (the freeze fix). Mark the
-   neighbouring render chunks dirty when a chunk arrives, so border faces are drawn correctly.
-   Loading gate: **freeze the player and show "Loading..." until the chunk under the player has arrived.**
+5. **Client: chunk-aware `World`** (5a-5d, each testable):
+   - **5a** `Client`: `ChunkData` / `ChunkUnload` go into ONE ordered queue (load and unload events, in arrival order).
+   - **5b** `World`: a stream-chunk index (key -> indices into `objects`, mirroring the server's `chunkBlocks`; the
+     renderer's 15-unit chunks can't be used, 80 isn't a multiple of 15) plus a `loadedStreamChunks` set (an empty
+     chunk is still "loaded"). `addChunk`, `unloadChunk`, `isChunkLoaded`. `addObject` ignores unloaded chunks.
+   - **5c** `Game::applyNetworkUpdates` drains chunk events in order, then edits; remove the client's `initBlocks` handling.
+   - **5d** Loading gate: **freeze the player and show "Loading..." until the chunk under the player has arrived.**
+   - **No per-frame apply limit (changed):** the server already meters K chunks per tick, and a client-side queue
+     is where load/edit ordering goes wrong. Add a limit only if the F3 numbers show a frame spike.
 6. **Wire the slider:** render distance / 80 -> `SetViewRadius`. Tune R, K and N.
    Steps 2-6 fix join time, client RAM and the freeze on the existing world. The rest is only needed
    for worlds that don't fit in server memory.
@@ -80,6 +89,11 @@ Streaming means cost follows what is near each player, not how big the world is.
 
 ## Pitfalls
 
+- **Startup cost:** until step 7 the server builds the whole world in its constructor, before `poll()` runs, so it
+  accepts nobody and the client just retries "Joining server". `WORLD_SIZE = 10000` (~1.8 billion blocks) never
+  finished and passed 16 GB. Stay at 200-500 until per-chunk generation exists.
+- **Ctrl+C:** the SIGINT handler is registered only after the `Server` is constructed, so Ctrl+C during a long startup
+  kills the process at once instead of being swallowed.
 - **Ordering:** register a client as a chunk subscriber at the same moment its `ChunkData` snapshot is taken,
   and send both reliably on the same channel. Then an edit can never arrive before the chunk it belongs to.
 - **Spawn:** a deterministic `heightAt(x, z)` lets the server put the spawn on the ground instead of `y = 10`,
@@ -111,5 +125,4 @@ Build the server and client, then check:
 - Other asset types (sounds, fonts, models) aren't in `AssetManager`.
 - Bigger ideas: inventory, structures (fits streaming), more textures (needs a texture atlas in the renderer).
 - Check the "Loading..." overlay in `game.cpp` (an `else if` chain made it show only while paused).
-- Remaining O(N) client scans: `World::damageObject` and `World::removeObject` (fixed properly by cell
-  addressing in decision 1).
+- Client `World::damageObject` / `World::removeObject` are no longer O(N): 3b looks the block up in `occupiedCells`.

@@ -2,6 +2,7 @@
 #include "Server/server.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
+#include "Server/chunk.hpp"
 #include "enet/enet.h"
 #include "env.hpp"
 #include "raylib.h"
@@ -10,6 +11,7 @@
 #include <cfloat>
 #include <chrono>
 #include <climits>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -88,7 +90,9 @@ Server::~Server() {
 constexpr float BLOCK_SIZE =
     5.0f; // same as the client's blockSize (Client/src/World/world.cpp)
 
-static constexpr float CHUNK_SIZE = 16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE (Client/src/World/world.hpp)
+static constexpr float CHUNK_SIZE =
+    16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE
+                     // (Client/src/World/world.hpp)
 
 // Packs a grid cell's (x, y, z) into one hashable key, offset so negative cells
 // don't collide.
@@ -103,16 +107,10 @@ static int64_t blockKey(Vector3 pos) {
                  (int)floorf(pos.z / BLOCK_SIZE));
 }
 
-// Packs a chunk's (x, z) coordinates into one hashable key: x in the high 32
-// bits, z in the low 32. A chunk spans every height, so there is no y.
-static int64_t chunkKey(int cx, int cz) {
-  // The unsigned cast keeps a negative cz from sign-extending over the x half.
-  return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
-}
-
 // The key of the chunk a world position falls in.
 static int64_t chunkKeyAt(Vector3 pos) {
-  // Divide and floor while still a float; a plain (int) cast rounds toward zero, which is wrong below 0.
+  // Divide and floor while still a float; a plain (int) cast rounds toward
+  // zero, which is wrong below 0.
   return chunkKey((int)floorf(pos.x / CHUNK_SIZE),
                   (int)floorf(pos.z / CHUNK_SIZE));
 }
@@ -199,7 +197,8 @@ void Server::loadWorld() {
     objects = std::move(save.objects);
     nextObjectId = save.nextObjectId;
     for (int i = 0; i < (int)objects.size(); i++) {
-      indexBlock(i); // not addBlock: the block is already in `objects`, and this isn't a change to save
+      indexBlock(i); // not addBlock: the block is already in `objects`, and
+                     // this isn't a change to save
     }
     std::printf("loaded %zu objects from %s\n", objects.size(),
                 savePath.c_str());
@@ -230,7 +229,7 @@ void Server::generateWorld() {
   std::cout << "Generating Terrain\n";
   for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
     for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-      heightMap[toIndex(x, z)] = rand() % 10;
+      heightMap[toIndex(x, z)] = rand() % 20;
     }
   }
 
@@ -400,6 +399,7 @@ void Server::handleDisconnect(int playerId) {
   std::printf("Client %d disconnected\n", playerId);
   deletePlayer(playerId);
   connections.erase(playerId);
+  views.erase(playerId);
 
   broadcast(
       proto::pack(proto::Type::DeletePlayer, proto::DeletePlayer{playerId}),
@@ -455,7 +455,6 @@ void Server::handleReceive(int playerId, const std::string &data) {
       for (Player &p : players) {
         if (msg.name == p.displayName) {
           break;
-          break;
         }
       }
       player->displayName = msg.name;
@@ -473,6 +472,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
     addBlock(msg.object);
     broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
               true); // reliable
+    break;
+  }
+
+  case proto::Type::SetViewRadius: {
+    auto msg = proto::unpack<proto::SetViewRadius>(data);
+    // Identity comes from the connection; the radius is client-supplied, so
+    // clamp it.
+    if (auto it = views.find(playerId); it != views.end()) {
+      it->second.radius = std::clamp(msg.radius, 2, env::MAX_VIEW_RADIUS);
+    }
     break;
   }
 
@@ -532,6 +541,77 @@ void Server::indexBlock(int i) {
   chunkBlocks[chunkKeyAt(pos)].push_back(i);
 }
 
+void Server::sendChunk(int playerId, int cx, int cz) {
+  proto::ChunkData msg{cx, cz, {}};
+  // find, not []: [] would insert an empty list. An empty chunk is still sent,
+  // so the client knows it has loaded.
+  auto it = chunkBlocks.find(chunkKey(cx, cz));
+  if (it != chunkBlocks.end()) {
+    msg.blocks.reserve(it->second.size());
+    for (int i : it->second) {
+      msg.blocks.push_back(objects[i]); // a copy: the snapshot at this moment
+    }
+  }
+  std::printf("TEMP load chunk (%d, %d), %zu blocks, to player %d\n", cx, cz,
+              msg.blocks.size(), playerId);
+  sendTo(playerId, proto::pack(proto::Type::ChunkData, msg), true);
+}
+
+void Server::updateView(const Player &p) {
+  ClientView &view = views[p.id];
+  // The player's chunk; floor while still a float, as in chunkKeyAt.
+  const int pcx = (int)floorf(p.pos.x / CHUNK_SIZE);
+  const int pcz = (int)floorf(p.pos.z / CHUNK_SIZE);
+
+  // ==== unload ==== //
+  std::vector<int64_t> toUnload;
+  for (int64_t key : view.loaded) {
+    auto [cx, cz] = chunkCoords(key);
+    int dx = cx - pcx;
+    int dz = cz - pcz;
+    bool tooFar =
+        std::abs(dx) > view.radius + 1 || std::abs(dz) > view.radius + 1;
+    if (tooFar) {
+      toUnload.push_back(key);
+    }
+  }
+  for (int64_t key : toUnload) {
+    auto [cx, cz] = chunkCoords(key);
+    std::printf("TEMP unload chunk (%d, %d) from player %d\n", cx, cz, p.id);
+    sendTo(p.id,
+           proto::pack(proto::Type::ChunkUnload, proto::ChunkUnload{cx, cz}),
+           true);
+    view.loaded.erase(key);
+  }
+
+  // ==== load ==== //
+  std::vector<std::pair<int, int>> toLoad;
+  for (int cx = pcx - view.radius; cx <= pcx + view.radius; cx++) {
+    for (int cz = pcz - view.radius; cz <= pcz + view.radius; cz++) {
+      if (!view.loaded.contains(chunkKey(cx, cz))) {
+        toLoad.push_back({cx, cz});
+      }
+    }
+  }
+
+  // Nearest first, so the chunks under the player arrive before the far ones.
+  auto distSq = [&](const std::pair<int, int> &c) {
+    int dx = c.first - pcx;
+    int dz = c.second - pcz;
+    return dx * dx + dz * dz;
+  };
+  std::sort(toLoad.begin(), toLoad.end(), [&](const auto &a, const auto &b) {
+    return distSq(a) < distSq(b);
+  });
+
+  size_t count = std::min(toLoad.size(), (size_t)env::CHUNKS_PER_TICK);
+  for (size_t i = 0; i < count; i++) {
+    auto [cx, cz] = toLoad[i];
+    sendChunk(p.id, cx, cz);
+    view.loaded.insert(chunkKey(cx, cz));
+  }
+}
+
 void Server::addBlock(const Object &block) {
   objects.push_back(block);
   indexBlock((int)objects.size() - 1);
@@ -543,21 +623,24 @@ void Server::removeBlock(int index) {
   const Vector3 pos = objects[index].getTransform().pos;
   occupiedCells.erase(blockKey(pos));
 
-  // Take `index` out of its chunk's list. This must come before the swap fix-up below (see there).
+  // Take `index` out of its chunk's list. This must come before the swap fix-up
+  // below (see there).
   auto chunk = chunkBlocks.find(chunkKeyAt(pos));
   std::erase(chunk->second, index);
   if (chunk->second.empty()) {
-    chunkBlocks.erase(chunk); // no empty lists, so "chunk exists" means "chunk has blocks"
+    chunkBlocks.erase(
+        chunk); // no empty lists, so "chunk exists" means "chunk has blocks"
   }
 
   // Swap-and-pop, so only the moved block's index needs fixing up.
   int last = (int)objects.size() - 1;
   if (index != last) {
-    const Vector3 movedPos            = objects[last].getTransform().pos;
-    objects[index]                    = objects[last];
+    const Vector3 movedPos = objects[last].getTransform().pos;
+    objects[index] = objects[last];
     occupiedCells[blockKey(movedPos)] = index;
-    // The moved block was listed as `last` in its chunk; it is `index` now. If it shares a chunk with
-    // the removed block, doing this before the erase above would leave `index` listed twice.
+    // The moved block was listed as `last` in its chunk; it is `index` now. If
+    // it shares a chunk with the removed block, doing this before the erase
+    // above would leave `index` listed twice.
     std::vector<int> &moved = chunkBlocks[chunkKeyAt(movedPos)];
     std::replace(moved.begin(), moved.end(), last, index);
   }
@@ -567,7 +650,7 @@ void Server::removeBlock(int index) {
 
 void Server::checkChunkIndex() const {
   size_t listed = 0;
-  size_t wrong  = 0;
+  size_t wrong = 0;
   for (const auto &[key, list] : chunkBlocks) {
     listed += list.size();
     for (int i : list) {
@@ -576,8 +659,10 @@ void Server::checkChunkIndex() const {
       }
     }
   }
-  const double average = chunkBlocks.empty() ? 0.0 : (double)listed / chunkBlocks.size();
-  std::printf("chunk index: %zu chunks, %zu blocks listed (objects=%zu), %zu in the wrong chunk, %.0f blocks/chunk\n",
+  const double average =
+      chunkBlocks.empty() ? 0.0 : (double)listed / chunkBlocks.size();
+  std::printf("chunk index: %zu chunks, %zu blocks listed (objects=%zu), %zu "
+              "in the wrong chunk, %.0f blocks/chunk\n",
               chunkBlocks.size(), listed, objects.size(), wrong, average);
 }
 
@@ -702,6 +787,11 @@ void Server::tick(float dt) {
       std::remove_if(bullets.begin(), bullets.end(),
                      [](const Bullet &b) { return b.deathCountdown <= 0.0f; }),
       bullets.end());
+
+  // ==== interest management ==== //
+  for (const Player &p : players) {
+    updateView(p);
+  }
 
   // Hit detection is a brute-force scan of every object per bullet per tick,
   // so this is where a big world (see generateWorld) is expected to hurt.

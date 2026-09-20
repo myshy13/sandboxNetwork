@@ -48,3 +48,5 @@
   (`cd Shared/Protocol && make test`) that needs no client or server
   running. It reuses headers already fetched into `Client/build`, so
   build the native client at least once first.
+- `Server/src/Server/chunk.hpp` (chunk key packing) has its own test: `cd Server && make test`.
+  Pure functions only, so it needs no raylib or ENet; put testable server logic in headers like this.

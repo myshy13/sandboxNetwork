@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <raylib.h>
 #include <raymath.h>
 #include <vector>

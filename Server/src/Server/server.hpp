@@ -12,6 +12,7 @@
 #include <raylib.h>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct Bullet {
@@ -32,6 +33,11 @@ struct Player {
   std::optional<std::string> displayName;
 };
 
+struct ClientView {
+  std::unordered_set<int64_t> loaded;
+  int radius = env::DEFAULT_VIEW_RADIUS;
+};
+
 class Server {
   const std::string savePath;
   const int saveTime;
@@ -42,6 +48,7 @@ class Server {
 
   // Every client, ENet and WebSocket alike, keyed by player id.
   std::unordered_map<int, std::unique_ptr<Connection>> connections;
+  std::unordered_map<int, ClientView> views;
   std::unordered_map<std::string, int> wsPlayerIds;
 
   std::unordered_map<int, int> kills;
@@ -96,10 +103,16 @@ class Server {
   void removeBlock(int index);
   // Records objects[i] in occupiedCells and in its chunk's list.
   void indexBlock(int i);
+  // Sends chunk (cx, cz) to one player as a ChunkData, empty chunks included.
+  void sendChunk(int playerId, int cx, int cz);
   // TEMP while building chunk streaming: prints chunk stats and flags any list entry in the wrong chunk.
   void checkChunkIndex() const;
   // Index of the nearest block the segment from -> to passes through, or -1.
   int findBlockHit(Vector3 from, Vector3 to) const;
+
+  // Interest management: unloads chunks that are too far from the player and
+  // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
+  void updateView(const Player &p);
 
   void loadWorld();
 

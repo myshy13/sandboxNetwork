@@ -16,7 +16,6 @@ void sigIntHandler(int signal_num) {
 }
 
 int main(int argc, char **argv) {
-  std::signal(SIGINT, sigIntHandler);
 
   srand(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
@@ -52,6 +51,7 @@ int main(int argc, char **argv) {
   }
 
   Server server(wsPort, savePath, saveTime);
+  std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {
     server.poll();
