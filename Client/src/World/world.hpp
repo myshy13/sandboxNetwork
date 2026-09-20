@@ -2,6 +2,7 @@
 
 #include "Client/client.hpp"
 #include "Models/Object.hpp"
+#include <cmath>
 #include <raylib.h>
 #include <unordered_map>
 #include <unordered_set>
@@ -35,6 +36,11 @@ public:
   bool boxCollides(BoundingBox box) const;
 
   static constexpr float CHUNK_SIZE = 15.0f; // world units per chunk (3 blocks)
+
+  // The server's streaming chunk (16x16 cells, every height), not the renderer chunk above.
+  static constexpr float STREAM_CHUNK_SIZE = 80.0f; // must match CHUNK_SIZE in Server/src/Server/server.cpp
+  // Which streaming chunk a world x or z falls in; floors as a float, since an (int) cast rounds toward zero.
+  static int streamChunkCoord(float v) { return (int)floorf(v / STREAM_CHUNK_SIZE); }
   // Indices into getObjects() of every block in a chunk, or null if it's empty.
   const std::vector<int> *getChunk(int64_t key) const;
   // Chunks whose blocks (or neighbours' occlusion) changed since the last call.

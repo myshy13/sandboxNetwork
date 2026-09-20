@@ -58,6 +58,10 @@ must match, or server hit detection and client rendering disagree on the
 player's hitbox. There's a comment at each site pointing at the other —
 keep both in sync when either changes.
 
+`World::STREAM_CHUNK_SIZE` (`Client/src/World/world.hpp`) and the server's `CHUNK_SIZE`
+(`Server/src/Server/server.cpp`) are the same streaming-chunk size (16 cells = 80 units), duplicated by hand;
+the client's debug chunk borders and (later) chunk loading rely on them agreeing.
+
 Likewise `env::MAX_HEALTH` (`Client/src/env.hpp`, template in
 `env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH`
 (`Server/src/env.hpp`): the client sizes its health bar from its copy while the

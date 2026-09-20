@@ -36,6 +36,7 @@ private:
   float placeCooldown     = 0.0f;
 #ifdef DEBUG
   bool showDebug        = false;
+  bool showChunkBorders = false; // F4
   double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
   double drawObjectsMs  = 0.0; // Renderer::drawObjects, incl. frustum cull + instancing
 #endif
@@ -50,6 +51,7 @@ private:
 
   // ==== draw ==== //
   void drawScene(float dt);
+  void drawChunkBorders();
   void drawHealthBar();
   void drawChat();
   void drawScoreboard();
