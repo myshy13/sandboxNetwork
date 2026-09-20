@@ -74,7 +74,6 @@ Server::Server(int wsPort, std::string savePath, int saveTime)
   }
 
   loadWorld();
-  checkChunkIndex(); // TEMP
 }
 
 Server::~Server() {
@@ -170,7 +169,6 @@ void Server::saveWorldAsync() {
   if (!worldChanged)
     return;
   worldChanged = false;
-  checkChunkIndex(); // TEMP: re-verify after block edits
 
   WorldSave snapshot;
   snapshot.objects = objects;
@@ -321,6 +319,15 @@ void Server::broadcast(const std::string &bytes, bool reliable) {
   }
 }
 
+void Server::broadcastToChunk(int64_t key, const std::string &bytes,
+                              bool reliable) {
+  for (const auto &[id, view] : views) {
+    if (view.loaded.contains(key)) {
+      sendTo(id, bytes, reliable);
+    }
+  }
+}
+
 // ==== player bookkeeping ==== //
 void Server::deletePlayer(int id) {
   auto it = std::find_if(players.begin(), players.end(),
@@ -444,13 +451,21 @@ void Server::handleReceive(int playerId, const std::string &data) {
 
   case proto::Type::PlaceObject: {
     auto msg = proto::unpack<proto::PlaceObject>(data);
-    if (occupiedCells.contains(blockKey(msg.object.getTransform().pos))) {
+    const Vector3 pos = msg.object.getTransform().pos;
+    const int64_t chunk = chunkKeyAt(pos);
+    auto view = views.find(playerId);
+    if (view == views.end() || !view->second.loaded.contains(chunk)) {
+      break; // a player can only edit a chunk they hold
+    }
+    if (occupiedCells.contains(blockKey(pos))) {
       break; // one block per cell
     }
     msg.object.setId(nextObjectId++); // server owns ids, clients send -1
     addBlock(msg.object);
-    broadcast(proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
-              true); // reliable
+    broadcastToChunk(chunk,
+                     proto::pack(proto::Type::NewObject,
+                                 proto::NewObject{msg.object}),
+                     true); // reliable
     break;
   }
 
@@ -531,8 +546,6 @@ void Server::sendChunk(int playerId, int cx, int cz) {
       msg.blocks.push_back(objects[i]); // a copy: the snapshot at this moment
     }
   }
-  std::printf("TEMP load chunk (%d, %d), %zu blocks, to player %d\n", cx, cz,
-              msg.blocks.size(), playerId);
   sendTo(playerId, proto::pack(proto::Type::ChunkData, msg), true);
 }
 
@@ -556,7 +569,6 @@ void Server::updateView(const Player &p) {
   }
   for (int64_t key : toUnload) {
     auto [cx, cz] = chunkCoords(key);
-    std::printf("TEMP unload chunk (%d, %d) from player %d\n", cx, cz, p.id);
     sendTo(p.id,
            proto::pack(proto::Type::ChunkUnload, proto::ChunkUnload{cx, cz}),
            true);
@@ -627,24 +639,6 @@ void Server::removeBlock(int index) {
   worldChanged = true;
 }
 
-void Server::checkChunkIndex() const {
-  size_t listed = 0;
-  size_t wrong = 0;
-  for (const auto &[key, list] : chunkBlocks) {
-    listed += list.size();
-    for (int i : list) {
-      if (chunkKeyAt(objects[i].getTransform().pos) != key) {
-        wrong++;
-      }
-    }
-  }
-  const double average =
-      chunkBlocks.empty() ? 0.0 : (double)listed / chunkBlocks.size();
-  std::printf("chunk index: %zu chunks, %zu blocks listed (objects=%zu), %zu "
-              "in the wrong chunk, %.0f blocks/chunk\n",
-              chunkBlocks.size(), listed, objects.size(), wrong, average);
-}
-
 int Server::findBlockHit(Vector3 from, Vector3 to) const {
   Vector3 lo = Vector3Min(from, to);
   Vector3 hi = Vector3Max(from, to);
@@ -702,16 +696,19 @@ void Server::tick(float dt) {
       Object &o = objects[hit];
       o.damage();
       worldChanged = true;
-      Vector3 pos = o.getTransform().pos;
+      const Vector3 pos = o.getTransform().pos;
+      const int64_t chunk = chunkKeyAt(pos);
       if (o.getDurability() <= 0) {
-        broadcast(
-            proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
-            true);
+        broadcastToChunk(chunk,
+                         proto::pack(proto::Type::RemoveObject,
+                                     proto::RemoveObject{pos}),
+                         true);
         removeBlock(hit); // invalidates `o`
       } else {
-        broadcast(
-            proto::pack(proto::Type::DamageObject, proto::DamageObject{pos}),
-            true);
+        broadcastToChunk(chunk,
+                         proto::pack(proto::Type::DamageObject,
+                                     proto::DamageObject{pos}),
+                         true);
       }
     }
 

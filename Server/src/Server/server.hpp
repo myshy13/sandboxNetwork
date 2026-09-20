@@ -92,6 +92,8 @@ class Server {
 
   void sendTo(int playerId, const std::string &bytes, bool reliable);
   void broadcast(const std::string &bytes, bool reliable);
+  // Sends to every player who currently holds chunk `key` (see ClientView::loaded).
+  void broadcastToChunk(int64_t key, const std::string &bytes, bool reliable);
 
   // ==== transport plumbing ==== //
   void pumpEnet();
@@ -105,8 +107,6 @@ class Server {
   void indexBlock(int i);
   // Sends chunk (cx, cz) to one player as a ChunkData, empty chunks included.
   void sendChunk(int playerId, int cx, int cz);
-  // TEMP while building chunk streaming: prints chunk stats and flags any list entry in the wrong chunk.
-  void checkChunkIndex() const;
   // Index of the nearest block the segment from -> to passes through, or -1.
   int findBlockHit(Vector3 from, Vector3 to) const;
 

@@ -61,7 +61,8 @@ Streaming means cost follows what is near each player, not how big the world is.
    client rounds, so each side turns the position into its own key and they never have to agree.
 4. **Server: interest management.** Done in two halves around step 5 so the game works after every commit:
    **4a (done)** = views, load/unload, `SetViewRadius`, `sendChunk` (keep `initBlocks`, edits still global `broadcast`);
-   **4b** (after step 5) = edits via `broadcastToChunk`, delete the `initBlocks` loop and the TEMP calls.
+   **4b (done)** = edits via `broadcastToChunk`, `initBlocks` removed, TEMP calls and logs removed. A `PlaceObject`
+   is also refused unless the sender holds that chunk (the server never trusts the client's position).
    - Per client: the set of loaded chunks. Player chunk = floor(pos / 80).
    - At join and whenever the player's chunk changes: compute wanted chunks within radius R, send new ones
      **nearest first, at most K per tick** (a bandwidth budget), and unload ones beyond **R + 1**
