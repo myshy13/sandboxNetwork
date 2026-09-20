@@ -11,7 +11,7 @@
 #include <vector>
 
 // Axis-aligned box centred on an object (pos is the centre; see placeBlock).
-inline BoundingBox objectBox(const ObjectTransform &t) {
+BoundingBox objectBox(const ObjectTransform &t) { // not inline: renderer.cpp declares and calls it too
   Vector3 half = Vector3Scale(t.scale, 0.5f);
   return {Vector3Subtract(t.pos, half), Vector3Add(t.pos, half)};
 }
