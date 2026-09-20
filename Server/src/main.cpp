@@ -1,11 +1,23 @@
 #include "Server/server.hpp"
 
 #include <chrono>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
+
+std::atomic<bool> keep_running(true);
+
+void sigIntHandler(int signal_num) {
+  if (signal_num == SIGINT) {
+    keep_running = false;
+  }
+}
 
 int main(int argc, char **argv) {
+  std::signal(SIGINT, sigIntHandler);
+
   srand(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch())
             .count());
@@ -22,13 +34,15 @@ int main(int argc, char **argv) {
     } else if (std::strcmp(argv[i], "--save-time") == 0 && i + 1 < argc) {
       saveTime = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--help") == 0) {
-      std::printf("usage: %s [--ws-port <port>] [--save-path <path>] [--save-time <seconds>]\n\n"
+      std::printf("usage: %s [--ws-port <port>] [--save-path <path>] "
+                  "[--save-time <seconds>]\n\n"
                   "  --ws-port <port>  also accept browser clients over "
                   "WebSocket on <port>.\n"
                   "                    Needed for the Emscripten build, which "
                   "cannot use raw UDP.\n"
                   "  --save-path <path>  specify the path to save game data.\n"
-                  "  --save-time <seconds>  specify the time interval between world saves.\n",
+                  "  --save-time <seconds>  specify the time interval between "
+                  "world saves.\n",
                   argv[0]);
       return 0;
     } else {
@@ -39,9 +53,13 @@ int main(int argc, char **argv) {
 
   Server server(wsPort, savePath, saveTime);
 
-  while (true) {
+  while (keep_running) {
     server.poll();
   }
+
+  std::printf("Saving world... \n");
+  server.saveWorld();
+  std::printf("Done... shutting down now\n");
 
   return 0;
 }

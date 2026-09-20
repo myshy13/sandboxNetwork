@@ -12,7 +12,9 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <future>
 #include <optional>
 #include <raymath.h>
 #include <string>
@@ -105,14 +107,62 @@ struct WorldSave {
 };
 
 // ==== World saving ==== //
-void Server::saveWorld() {
-  WorldSave save;
-  save.objects = this->objects;
-  save.nextObjectId = this->nextObjectId;
+// Writes to a temp file and renames it over the save, so a crash mid-write
+// can't corrupt the old save. Runs on any thread: it only touches `save`.
+static bool writeSave(const std::string &path, const WorldSave &save) {
+  try {
+    const std::string tmp = path + ".tmp";
+    {
+      std::ofstream os(tmp, std::ios::binary);
+      cereal::BinaryOutputArchive ar(os);
+      ar(save);
+      os.flush();
+      if (!os)
+        return false;
+    }
+    std::filesystem::rename(tmp, path);
+    return true;
+  } catch (const std::exception &e) {
+    std::fprintf(stderr, "save failed (%s)\n", e.what());
+    return false;
+  }
+}
 
-  std::ofstream os(savePath, std::ios::binary);
-  cereal::BinaryOutputArchive ar(os);
-  ar(save);
+// Blocks until any background save has finished, then writes synchronously.
+// Used at shutdown, where the write has to be done before we exit.
+void Server::saveWorld() {
+  if (saving.valid() && !saving.get())
+    worldChanged = true; // the background write failed, so redo it
+  if (!worldChanged)
+    return; // the file on disk is already current
+
+  WorldSave save;
+  save.objects = objects;
+  save.nextObjectId = nextObjectId;
+  if (writeSave(savePath, save))
+    worldChanged = false;
+}
+
+// Snapshots the world here (a memory copy), then writes it on another thread
+// so the tick never waits on the disk.
+void Server::saveWorldAsync() {
+  if (saving.valid()) {
+    if (saving.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+      return; // still writing the last one, try again next period
+    if (!saving.get())
+      worldChanged = true; // it failed, so retry with fresh data
+  }
+  if (!worldChanged)
+    return;
+  worldChanged = false;
+
+  WorldSave snapshot;
+  snapshot.objects = objects;
+  snapshot.nextObjectId = nextObjectId;
+  saving = std::async(std::launch::async,
+                      [path = savePath, snapshot = std::move(snapshot)] {
+                        return writeSave(path, snapshot);
+                      });
 }
 
 void Server::loadWorld() {
@@ -297,6 +347,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
+  sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
 
   // Stream the world in chunks rather than one huge message, so the client
   // indexes it incrementally instead of stalling on a single collision-grid
@@ -442,6 +493,7 @@ bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
 void Server::addBlock(const Object &block) {
   objects.push_back(block);
   occupiedCells[blockKey(block.getTransform().pos)] = (int)objects.size() - 1;
+  worldChanged = true;
 }
 
 void Server::removeBlock(int index) {
@@ -454,6 +506,7 @@ void Server::removeBlock(int index) {
     occupiedCells[blockKey(objects[index].getTransform().pos)] = index;
   }
   objects.pop_back();
+  worldChanged = true;
 }
 
 int Server::findBlockHit(Vector3 from, Vector3 to) const {
@@ -496,7 +549,7 @@ void Server::tick(float dt) {
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;
-    saveWorld();
+    saveWorldAsync();
   }
   auto tickStart = std::chrono::steady_clock::now();
   // ==== hit detection ==== //
@@ -512,6 +565,7 @@ void Server::tick(float dt) {
 
       Object &o = objects[hit];
       o.damage();
+      worldChanged = true;
       if (o.getDurability() <= 0) {
         broadcast(proto::pack(proto::Type::RemoveObject,
                               proto::RemoveObject{o.getId()}),

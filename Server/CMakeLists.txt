@@ -80,7 +80,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${cereal_SOURCE_DIR}/include"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket)
+find_package(Threads REQUIRED) # std::async for the background world save
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket Threads::Threads)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>

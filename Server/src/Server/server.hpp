@@ -6,6 +6,7 @@
 #include "env.hpp"
 
 #include <enet/enet.h>
+#include <future>
 #include <memory>
 #include <optional>
 #include <raylib.h>
@@ -50,12 +51,20 @@ class Server {
   int nextObjectId{1};
   std::vector<Player> players{};
   std::vector<Object> objects{};
-  // Grid cell -> index into `objects`; blocks are one per cell, so bullets test a few cells, not every block.
+  // Grid cell -> index into `objects`; blocks are one per cell, so bullets test
+  // a few cells, not every block.
   std::unordered_map<int64_t, int> occupiedCells;
   std::vector<Bullet> bullets;
 
   float saveCountdownTime = saveTime;
   float saveCountdown{saveCountdownTime};
+
+  // ==== World saving ==== //
+  // Periodic saves write on another thread; `saving` is that write in flight.
+  std::future<bool> saving;
+  // Set by every block change, so an unchanged world isn't rewritten.
+  bool worldChanged{false};
+  void saveWorldAsync();
 
   Player *findPlayer(int id) {
     for (auto &p : players) {
@@ -87,16 +96,16 @@ class Server {
   // Index of the nearest block the segment from -> to passes through, or -1.
   int findBlockHit(Vector3 from, Vector3 to) const;
 
-  // ==== World saving ==== //
-  void saveWorld();
   void loadWorld();
 
   // ==== World generation ==== //
   void generateWorld();
 
 public:
+  void saveWorld();
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
-  explicit Server(int wsPort = 0, const std::string savePath = "save.bin", const int saveTime = 30);
+  explicit Server(int wsPort = 0, const std::string savePath = "save.bin",
+                  const int saveTime = 30);
   ~Server();
 };
