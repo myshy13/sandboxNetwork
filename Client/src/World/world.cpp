@@ -61,10 +61,18 @@ static int64_t cellKey(Vector3 coord) {
 bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   RayCollision best{};
   best.distance = FLT_MAX;
-  for (Object &o : objects) {
-    RayCollision rc = GetRayCollisionBox(aim, objectBox(o.getTransform()));
-    if (rc.hit && rc.distance < best.distance) {
+  // Walk the ray through the cell index instead of testing every block; only cells within REACH matter.
+  constexpr float RAY_STEP = 0.25f; // far smaller than a cell, so no cell along the ray is skipped
+  for (float t = 0.0f; t <= REACH; t += RAY_STEP) {
+    auto it = occupiedCells.find(cellKey(snapToCell(Vector3Add(aim.position, Vector3Scale(aim.direction, t)))));
+    if (it == occupiedCells.end()) {
+      continue;
+    }
+    // The ray is inside this cell, so it hits the block; the exact test gives the entry point and face normal.
+    RayCollision rc = GetRayCollisionBox(aim, objectBox(objects[it->second].getTransform()));
+    if (rc.hit) {
       best = rc;
+      break;
     }
   }
 
@@ -84,10 +92,8 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
 
   Vector3 cell = snapToCell(target);
 
-  for (Object &o : objects) {
-    if (Vector3DistanceSqr(o.getTransform().pos, cell) < 0.01f) {
-      return false;
-    }
+  if (occupiedCells.contains(cellKey(cell))) {
+    return false; // one block per cell
   }
 
   constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
