@@ -7,6 +7,7 @@
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
+#include <sstream>
 #include <utility>
 #include <vector>
 
