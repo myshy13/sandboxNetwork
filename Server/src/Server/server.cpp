@@ -638,15 +638,16 @@ void Server::tick(float dt) {
       Object &o = objects[hit];
       o.damage();
       worldChanged = true;
+      Vector3 pos = o.getTransform().pos;
       if (o.getDurability() <= 0) {
-        broadcast(proto::pack(proto::Type::RemoveObject,
-                              proto::RemoveObject{o.getId()}),
-                  true);
+        broadcast(
+            proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
+            true);
         removeBlock(hit); // invalidates `o`
       } else {
-        broadcast(proto::pack(proto::Type::DamageObject,
-                              proto::DamageObject{o.getId()}),
-                  true);
+        broadcast(
+            proto::pack(proto::Type::DamageObject, proto::DamageObject{pos}),
+            true);
       }
     }
 

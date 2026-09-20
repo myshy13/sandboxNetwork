@@ -22,11 +22,11 @@ public:
   bool placeBlock(Ray aim, Client &client, const Vector3 &playerPos);
   void addObject(const Object &object);
   void update();
-  void removeObject(int id);
+  void removeObject(Vector3 pos);
   // Appends a streamed chunk of the world (see server's batched initBlocks) -
   // indexes each object as it's added, no full rebuild.
   void addObjects(const std::vector<Object> &newObjects);
-  void damageObject(int id);
+  void damageObject(Vector3 pos);
   // Empties the world (leaving a session); old chunks stay dirty so the renderer drops them.
   void clear();
   std::vector<Object> &getObjects();

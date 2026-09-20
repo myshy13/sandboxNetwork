@@ -151,21 +151,19 @@ void World::addObject(const Object &object) {
 }
 
 void World::addObjects(const std::vector<Object> &newObjects) {
-  // No reserve() here: it allocates exactly what you ask, so calling it per chunk copies the whole vector every time.
+  objects.reserve(objects.size() + newObjects.size());
   for (const Object &o : newObjects) {
     objects.push_back(o);
     indexObject();
   }
 }
 
-void World::removeObject(int id) {
-  auto it = std::find_if(objects.begin(), objects.end(),
-                         [id](const Object &o) { return o.getId() == id; });
-  if (it == objects.end())
+void World::removeObject(Vector3 pos) {
+  auto it = occupiedCells.find(cellKey(pos));
+  if (it == occupiedCells.end())
     return;
 
-  Vector3 pos    = it->getTransform().pos;
-  int removedIdx = (int)(it - objects.begin());
+  int removedIdx = (int)(it->second);
   int lastIdx    = (int)objects.size() - 1;
 
   occupiedCells.erase(cellKey(pos));
@@ -189,12 +187,12 @@ void World::removeObject(int id) {
   objects.pop_back();
 }
 
-void World::damageObject(int id) {
-  for (Object &o : objects) {
-    if (o.getId() == id) {
-      o.damage();
-    }
-  }
+void World::damageObject(Vector3 pos) {
+  auto it = occupiedCells.find(cellKey(pos));
+  if (it == occupiedCells.end())
+    return;
+
+  objects[it->second].damage();
 }
 
 void World::clear() {
@@ -247,7 +245,7 @@ bool World::boxCollides(BoundingBox box) const {
     for (int z = minZ; z <= maxZ; z++) {
       for (int x = minX; x <= maxX; x++) {
         Vector3 cellPos = {(x + 0.5f) * blockSize.x, (y + 0.5f) * blockSize.y, (z + 0.5f) * blockSize.z};
-        auto it = occupiedCells.find(cellKey(cellPos));
+        auto it         = occupiedCells.find(cellKey(cellPos));
         if (it == occupiedCells.end())
           continue;
         if (CheckCollisionBoxes(box, objectBox(objects[it->second].getTransform())))

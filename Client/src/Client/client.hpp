@@ -58,8 +58,8 @@ private:
   // ==== drain variables ==== //
   std::vector<Object> pendingObjects{};
   std::vector<std::vector<Object>> pendingInitChunks{};
-  std::vector<int> pendingRemovals{};
-  std::vector<int> pendingDamage{};
+  std::vector<Vector3> pendingRemovals{};
+  std::vector<Vector3> pendingDamage{};
   bool handshakeSent{false};
   double connectStartedAt{0.0};
   bool connecting{false};
@@ -168,10 +168,10 @@ public:
   std::vector<std::vector<Object>> takeInitChunks() {
     return std::exchange(pendingInitChunks, {});
   }
-  std::vector<int> takeRemovedObjects() {
+  std::vector<Vector3> takeRemovedObjects() {
     return std::exchange(pendingRemovals, {});
   }
-  std::vector<int> takeDamagedObjects() {
+  std::vector<Vector3> takeDamagedObjects() {
     return std::exchange(pendingDamage, {});
   }
   void updateBullets(float dt) {

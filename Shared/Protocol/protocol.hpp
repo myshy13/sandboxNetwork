@@ -15,27 +15,35 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 2; // added initBlocks
+constexpr int PROTOCOL_VERSION = 4; // added chunk streaming
 
 enum class Type : uint8_t {
+  // player
   PlayerUpdate,
-  GivenId,
   DeletePlayer,
+  PlayerHit,
+  // bullet
   CreateBullet,
   NewBullet,
   DeleteBullet,
-  PlayerHit,
   Respawn,
+  // handshakes and chat
   ChatMessage,
-  SetName,
   PlaceObject,
+  GivenId,
+  clientHandshake,
+  SetName,
+  kick,
+  // kickPlayer
+  // world
+  initBlocks,
   NewObject,
   RemoveObject,
   DamageObject,
-  clientHandshake,
-  kick,
-  initBlocks
-  // kickPlayer
+
+  ChunkData,
+  ChunkUnload,
+  SetViewRadius
 };
 
 struct PlayerUpdate {
@@ -100,18 +108,18 @@ struct NewObject {
   template <class A> void serialize(A &ar) { ar(object); }
 };
 struct RemoveObject {
-  int id; // both directions
-  template <class A> void serialize(A &ar) { ar(id); }
+  Vector3 pos;
+  template <class A> void serialize(A &ar) { ar(pos); }
 };
 struct DamageObject {
-  int id; // both directions
-  template <class A> void serialize(A &ar) { ar(id); }
+  Vector3 pos;
+  template <class A> void serialize(A &ar) { ar(pos); }
 };
 struct clientHandshake {
   int ver; // client version
   template <class A> void serialize(A &ar) { ar(ver); }
 };
-struct kick {
+struct kick { // server -> client
   int playerId;
   std::string reason;
   template <class A> void serialize(A &ar) { ar(playerId, reason); }
@@ -119,6 +127,19 @@ struct kick {
 struct initBlocks {
   std::vector<Object> objects;
   template <class A> void serialize(A &ar) { ar(objects); }
+};
+struct ChunkData {
+  int cx, cz;
+  std::vector<Object> blocks;
+  template <class A> void serialize(A &ar) { ar(cx, cz, blocks); }
+};
+struct ChunkUnload {
+  int cx, cz;
+  template <class A> void serialize(A &ar) { ar(cx, cz); }
+};
+struct SetViewRadius {
+  int radius;
+  template <class A> void serialize(A &ar) { ar(radius); }
 };
 // TODO: Implement player permissions
 // struct kickPlayer {

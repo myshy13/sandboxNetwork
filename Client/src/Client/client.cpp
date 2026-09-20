@@ -207,11 +207,11 @@ void Client::handleMessage(const std::string &data) {
     break;
   }
   case proto::Type::RemoveObject: {
-    pendingRemovals.push_back(proto::unpack<proto::RemoveObject>(data).id);
+    pendingRemovals.push_back(proto::unpack<proto::RemoveObject>(data).pos);
     break;
   }
   case proto::Type::DamageObject: {
-    pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).id);
+    pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).pos);
     break;
   }
   case proto::Type::kick: {
