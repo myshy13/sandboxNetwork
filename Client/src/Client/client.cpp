@@ -58,6 +58,10 @@ bool Client::connect() {
   connectStartedAt = GetTime();
   connecting       = true;
   waiting          = true;
+  blocksReceived   = 0;
+  lastChunkAt      = 0.0;
+  blocksReceived   = 0;
+  lastChunkAt      = 0.0;
   return true;
 }
 
@@ -220,6 +224,8 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::initBlocks: {
     auto msg = proto::unpack<proto::initBlocks>(data);
+    blocksReceived += msg.objects.size(); // count before the move empties it
+    lastChunkAt = GetTime();
     pendingInitChunks.push_back(std::move(msg.objects));
     waiting = false;
     break;

@@ -485,6 +485,10 @@ void Game::drawDebug() {
     DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
+
+    DrawText(TextFormat("World load: %zu blocks, last chunk at %.2f s", client.getBlocksReceived(), client.secondsToLastChunk()), 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("World load: %zu blocks, last chunk at %.2f s", client.getBlocksReceived(), client.secondsToLastChunk()), 10, rowPos, FONTSIZE, YELLOW);
+    rowPos += ROWSIZE;
   }
 #endif
 }

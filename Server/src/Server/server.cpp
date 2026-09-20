@@ -196,6 +196,7 @@ void Server::loadWorld() {
 
 void Server::generateWorld() {
   std::cout << "Generating World\n";
+  const auto genStart = std::chrono::steady_clock::now();
   // World spans [-WORLD_SIZE, WORLD_SIZE) on both axes; SPAN is the grid's
   // actual width/height, and toIndex offsets x/z so they're never negative.
   constexpr int WORLD_SIZE = 200;
@@ -281,7 +282,11 @@ void Server::generateWorld() {
       }
     }
   }
-  std::cout << "Done building world\n";
+  const double genSeconds =
+      std::chrono::duration<double>(std::chrono::steady_clock::now() - genStart)
+          .count();
+  std::cout << "Done building world: " << objects.size() << " blocks in "
+            << genSeconds << " s\n";
 }
 
 // ==== sending ==== //
@@ -352,11 +357,23 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   // Stream the world in chunks rather than one huge message, so the client
   // indexes it incrementally instead of stalling on a single collision-grid
   // rebuild for the whole world.
+  const auto syncStart = std::chrono::steady_clock::now();
+  size_t syncBytes = 0;
   for (size_t i = 0; i < objects.size(); i += env::WORLD_SYNC_CHUNK_SIZE) {
     size_t end = std::min(i + env::WORLD_SYNC_CHUNK_SIZE, objects.size());
     proto::initBlocks chunk{{objects.begin() + i, objects.begin() + end}};
-    sendTo(id, proto::pack(proto::Type::initBlocks, chunk), true);
+    const std::string packed = proto::pack(proto::Type::initBlocks, chunk);
+    syncBytes += packed.size();
+    sendTo(id, packed, true);
   }
+  // Baseline for the streaming plan (plan.md): this is packing + queueing, not
+  // delivery time.
+  const double syncMs = std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - syncStart)
+                            .count();
+  std::printf(
+      "world sync to client %d: %zu blocks, %.1f MB, %.0f ms to queue\n", id,
+      objects.size(), syncBytes / 1e6, syncMs);
   return id;
 }
 

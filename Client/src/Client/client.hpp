@@ -64,6 +64,8 @@ private:
   double connectStartedAt{0.0};
   bool connecting{false};
   bool waiting{false};
+  size_t blocksReceived{0}; // world blocks streamed in since connect(), for the F3 load line
+  double lastChunkAt{0.0};
 
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
@@ -102,6 +104,13 @@ public:
   }
   double secondsSinceConnect() const {
     return GetTime() - connectStartedAt;
+  }
+  size_t getBlocksReceived() const {
+    return blocksReceived;
+  }
+  // Seconds from connect() until the most recent world chunk arrived.
+  double secondsToLastChunk() const {
+    return lastChunkAt - connectStartedAt;
   }
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
