@@ -23,6 +23,13 @@ Do not do any code unless you have concrete evidence that they already would kno
 
 > **Note:** To do this, you should try and teach the creator how specific things work.
 
+## Working agreement
+
+- By default the creator writes the code. Claude explains the design first, then reviews what they wrote
+  (correctness, edge cases, the formatting rules below). Claude writes a piece only when asked for that piece.
+- The creator trusts Claude's design judgement: give one recommendation with the reasoning, not a menu of options.
+- Plans for larger work live in `plan.md`; keep it current as steps finish.
+
 ## Git
 
 - When committing, omit the "Co-Authored-By: Claude" trailer unless the
