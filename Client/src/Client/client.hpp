@@ -63,7 +63,6 @@ private:
 
   // ==== drain variables ==== //
   std::vector<Object> pendingObjects{};
-  std::vector<std::vector<Object>> pendingInitChunks{};
   std::vector<Vector3> pendingRemovals{};
   std::vector<Vector3> pendingDamage{};
   std::vector<ChunkEvent> pendingChunkEvents{};
@@ -71,9 +70,6 @@ private:
   bool handshakeSent{false};
   double connectStartedAt{0.0};
   bool connecting{false};
-  bool waiting{false};
-  size_t blocksReceived{0}; // world blocks streamed in since connect(), for the F3 load line
-  double lastChunkAt{0.0};
 
   void deletePlayer(int id) {
     auto it = std::find_if(players.begin(), players.end(),
@@ -91,9 +87,6 @@ public:
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);
-  bool isWaiting() {
-    return waiting;
-  }
   static constexpr double CONNECT_TIMEOUT = 5.0; // seconds before an attempt counts as failed
   static constexpr double POS_UPDATE_INTERVAL = 1.0 / 12.0;
   static constexpr float SNAP_DISTANCE        = 20;
@@ -112,13 +105,6 @@ public:
   }
   double secondsSinceConnect() const {
     return GetTime() - connectStartedAt;
-  }
-  size_t getBlocksReceived() const {
-    return blocksReceived;
-  }
-  // Seconds from connect() until the most recent world chunk arrived.
-  double secondsToLastChunk() const {
-    return lastChunkAt - connectStartedAt;
   }
   OnlinePlayer *findPlayer(int id) {
     for (auto &p : players) {
@@ -172,9 +158,6 @@ public:
   // ==== drains ==== //
   std::vector<Object> takeNewObjects() {
     return std::exchange(pendingObjects, {});
-  }
-  std::vector<std::vector<Object>> takeInitChunks() {
-    return std::exchange(pendingInitChunks, {});
   }
   std::vector<Vector3> takeRemovedObjects() {
     return std::exchange(pendingRemovals, {});

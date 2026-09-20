@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 4; // added chunk streaming
+constexpr int PROTOCOL_VERSION = 5; // removed initBlocks
 
 enum class Type : uint8_t {
   // player
@@ -36,7 +36,6 @@ enum class Type : uint8_t {
   kick,
   // kickPlayer
   // world
-  initBlocks,
   NewObject,
   RemoveObject,
   DamageObject,
@@ -123,10 +122,6 @@ struct kick { // server -> client
   int playerId;
   std::string reason;
   template <class A> void serialize(A &ar) { ar(playerId, reason); }
-};
-struct initBlocks {
-  std::vector<Object> objects;
-  template <class A> void serialize(A &ar) { ar(objects); }
 };
 struct ChunkData {
   int cx, cz;

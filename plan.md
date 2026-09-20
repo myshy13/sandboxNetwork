@@ -71,8 +71,8 @@ Streaming means cost follows what is near each player, not how big the world is.
    - Clamp the radius the client asks for to [2, MAX].
 5. **Client: chunk-aware `World`** (5a-5d, each testable):
    - **5a** `Client`: `ChunkData` / `ChunkUnload` go into ONE ordered queue (load and unload events, in arrival order).
-   - **5b** `World`: a stream-chunk index (key -> indices into `objects`, mirroring the server's `chunkBlocks`; the
-     renderer's 15-unit chunks can't be used, 80 isn't a multiple of 15) plus a `loadedStreamChunks` set (an empty
+   - **5b** `World`: a stream-chunk index (key -> set of cell keys, not indices into `objects`: swap-and-pop then
+     never has to fix it up and removing one block is O(1); the renderer's 15-unit chunks can't be used, 80 isn't a multiple of 15) plus a `loadedStreamChunks` set (an empty
      chunk is still "loaded"). `addChunk`, `unloadChunk`, `isChunkLoaded`. `addObject` ignores unloaded chunks.
    - **5c** `Game::applyNetworkUpdates` drains chunk events in order, then edits; remove the client's `initBlocks` handling.
    - **5d** Loading gate: **freeze the player and show "Loading..." until the chunk under the player has arrived.**

@@ -23,7 +23,6 @@ public:
   void addObject(const Object &object);
   void update();
   void removeObject(Vector3 pos);
-  // Appends a streamed chunk of the world (see server's batched initBlocks) -
   // indexes each object as it's added, no full rebuild.
   void addObjects(const std::vector<Object> &newObjects);
   void damageObject(Vector3 pos);
@@ -64,9 +63,10 @@ private:
   std::unordered_map<int64_t, std::vector<int>> chunks;
   std::unordered_set<int64_t> dirtyChunks;
 
-  // streamKey(cx, cz) -> indices into `objects`, kept in sync with swap-and-pop in removeObject
-  // like `chunks`. Separate from `chunks`: 80 isn't a multiple of the renderer's 15.
-  std::unordered_map<int64_t, std::vector<int>> streamChunks;
+  // streamKey(cx, cz) -> cellKeys of the blocks in that streaming chunk. Cell keys, not indices into
+  // `objects`, so swap-and-pop never has to fix these up, and a set, so removing one block is O(1).
+  // Separate from `chunks`: 80 isn't a multiple of the renderer's 15. No empty sets.
+  std::unordered_map<int64_t, std::unordered_set<int64_t>> streamChunks;
   // Streaming chunks the server has sent, empty ones included (streamChunks has no empty lists).
   std::unordered_set<int64_t> loadedStreamChunks;
 

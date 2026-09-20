@@ -50,7 +50,6 @@ bool Client::connect() {
   playerName.reset();
   respawnTo.reset();
   pendingObjects.clear();
-  pendingInitChunks.clear();
   pendingRemovals.clear();
   pendingDamage.clear();
   pendingChunkEvents.clear();
@@ -59,9 +58,6 @@ bool Client::connect() {
   handshakeSent    = false;
   connectStartedAt = GetTime();
   connecting       = true;
-  waiting          = true;
-  blocksReceived   = 0;
-  lastChunkAt      = 0.0;
   return true;
 }
 
@@ -220,14 +216,6 @@ void Client::handleMessage(const std::string &data) {
       kickReason = msg.reason;
       transport->disconnect(); // not disconnect(): that would forget the reason we were kicked
     }
-    break;
-  }
-  case proto::Type::initBlocks: {
-    auto msg = proto::unpack<proto::initBlocks>(data);
-    blocksReceived += msg.objects.size(); // count before the move empties it
-    lastChunkAt = GetTime();
-    pendingInitChunks.push_back(std::move(msg.objects));
-    waiting = false;
     break;
   }
   case proto::Type::ChunkData: {

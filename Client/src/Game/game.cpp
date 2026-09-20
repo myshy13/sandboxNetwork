@@ -1,5 +1,6 @@
 #include "Game/game.hpp"
 #include "AssetManager/manager.hpp"
+#include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "env.hpp"
 
@@ -62,8 +63,23 @@ void Game::applyNetworkUpdates() {
       client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
       player.UpdateCamera(camera);
     }
-    for (const std::vector<Object> &chunk : client.takeInitChunks()) {
-      world.addObjects(chunk);
+    std::vector<ChunkEvent> chunkEvents = client.takeChunkEvents();
+    for (ChunkEvent &e : chunkEvents) {
+#ifdef DEBUG
+      const double eventT0 = GetTime(); // TEMP: time each event, loads and unloads separately
+#endif
+      if (e.load) {
+        world.addChunk(e.cx, e.cz, e.blocks);
+#ifdef DEBUG
+        chunkLoadMs     = (GetTime() - eventT0) * 1000.0;
+        chunkLoadBlocks = (int)e.blocks.size();
+#endif
+      } else {
+        world.unloadChunk(e.cx, e.cz);
+#ifdef DEBUG
+        chunkUnloadMs = (GetTime() - eventT0) * 1000.0;
+#endif
+      }
     }
     for (const Object &o : client.takeNewObjects()) {
       world.addObject(o);
@@ -457,6 +473,8 @@ void Game::drawDebug() {
   if (showDebug) {
     int rowPos = 10;
 
+    // NOTE: The +1 with black text is for readability (same as a drop shadow)
+
     const char *fps = TextFormat("FPS: %d", GetFPS());
     DrawText(fps, 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(fps, 10, rowPos, FONTSIZE, LIME);
@@ -501,6 +519,12 @@ void Game::drawDebug() {
     DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("Chunk load (last): %.2f ms, %d blocks", chunkLoadMs, chunkLoadBlocks), 10, rowPos, FONTSIZE, RED);
+    rowPos += ROWSIZE;
+
+    DrawText(TextFormat("Chunk unload (last): %.2f ms", chunkUnloadMs), 10, rowPos, FONTSIZE, RED);
+    rowPos += ROWSIZE;
+
     DrawText(TextFormat("cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
@@ -527,10 +551,6 @@ void Game::drawDebug() {
 
     DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos, FONTSIZE, YELLOW);
-    rowPos += ROWSIZE;
-
-    DrawText(TextFormat("World load: %zu blocks, last chunk at %.2f s", client.getBlocksReceived(), client.secondsToLastChunk()), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("World load: %zu blocks, last chunk at %.2f s", client.getBlocksReceived(), client.secondsToLastChunk()), 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
   }
 #endif

@@ -364,34 +364,13 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   Vector3 spawnPos;
   spawnPos.x = rand() % 200 - 100;
   spawnPos.z = rand() % 200 - 100;
-  spawnPos.y = 10;
+  spawnPos.y = 100;
   newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
-
-  // Stream the world in chunks rather than one huge message, so the client
-  // indexes it incrementally instead of stalling on a single collision-grid
-  // rebuild for the whole world.
-  const auto syncStart = std::chrono::steady_clock::now();
-  size_t syncBytes = 0;
-  for (size_t i = 0; i < objects.size(); i += env::WORLD_SYNC_CHUNK_SIZE) {
-    size_t end = std::min(i + env::WORLD_SYNC_CHUNK_SIZE, objects.size());
-    proto::initBlocks chunk{{objects.begin() + i, objects.begin() + end}};
-    const std::string packed = proto::pack(proto::Type::initBlocks, chunk);
-    syncBytes += packed.size();
-    sendTo(id, packed, true);
-  }
-  // Baseline for the streaming plan (plan.md): this is packing + queueing, not
-  // delivery time.
-  const double syncMs = std::chrono::duration<double, std::milli>(
-                            std::chrono::steady_clock::now() - syncStart)
-                            .count();
-  std::printf(
-      "world sync to client %d: %zu blocks, %.1f MB, %.0f ms to queue\n", id,
-      objects.size(), syncBytes / 1e6, syncMs);
   return id;
 }
 
@@ -756,7 +735,7 @@ void Server::tick(float dt) {
           Vector3 spawnPos;
           spawnPos.x = rand() % 200 - 100;
           spawnPos.z = rand() % 200 - 100;
-          spawnPos.y = 10;
+          spawnPos.y = 100;
           p.health = env::PLAYER_MAX_HEALTH;
           p.pos = spawnPos;
           sendTo(p.id,

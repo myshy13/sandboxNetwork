@@ -152,11 +152,15 @@ void World::indexObject() {
 
   occupiedCells[cellKey(pos)] = idx;
   chunks[chunkKey(pos)].push_back(idx);
-  streamChunks[streamKeyAt(pos)].push_back(idx);
+  streamChunks[streamKeyAt(pos)].insert(cellKey(pos));
   markDirty(pos);
 }
 
 void World::addObject(const Object &object) {
+  Vector3 pos = object.getTransform().pos;
+  if (!isChunkLoaded(streamChunkCoord(pos.x), streamChunkCoord(pos.z))) {
+    return;
+  }
   objects.push_back(object);
   indexObject();
 }
@@ -182,11 +186,11 @@ void World::removeObject(Vector3 pos) {
   std::erase(list, removedIdx);
   if (list.empty())
     chunks.erase(chunkKey(pos));
-  // Same for the streaming index; the erase must come before the swap fix-up below.
-  std::vector<int> &streamList = streamChunks[streamKeyAt(pos)];
-  std::erase(streamList, removedIdx);
-  if (streamList.empty())
-    streamChunks.erase(streamKeyAt(pos));
+  // The streaming index holds cell keys, which don't change when blocks swap places, so it needs no fix-up below.
+  auto streamIt = streamChunks.find(streamKeyAt(pos));
+  streamIt->second.erase(cellKey(pos));
+  if (streamIt->second.empty())
+    streamChunks.erase(streamIt);
   markDirty(pos);
 
   // Swap-and-pop instead of erase, so only the moved object's index needs
@@ -198,8 +202,6 @@ void World::removeObject(Vector3 pos) {
     occupiedCells[cellKey(movedPos)] = removedIdx;
     std::vector<int> &movedList      = chunks[chunkKey(movedPos)];
     std::replace(movedList.begin(), movedList.end(), lastIdx, removedIdx);
-    std::vector<int> &movedStreamList = streamChunks[streamKeyAt(movedPos)];
-    std::replace(movedStreamList.begin(), movedStreamList.end(), lastIdx, removedIdx);
     dirtyChunks.insert(chunkKey(movedPos)); // its index changed, so the renderer must relist it
   }
   objects.pop_back();
@@ -227,6 +229,9 @@ void World::clear() {
 // ==== streaming chunks ==== //
 void World::addChunk(int cx, int cz, const std::vector<Object> &blocks) {
   loadedStreamChunks.insert(streamKey(cx, cz));
+  if (!blocks.empty()) {
+    streamChunks[streamKey(cx, cz)].reserve(blocks.size()); // one new set, sized once: no rehashing while adding
+  }
   addObjects(blocks);
 }
 
@@ -238,13 +243,12 @@ void World::unloadChunk(int cx, int cz) {
   if (it == streamChunks.end())
     return; // never loaded, or an empty chunk
 
-  // Copy the positions first: removeObject swap-and-pops, which reshuffles the indices in this very list.
+  // Copy the positions first: removeObject edits this very set (and swap-and-pops `objects`).
   std::vector<Vector3> positions;
   positions.reserve(it->second.size());
-  for (int i : it->second)
-    positions.push_back(objects[i].getTransform().pos);
+  for (int64_t cell : it->second)
+    positions.push_back(objects[occupiedCells.at(cell)].getTransform().pos);
 
-  // ponytail: one removeObject per block (linear erase from the lists); batch it if F3 shows an unload spike.
   for (const Vector3 &pos : positions)
     removeObject(pos);
 }
