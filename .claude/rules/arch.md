@@ -5,7 +5,7 @@ Client/src/
   Client/      network-facing game client (Client class: send/receive, player+bullet lists; connect() starts a fresh session)
   Net/         transport interface + one file per backend (transport_enet.cpp / transport_ws.cpp)
   Player/      local player movement, camera, drawing
-  Entity/      shared drawable/entity helpers
+  Game/Entity/ shared drawable/entity helpers
   Game/        Game class: owns every subsystem + per-frame state, frame() = update then draw
   World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks
   Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)

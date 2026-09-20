@@ -1,7 +1,7 @@
 #ifndef SANDBOXNET_PLAYER
 #define SANDBOXNET_PLAYER
 
-#include "Entity/entity.hpp"
+#include "Game/Entity/entity.hpp"
 #include "World/world.hpp"
 #include <raylib.h>
 #include <raymath.h>

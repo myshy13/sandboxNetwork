@@ -13,7 +13,7 @@
  */
 
 #pragma once
-#include "Entity/entity.hpp"
+#include "Game/Entity/entity.hpp"
 #include <raylib.h>
 
 //--------------------------------------------------------------------------------------
