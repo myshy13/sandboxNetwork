@@ -7,10 +7,9 @@ focus, in order.
 ---
 
 > **Note:** [/] means skipped or unnecessary
+> **Note:** [-] means removed after it was unnecessary
 
-## Now
-
-### 1. World saving / loading
+## 1. World saving / loading
 
 The server is currently in-memory only — every block vanishes on restart.
 Goal: the built world survives a server reboot.
@@ -24,7 +23,7 @@ Goal: the built world survives a server reboot.
 - [x] Decide the save cadence: every N seconds *and* debounced after the last
       edit, so an idle server isn't rewriting the file forever.
 
-### 2. Block colours (player picks their own)
+## 2. Block colours (player picks their own)
 
 `Object` already has a `color` field and it's already on the wire — this is
 mostly client wiring.
@@ -39,7 +38,7 @@ mostly client wiring.
       grey — make it *tint toward* grey instead so a damaged red block still
       reads as red.
 
-### Pre-3. Rendering optimisations
+## Pre-3. Rendering optimisations
 
 Each block currently costs two immediate-mode draw calls
 (`DrawCubeV` + `DrawCubeWiresV` in `World::draw`), so 30 blocks is 60 calls
@@ -61,7 +60,7 @@ per-draw-call overhead than native, hence it lagging first.
       above (30, 100, 300) so this list can stop once it's fast enough
       rather than chasing a perfect renderer.
 
-### 2.5. Collision is now the bottleneck, not rendering
+## 2.5. Collision is now the bottleneck, not rendering
 
 Added debug instrumentation to find the laggiest thing after the 400x400
 world-generation change (`Server::generateWorld`, `WORLD_SIZE = 200`):
@@ -82,23 +81,23 @@ what's on screen:
   the `for (Object &o : objects)` inside `for (auto &b : bullets)`) scans
   every object for every live bullet, every tick.
 
-- [ ] Reuse `World`'s existing spatial hash (`occupiedCells` /
+- [x] Reuse `World`'s existing spatial hash (`occupiedCells` /
       `Renderer`'s grid) — or a shared one — to look up nearby blocks
       instead of scanning the whole vector, for both the client collision
       check and the server bullet hit-scan.
-- [ ] Re-check the HUD numbers after that change on the full-size world.
+- [x] Re-check the HUD numbers after that change on the full-size world.
 
-### 3. A real starting world instead of the bare grid
+## 3. A real starting world instead of the bare grid
 
 Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 
 - [x] A flat floor of blocks (generated once on the server at startup if the
       save file is empty) so bullets/placement have something to land on.
-- [ ] Keep it server-authoritative — the floor is just `objects` like any
+- [x] Keep it server-authoritative — the floor is just `objects` like any
       placed block, not special-cased client geometry.
 - [ ] Optional: a couple of pre-built structures / cover so early playtests
       aren't on an empty plain.
-- [x] Lit ground: `World::draw` lays a `DrawPlane` under the grid so the
+- [-] Lit ground: `World::draw` lays a `DrawPlane` under the grid so the
       floor isn't near-black away from origin (the grid lines themselves
       still render dark through the shader — a real block floor supersedes
       this anyway).
@@ -113,8 +112,8 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 - [ ] block removal (dedicated action, not just shooting it — a "break" key
       or left-click with a tool selected)
 - [ ] undo last placed block (client asks server to remove your most recent)
-- [ ] larger builds: place a 2×2×2 or drag a line of blocks
-- [ ] snap-to-grid preview: ghost block at the target cell before you commit
+- [/] larger builds: place a 2×2×2 or drag a line of blocks **Partial (other half, no)**
+- [/] snap-to-grid preview: ghost block at the target cell before you commit **Reason:** it will look ugly, and the player won't be able to see.
 - [ ] block types beyond the plain cube (ramp, half-slab) — needs a `kind`
       enum on `Object` and matching draw + hitbox
 
@@ -133,10 +132,10 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 ## Combat & players
 
 - [x] names above players *(needs improvement — scale, occlusion, distance fade)*
-- [ ] hold to shoot *(partly there — `IsMouseButtonDown` path exists, tune it)*
+- [x] hold to shoot *(partly there — `IsMouseButtonDown` path exists, tune it)*
 - [ ] an actual gun model in first person + muzzle flash
 - [ ] fix the kills menu
-- [ ] better crosshair (hit-marker feedback on a confirmed hit)
+- [x] better crosshair (hit-marker feedback on a confirmed hit)
 - [ ] bigger / better player model — a stickman instead of the current
       "uncooked french fry"
 - [ ] respawn timer + spawn-point selection instead of instant respawn
@@ -150,7 +149,7 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
       `clientHandshake{ver}` first, server sends `kick` on mismatch.
       (Polish: server still lets the connection linger after sending the
       kick — could hard-close it.)
-- [ ] client-side interpolation of remote players (buffer 2–3 updates, render
+- [x] client-side interpolation of remote players (buffer 2–3 updates, render
       ~100ms in the past — kills the current teleport-on-packet look)
 - [ ] client-side prediction + reconciliation for the local player
 - [ ] lag compensation on the server for hit detection (rewind targets to the
@@ -176,8 +175,7 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 - [/] the `CHAT` / `CHEATS` / `CHEATS`-nested `#ifdef`s in `main.cpp` — decide
       if chat is a real feature and either commit to it or cut it.
       **Reason:** This is a debuging feature for testing
-- [ ] `PLAYER_SCALE` is duplicated in three places now (server, player,
+- [x] `PLAYER_SCALE` is duplicated in three places now (server, player,
       world.cpp placement check) — pull into one shared header (the two
       `env.hpp` files are the obvious home, but it must stay in sync across
       the client/server split)
-

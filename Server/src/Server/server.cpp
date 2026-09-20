@@ -24,7 +24,7 @@
 #include <unordered_map>
 #include <vector>
 
-constexpr PLAYER_SCALE = SHARED_PLAYER_SCALE;
+constexpr Vector3 PLAYER_SCALE = SHARED_PLAYER_SCALE;
 
 namespace {
 // An ENet client. The WebSocket equivalent lives in Net/ws_proxy.cpp.

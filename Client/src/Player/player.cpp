@@ -1,5 +1,6 @@
 #include "Player/player.hpp"
 #include "Raylib/text3D.hpp"
+#include "env.hpp"
 #include <cstdlib>
 #include <raylib.h>
 #include <raymath.h>
@@ -166,7 +167,7 @@ Player::Player() {
   spawnPos.z            = rand() % 200 - 100;
   spawnPos.y            = 10;
   transform.rotation    = QuaternionFromEuler(0, 0, 0);
-  transform.scale       = {1.5f, 10, 1.5f};
+  transform.scale       = env::PLAYER_SCALE;
   transform.translation = spawnPos;
   onGround              = false;
 
