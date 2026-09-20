@@ -72,6 +72,7 @@ Server::Server(int wsPort, std::string savePath, int saveTime)
   }
 
   loadWorld();
+  checkChunkIndex(); // TEMP
 }
 
 Server::~Server() {
@@ -87,6 +88,8 @@ Server::~Server() {
 constexpr float BLOCK_SIZE =
     5.0f; // same as the client's blockSize (Client/src/World/world.cpp)
 
+static constexpr float CHUNK_SIZE = 16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE (Client/src/World/world.hpp)
+
 // Packs a grid cell's (x, y, z) into one hashable key, offset so negative cells
 // don't collide.
 static int64_t cellKey(int x, int y, int z) {
@@ -98,6 +101,20 @@ static int64_t blockKey(Vector3 pos) {
   return cellKey((int)floorf(pos.x / BLOCK_SIZE),
                  (int)floorf(pos.y / BLOCK_SIZE),
                  (int)floorf(pos.z / BLOCK_SIZE));
+}
+
+// Packs a chunk's (x, z) coordinates into one hashable key: x in the high 32
+// bits, z in the low 32. A chunk spans every height, so there is no y.
+static int64_t chunkKey(int cx, int cz) {
+  // The unsigned cast keeps a negative cz from sign-extending over the x half.
+  return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
+}
+
+// The key of the chunk a world position falls in.
+static int64_t chunkKeyAt(Vector3 pos) {
+  // Divide and floor while still a float; a plain (int) cast rounds toward zero, which is wrong below 0.
+  return chunkKey((int)floorf(pos.x / CHUNK_SIZE),
+                  (int)floorf(pos.z / CHUNK_SIZE));
 }
 
 struct WorldSave {
@@ -155,6 +172,7 @@ void Server::saveWorldAsync() {
   if (!worldChanged)
     return;
   worldChanged = false;
+  checkChunkIndex(); // TEMP: re-verify after block edits
 
   WorldSave snapshot;
   snapshot.objects = objects;
@@ -181,7 +199,7 @@ void Server::loadWorld() {
     objects = std::move(save.objects);
     nextObjectId = save.nextObjectId;
     for (int i = 0; i < (int)objects.size(); i++) {
-      occupiedCells[blockKey(objects[i].getTransform().pos)] = i;
+      indexBlock(i); // not addBlock: the block is already in `objects`, and this isn't a change to save
     }
     std::printf("loaded %zu objects from %s\n", objects.size(),
                 savePath.c_str());
@@ -189,6 +207,7 @@ void Server::loadWorld() {
     std::fprintf(stderr, "save file corrupt (%s), starting fresh\n", e.what());
     objects.clear();
     occupiedCells.clear();
+    chunkBlocks.clear();
     nextObjectId = 1;
     generateWorld();
   }
@@ -507,23 +526,59 @@ bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
 }
 
 // ==== blocks ==== //
+void Server::indexBlock(int i) {
+  const Vector3 &pos = objects[i].getTransform().pos;
+  occupiedCells[blockKey(pos)] = i;
+  chunkBlocks[chunkKeyAt(pos)].push_back(i);
+}
+
 void Server::addBlock(const Object &block) {
   objects.push_back(block);
-  occupiedCells[blockKey(block.getTransform().pos)] = (int)objects.size() - 1;
+  indexBlock((int)objects.size() - 1);
   worldChanged = true;
 }
 
 void Server::removeBlock(int index) {
-  occupiedCells.erase(blockKey(objects[index].getTransform().pos));
+  // Copied, because objects[index] is overwritten by the swap below.
+  const Vector3 pos = objects[index].getTransform().pos;
+  occupiedCells.erase(blockKey(pos));
+
+  // Take `index` out of its chunk's list. This must come before the swap fix-up below (see there).
+  auto chunk = chunkBlocks.find(chunkKeyAt(pos));
+  std::erase(chunk->second, index);
+  if (chunk->second.empty()) {
+    chunkBlocks.erase(chunk); // no empty lists, so "chunk exists" means "chunk has blocks"
+  }
 
   // Swap-and-pop, so only the moved block's index needs fixing up.
   int last = (int)objects.size() - 1;
   if (index != last) {
-    objects[index] = objects[last];
-    occupiedCells[blockKey(objects[index].getTransform().pos)] = index;
+    const Vector3 movedPos            = objects[last].getTransform().pos;
+    objects[index]                    = objects[last];
+    occupiedCells[blockKey(movedPos)] = index;
+    // The moved block was listed as `last` in its chunk; it is `index` now. If it shares a chunk with
+    // the removed block, doing this before the erase above would leave `index` listed twice.
+    std::vector<int> &moved = chunkBlocks[chunkKeyAt(movedPos)];
+    std::replace(moved.begin(), moved.end(), last, index);
   }
   objects.pop_back();
   worldChanged = true;
+}
+
+void Server::checkChunkIndex() const {
+  size_t listed = 0;
+  size_t wrong  = 0;
+  for (const auto &[key, list] : chunkBlocks) {
+    listed += list.size();
+    for (int i : list) {
+      if (chunkKeyAt(objects[i].getTransform().pos) != key) {
+        wrong++;
+      }
+    }
+  }
+  const double average = chunkBlocks.empty() ? 0.0 : (double)listed / chunkBlocks.size();
+  std::printf("chunk index: %zu chunks, %zu blocks listed (objects=%zu), %zu in the wrong chunk, %.0f blocks/chunk\n",
+              chunkBlocks.size(), listed, objects.size(), wrong, average);
 }
 
 int Server::findBlockHit(Vector3 from, Vector3 to) const {

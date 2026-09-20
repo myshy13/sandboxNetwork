@@ -54,6 +54,7 @@ class Server {
   // Grid cell -> index into `objects`; blocks are one per cell, so bullets test
   // a few cells, not every block.
   std::unordered_map<int64_t, int> occupiedCells;
+  std::unordered_map<int64_t, std::vector<int>> chunkBlocks;
   std::vector<Bullet> bullets;
 
   float saveCountdownTime = saveTime;
@@ -90,9 +91,13 @@ class Server {
   void pumpWebSockets();
 
   // ==== Blocks ==== //
-  // Both keep `objects` and `occupiedCells` in sync (removal is swap-and-pop).
+  // Both keep `objects`, `occupiedCells` and `chunkBlocks` in sync (removal is swap-and-pop).
   void addBlock(const Object &block);
   void removeBlock(int index);
+  // Records objects[i] in occupiedCells and in its chunk's list.
+  void indexBlock(int i);
+  // TEMP while building chunk streaming: prints chunk stats and flags any list entry in the wrong chunk.
+  void checkChunkIndex() const;
   // Index of the nearest block the segment from -> to passes through, or -1.
   int findBlockHit(Vector3 from, Vector3 to) const;
 
@@ -108,4 +113,6 @@ public:
   explicit Server(int wsPort = 0, const std::string savePath = "save.bin",
                   const int saveTime = 30);
   ~Server();
+
+  // ==== static consts ==== //
 };
