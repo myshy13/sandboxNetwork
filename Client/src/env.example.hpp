@@ -20,4 +20,4 @@ constexpr int MAX_HEALTH        = 20; // must match the server's env::PLAYER_MAX
 #define REACH 50.0f
 #endif
 
-#define VERSION "0.3.0" // menu, settings, vsync, asset manager, player interpolation
+#define VERSION "0.4.0" // chunk streaming (interest management, loading gate), Release build by default
