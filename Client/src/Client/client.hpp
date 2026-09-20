@@ -39,6 +39,12 @@ struct ChatEntry {
   double receivedAt = GetTime();
 };
 
+struct ChunkEvent {
+  bool load;
+  int cx, cz;
+  std::vector<Object> blocks;
+};
+
 class Client {
 private:
   int port{env::SERVER_PORT};
@@ -60,6 +66,8 @@ private:
   std::vector<std::vector<Object>> pendingInitChunks{};
   std::vector<Vector3> pendingRemovals{};
   std::vector<Vector3> pendingDamage{};
+  std::vector<ChunkEvent> pendingChunkEvents{};
+
   bool handshakeSent{false};
   double connectStartedAt{0.0};
   bool connecting{false};
@@ -174,6 +182,10 @@ public:
   std::vector<Vector3> takeDamagedObjects() {
     return std::exchange(pendingDamage, {});
   }
+  std::vector<ChunkEvent> takeChunkEvents() {
+    return std::exchange(pendingChunkEvents, {});
+  }
+
   void updateBullets(float dt) {
     for (Bullet &b : bullets) {
       b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));

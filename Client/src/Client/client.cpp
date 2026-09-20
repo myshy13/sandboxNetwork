@@ -9,6 +9,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <string>
+#include <utility>
 
 // ==== outgoing messages ==== //
 void Client::sendPlayerPosition(const Transform &transform, float pitch, float yaw) {
@@ -52,14 +53,13 @@ bool Client::connect() {
   pendingInitChunks.clear();
   pendingRemovals.clear();
   pendingDamage.clear();
+  pendingChunkEvents.clear();
   health           = env::MAX_HEALTH;
   playerId         = -1;
   handshakeSent    = false;
   connectStartedAt = GetTime();
   connecting       = true;
   waiting          = true;
-  blocksReceived   = 0;
-  lastChunkAt      = 0.0;
   blocksReceived   = 0;
   lastChunkAt      = 0.0;
   return true;
@@ -228,6 +228,19 @@ void Client::handleMessage(const std::string &data) {
     lastChunkAt = GetTime();
     pendingInitChunks.push_back(std::move(msg.objects));
     waiting = false;
+    break;
+  }
+  case proto::Type::ChunkData: {
+    auto msg = proto::unpack<proto::ChunkData>(data);
+    pendingChunkEvents.push_back({true,
+                                  msg.cx,
+                                  msg.cz,
+                                  std::move(msg.blocks)});
+    break;
+  }
+  case proto::Type::ChunkUnload: {
+    auto msg = proto::unpack<proto::ChunkUnload>(data);
+    pendingChunkEvents.push_back({false, msg.cx, msg.cz, {}});
     break;
   }
   default:

@@ -254,8 +254,46 @@ void Game::drawScene(float dt) {
     DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
     DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
   }
+  drawChunkBorders();
 
   EndMode3D();
+}
+
+// F4: draws the server's streaming chunk grid around you, with your own chunk in yellow.
+void Game::drawChunkBorders() {
+#ifdef DEBUG
+  if (IsKeyPressed(KEY_F4)) {
+    showChunkBorders = !showChunkBorders;
+  }
+  if (!showChunkBorders) {
+    return;
+  }
+
+  constexpr int RADIUS = 2;      // chunks drawn on each side of yours
+  constexpr float TOP  = 200.0f; // how tall the border lines are
+  constexpr float SIZE = World::STREAM_CHUNK_SIZE;
+  const Vector3 pos    = player.getTransform().translation;
+  const int cx         = World::streamChunkCoord(pos.x);
+  const int cz         = World::streamChunkCoord(pos.z);
+
+  // Grid corner (i, j) is the corner with the smallest x and z of chunk (i, j); yours has four.
+  for (int i = cx - RADIUS; i <= cx + RADIUS + 1; i++) {
+    for (int j = cz - RADIUS; j <= cz + RADIUS + 1; j++) {
+      const bool ownCorner = i >= cx && i <= cx + 1 && j >= cz && j <= cz + 1;
+      DrawLine3D({i * SIZE, 0.0f, j * SIZE}, {i * SIZE, TOP, j * SIZE}, ownCorner ? YELLOW : SKYBLUE);
+    }
+  }
+
+  // Your chunk's outline at your feet, so you can see where the edge is at ground level.
+  const Vector3 c00 = {cx * SIZE, pos.y, cz * SIZE};
+  const Vector3 c10 = {(cx + 1) * SIZE, pos.y, cz * SIZE};
+  const Vector3 c11 = {(cx + 1) * SIZE, pos.y, (cz + 1) * SIZE};
+  const Vector3 c01 = {cx * SIZE, pos.y, (cz + 1) * SIZE};
+  DrawLine3D(c00, c10, YELLOW);
+  DrawLine3D(c10, c11, YELLOW);
+  DrawLine3D(c11, c01, YELLOW);
+  DrawLine3D(c01, c00, YELLOW);
+#endif
 }
 
 void Game::drawHealthBar() {
@@ -439,6 +477,11 @@ void Game::drawDebug() {
     rowPos += ROWSIZE;
     DrawText(TextFormat("Z: %f", pos.z), 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(TextFormat("Z: %f", pos.z), 10, rowPos, FONTSIZE, LIME);
+    rowPos += ROWSIZE;
+
+    const char *chunkText = TextFormat("Chunk: %d, %d (F4 borders)", World::streamChunkCoord(pos.x), World::streamChunkCoord(pos.z));
+    DrawText(chunkText, 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(chunkText, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
     rowPos += ROWSIZE / 2; // small gap before the next section

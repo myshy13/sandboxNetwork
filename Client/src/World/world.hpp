@@ -29,6 +29,14 @@ public:
   void damageObject(Vector3 pos);
   // Empties the world (leaving a session); old chunks stay dirty so the renderer drops them.
   void clear();
+
+  // ==== streaming chunks (what the server sends; see STREAM_CHUNK_SIZE) ==== //
+  // Adds a chunk's blocks and records it as loaded, even when it has none.
+  void addChunk(int cx, int cz, const std::vector<Object> &blocks);
+  // Removes every block in the chunk. Safe if the chunk was never loaded.
+  void unloadChunk(int cx, int cz);
+  bool isChunkLoaded(int cx, int cz) const;
+
   std::vector<Object> &getObjects();
   bool isOccluded(const Object &o) const;
   // True if box overlaps a placed block. Only tests the handful of grid
@@ -55,6 +63,12 @@ private:
   // chunkKey(pos) -> indices into `objects`, kept in sync with swap-and-pop in removeObject.
   std::unordered_map<int64_t, std::vector<int>> chunks;
   std::unordered_set<int64_t> dirtyChunks;
+
+  // streamKey(cx, cz) -> indices into `objects`, kept in sync with swap-and-pop in removeObject
+  // like `chunks`. Separate from `chunks`: 80 isn't a multiple of the renderer's 15.
+  std::unordered_map<int64_t, std::vector<int>> streamChunks;
+  // Streaming chunks the server has sent, empty ones included (streamChunks has no empty lists).
+  std::unordered_set<int64_t> loadedStreamChunks;
 
   // cellKey(pos) -> index into `objects`. Blocks sit on a fixed grid
   // (see snapToCell), so this doubles as both occlusion lookup and the

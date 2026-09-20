@@ -122,6 +122,15 @@ static int64_t chunkKey(Vector3 pos) {
   return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
 }
 
+// Streaming chunk key: cx in the high 32 bits, cz in the low 32 (same packing as the server's chunkKey).
+static int64_t streamKey(int cx, int cz) {
+  return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
+}
+
+static int64_t streamKeyAt(Vector3 pos) {
+  return streamKey(World::streamChunkCoord(pos.x), World::streamChunkCoord(pos.z));
+}
+
 void World::markDirty(Vector3 pos) {
   dirtyChunks.insert(chunkKey(pos));
   // Chunks span all y, so only the horizontal neighbours can be in another chunk.
@@ -143,6 +152,7 @@ void World::indexObject() {
 
   occupiedCells[cellKey(pos)] = idx;
   chunks[chunkKey(pos)].push_back(idx);
+  streamChunks[streamKeyAt(pos)].push_back(idx);
   markDirty(pos);
 }
 
@@ -152,7 +162,7 @@ void World::addObject(const Object &object) {
 }
 
 void World::addObjects(const std::vector<Object> &newObjects) {
-  objects.reserve(objects.size() + newObjects.size());
+  // No reserve() here: it allocates exactly what you ask, so calling it per chunk copies the whole vector every time.
   for (const Object &o : newObjects) {
     objects.push_back(o);
     indexObject();
@@ -172,6 +182,11 @@ void World::removeObject(Vector3 pos) {
   std::erase(list, removedIdx);
   if (list.empty())
     chunks.erase(chunkKey(pos));
+  // Same for the streaming index; the erase must come before the swap fix-up below.
+  std::vector<int> &streamList = streamChunks[streamKeyAt(pos)];
+  std::erase(streamList, removedIdx);
+  if (streamList.empty())
+    streamChunks.erase(streamKeyAt(pos));
   markDirty(pos);
 
   // Swap-and-pop instead of erase, so only the moved object's index needs
@@ -183,6 +198,8 @@ void World::removeObject(Vector3 pos) {
     occupiedCells[cellKey(movedPos)] = removedIdx;
     std::vector<int> &movedList      = chunks[chunkKey(movedPos)];
     std::replace(movedList.begin(), movedList.end(), lastIdx, removedIdx);
+    std::vector<int> &movedStreamList = streamChunks[streamKeyAt(movedPos)];
+    std::replace(movedStreamList.begin(), movedStreamList.end(), lastIdx, removedIdx);
     dirtyChunks.insert(chunkKey(movedPos)); // its index changed, so the renderer must relist it
   }
   objects.pop_back();
@@ -201,8 +218,39 @@ void World::clear() {
     dirtyChunks.insert(key);
   }
   chunks.clear();
+  streamChunks.clear();
+  loadedStreamChunks.clear();
   occupiedCells.clear();
   objects.clear();
+}
+
+// ==== streaming chunks ==== //
+void World::addChunk(int cx, int cz, const std::vector<Object> &blocks) {
+  loadedStreamChunks.insert(streamKey(cx, cz));
+  addObjects(blocks);
+}
+
+void World::unloadChunk(int cx, int cz) {
+  const int64_t key = streamKey(cx, cz);
+  loadedStreamChunks.erase(key);
+
+  auto it = streamChunks.find(key);
+  if (it == streamChunks.end())
+    return; // never loaded, or an empty chunk
+
+  // Copy the positions first: removeObject swap-and-pops, which reshuffles the indices in this very list.
+  std::vector<Vector3> positions;
+  positions.reserve(it->second.size());
+  for (int i : it->second)
+    positions.push_back(objects[i].getTransform().pos);
+
+  // ponytail: one removeObject per block (linear erase from the lists); batch it if F3 shows an unload spike.
+  for (const Vector3 &pos : positions)
+    removeObject(pos);
+}
+
+bool World::isChunkLoaded(int cx, int cz) const {
+  return loadedStreamChunks.contains(streamKey(cx, cz));
 }
 
 std::vector<Object> &World::getObjects() {
