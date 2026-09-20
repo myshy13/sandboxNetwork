@@ -172,10 +172,12 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 
 ## Housekeeping
 
-- [ ] delete the tracked `.mov` screen recording from the repo
-- [ ] the `CHAT` / `CHEATS` / `CHEATS`-nested `#ifdef`s in `main.cpp` — decide
-      if chat is a real feature and either commit to it or cut it
+- [x] delete the tracked `.mov` screen recording from the repo
+- [/] the `CHAT` / `CHEATS` / `CHEATS`-nested `#ifdef`s in `main.cpp` — decide
+      if chat is a real feature and either commit to it or cut it.
+      **Reason:** This is a debuging feature for testing
 - [ ] `PLAYER_SCALE` is duplicated in three places now (server, player,
       world.cpp placement check) — pull into one shared header (the two
       `env.hpp` files are the obvious home, but it must stay in sync across
       the client/server split)
+

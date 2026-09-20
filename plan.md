@@ -101,8 +101,12 @@ Step 9 (client-side terrain from the seed) is dropped: the server always sends t
 - **Spawn:** a deterministic `heightAt(x, z)` lets the server put the spawn on the ground instead of `y = 10`,
   even for a chunk that isn't generated yet.
 - **Edits to unloaded chunks:** the server ignores them; the client never sends them.
-- **Structures** (later): placed per chunk from a hash of (seed, chunk x, chunk z). A structure that crosses
-  a chunk border needs a rule (generate from the neighbours' overlap) or you get cut-off buildings.
+- **Structures** (later, e.g. trees): a chunk is a pure function of (seed, cx, cz), and so is every structure, so a chunk
+  builds itself without asking a neighbour. Structure origins come from a hash of (seed, origin chunk); to build chunk C,
+  take the structures of C and its neighbours within `MAX_STRUCTURE_RADIUS`, build each one from its origin (base
+  height = `heightAt(origin)`), and keep only the blocks whose cell lies inside C. Don't push overflow blocks into a
+  neighbour: it may already be generated, edited or saved. Process structures in a fixed order and keep the first block
+  per cell (overlapping leaves), and skip leaves that fall inside terrain (`y <= heightAt(x, z)`).
 - **Block format:** each block is an `Object` (id, position, scale, colour, durability) plus a hash entry.
   A chunk of 16x16 columns is ~500 of them. A compact per-column format (height + colour) is a later diet.
 

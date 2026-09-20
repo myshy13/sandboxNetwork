@@ -6,6 +6,7 @@
 #include "enet/enet.h"
 #include "env.hpp"
 #include "raylib.h"
+#include "sharedEnv.hpp"
 #include <algorithm>
 #include <cereal/types/vector.hpp>
 #include <cfloat>
@@ -22,6 +23,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+constexpr PLAYER_SCALE = SHARED_PLAYER_SCALE;
 
 namespace {
 // An ENet client. The WebSocket equivalent lives in Net/ws_proxy.cpp.
@@ -501,9 +504,6 @@ void Server::handleReceive(int playerId, const std::string &data) {
 }
 
 // ==== fixed-rate tick (bullet lifetime etc.) ==== //
-
-// same as the client's default Player scale (Client/src/Player/player.cpp)
-constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
 
 bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
   Vector3 dir = Vector3Subtract(end, start);

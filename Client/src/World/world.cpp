@@ -97,12 +97,10 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
     return false; // one block per cell
   }
 
-  constexpr Vector3 PLAYER_SCALE = {1.5f, 10.0f, 1.5f};
-
   BoundingBox player;
   player.min = Vector3Subtract(
-      playerPos, {PLAYER_SCALE.x * 0.5f, 0.0f, PLAYER_SCALE.z * 0.5f});
-  player.max = Vector3Add(player.min, PLAYER_SCALE);
+      playerPos, {env::PLAYER_SCALE.x * 0.5f, 0.0f, env::PLAYER_SCALE.z * 0.5f});
+  player.max = Vector3Add(player.min, env::PLAYER_SCALE);
 
   // cell is the block's centre (see objectBox / snapToCell), not a corner.
   BoundingBox block = objectBox(ObjectTransform{cell, blockSize});

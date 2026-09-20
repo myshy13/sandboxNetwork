@@ -1,10 +1,13 @@
 #pragma once
 
+#include "sharedEnv.hpp"
+
 // ==== connection config ==== //
 namespace env {
 constexpr const char *SERVER_IP = "127.0.0.1";
 constexpr int SERVER_PORT       = 9798;
 constexpr int MAX_HEALTH        = 20; // must match the server's env::PLAYER_MAX_HEALTH
+constexpr Vector3 PLAYER_SCALE  = SHARED_PLAYER_SCALE;
 } // namespace env
 
 // Compile-time toggles
