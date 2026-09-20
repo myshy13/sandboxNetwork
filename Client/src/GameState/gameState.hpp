@@ -15,6 +15,10 @@ private:
   bool interpolation{true};
 
 public:
+  static constexpr int MIN_RENDER_DISTANCE = 200;
+  // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
+  static constexpr int MAX_RENDER_DISTANCE = 640;
+
   static GameState &shared() {
     static GameState instance;
     return instance;

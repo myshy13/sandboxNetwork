@@ -79,7 +79,8 @@ Streaming means cost follows what is near each player, not how big the world is.
    - **5d** Loading gate: **freeze the player and show "Loading..." until the chunk under the player has arrived.**
    - **No per-frame apply limit (changed):** the server already meters K chunks per tick, and a client-side queue
      is where load/edit ordering goes wrong. Add a limit only if the F3 numbers show a frame spike.
-6. **Wire the slider:** render distance / 80 -> `SetViewRadius`. Tune R, K and N.
+6. **Wire the slider (done):** `Game::syncViewRadius` sends `ceil(renderDistance / 80)` chunks whenever it changes (and after each
+   connect). The slider is capped at `MAX_RENDER_DISTANCE` (640 = server max 8 chunks x 80). Tune R, K and N.
    Steps 2-6 fix join time, client RAM and the freeze on the existing world. The rest is only needed
    for worlds that don't fit in server memory.
 7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`.

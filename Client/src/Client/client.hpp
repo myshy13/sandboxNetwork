@@ -87,6 +87,8 @@ public:
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);
+  // Asks the server to stream this many chunks around us. False if the handshake hasn't finished yet (call again).
+  bool sendViewRadius(int chunks);
   static constexpr double CONNECT_TIMEOUT = 5.0; // seconds before an attempt counts as failed
   static constexpr double POS_UPDATE_INTERVAL = 1.0 / 12.0;
   static constexpr float SNAP_DISTANCE        = 20;

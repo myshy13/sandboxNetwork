@@ -374,6 +374,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   spawnPos.y = 100;
   newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
+  views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives before the first tick has a view to set
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);

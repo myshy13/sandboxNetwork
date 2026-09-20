@@ -26,10 +26,10 @@ void Settings::frame() {
   // slider base
   const int currentRenderDistanceValue = gameState.getRenderDistance();
   const int screenDistance5th          = GetScreenWidth() / 5;
-  int sliderX                          = map(currentRenderDistanceValue, 200, 1000, screenDistance5th, screenDistance5th * 4);
+  int sliderX                          = map(currentRenderDistanceValue, GameState::MIN_RENDER_DISTANCE, GameState::MAX_RENDER_DISTANCE, screenDistance5th, screenDistance5th * 4);
   if (changingRenderDistance) {
     sliderX = std::clamp(GetMouseX(), screenDistance5th, screenDistance5th * 4); // pixels
-    gameState.setRenderDistance(map(sliderX, screenDistance5th, screenDistance5th * 4, 200, 1000));
+    gameState.setRenderDistance(map(sliderX, screenDistance5th, screenDistance5th * 4, GameState::MIN_RENDER_DISTANCE, GameState::MAX_RENDER_DISTANCE));
   }
   Rectangle sliderRec = {static_cast<float>(sliderX - 10), 190, 20, 40};
   if (changingRenderDistance && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {

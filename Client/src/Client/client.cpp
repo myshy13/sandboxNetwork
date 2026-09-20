@@ -250,6 +250,14 @@ void Client::setName(const std::string &newname) {
   transport->send(bytes, true);
 }
 
+bool Client::sendViewRadius(int chunks) {
+  if (playerId == -1)
+    return false;
+  auto bytes = proto::pack(proto::Type::SetViewRadius, proto::SetViewRadius{chunks});
+  transport->send(bytes, true);
+  return true;
+}
+
 void Client::placeObject(const Object &object) {
   if (playerId == -1)
     return;

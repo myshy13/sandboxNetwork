@@ -5,6 +5,7 @@
 #include "env.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
@@ -82,8 +83,20 @@ void Game::applyNetworkUpdates() {
     for (Vector3 pos : client.takeDamagedObjects()) {
       world.damageObject(pos);
     }
+    syncViewRadius();
   } else if (client.connect()) {
     world.clear(); // the server re-streams every block on join
+    sentViewRadius = -1;
+  }
+}
+
+// Render distance is in world units; the server counts chunks, and clamps what it accepts.
+void Game::syncViewRadius() {
+  const int chunks = (int)std::ceil(GameState::shared().getRenderDistance() / World::STREAM_CHUNK_SIZE);
+  if (chunks == sentViewRadius)
+    return;
+  if (client.sendViewRadius(chunks)) {
+    sentViewRadius = chunks; // otherwise the handshake isn't done yet; try again next frame
   }
 }
 

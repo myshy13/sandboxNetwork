@@ -62,6 +62,9 @@ keep both in sync when either changes.
 (`Server/src/Server/server.cpp`) are the same streaming-chunk size (16 cells = 80 units), duplicated by hand;
 the client's debug chunk borders and (later) chunk loading rely on them agreeing.
 
+`GameState::MAX_RENDER_DISTANCE` (`Client/src/GameState/gameState.hpp`) must equal the server's `env::MAX_VIEW_RADIUS`
+(`Server/src/env.hpp`) times `World::STREAM_CHUNK_SIZE`: the slider can't ask for more chunks than the server will send.
+
 Likewise `env::MAX_HEALTH` (`Client/src/env.hpp`, template in
 `env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH`
 (`Server/src/env.hpp`): the client sizes its health bar from its copy while the
