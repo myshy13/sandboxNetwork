@@ -8,9 +8,11 @@
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
-#include <sstream>
 #include <utility>
 #include <vector>
+#ifdef CHEATS
+#include <sstream>
+#endif
 
 // ==== setup / teardown ==== //
 Game::Game(const AssetManager &a) : assets(a) {
@@ -65,20 +67,10 @@ void Game::applyNetworkUpdates() {
     }
     std::vector<ChunkEvent> chunkEvents = client.takeChunkEvents();
     for (ChunkEvent &e : chunkEvents) {
-#ifdef DEBUG
-      const double eventT0 = GetTime(); // TEMP: time each event, loads and unloads separately
-#endif
       if (e.load) {
         world.addChunk(e.cx, e.cz, e.blocks);
-#ifdef DEBUG
-        chunkLoadMs     = (GetTime() - eventT0) * 1000.0;
-        chunkLoadBlocks = (int)e.blocks.size();
-#endif
       } else {
         world.unloadChunk(e.cx, e.cz);
-#ifdef DEBUG
-        chunkUnloadMs = (GetTime() - eventT0) * 1000.0;
-#endif
       }
     }
     for (const Object &o : client.takeNewObjects()) {
@@ -165,8 +157,18 @@ void Game::handleChatInput() {
 #endif
 }
 
+bool Game::chunkUnderPlayerLoaded() const {
+  const Vector3 pos = player.getTransform().translation;
+  const int cx      = World::streamChunkCoord(pos.x);
+  const int cz      = World::streamChunkCoord(pos.z);
+  return world.isChunkLoaded(cx, cz);
+}
+
 void Game::updatePlayer(float dt) {
   if (paused)
+    return;
+
+  if (!chunkUnderPlayerLoaded())
     return;
 
   // Chat freezes input, not the world: the player keeps falling/sliding
@@ -190,7 +192,7 @@ void Game::sendPosition(float dt) {
 }
 
 void Game::handleActions(float dt) {
-  if (paused || inChat)
+  if (paused || inChat || !chunkUnderPlayerLoaded())
     return;
 
   if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -455,6 +457,8 @@ void Game::drawOverlays(float dt) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
+  } else if (!paused && !chunkUnderPlayerLoaded()) {
+    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
   }
 }
 
@@ -517,12 +521,6 @@ void Game::drawDebug() {
     rowPos += ROWSIZE;
 
     DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
-    rowPos += ROWSIZE;
-
-    DrawText(TextFormat("Chunk load (last): %.2f ms, %d blocks", chunkLoadMs, chunkLoadBlocks), 10, rowPos, FONTSIZE, RED);
-    rowPos += ROWSIZE;
-
-    DrawText(TextFormat("Chunk unload (last): %.2f ms", chunkUnloadMs), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
     DrawText(TextFormat("cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);

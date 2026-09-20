@@ -22,7 +22,7 @@ public:
 
   void Update(float dt, Camera3D &camera, const World &world);
   void UpdateCamera(Camera3D &camera) const;
-  Transform getTransform() {
+  const Transform &getTransform() const {
     return transform;
   };
   float getYaw() {

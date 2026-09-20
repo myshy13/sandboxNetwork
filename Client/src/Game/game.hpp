@@ -39,9 +39,6 @@ private:
   bool showChunkBorders = false; // F4
   double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
   double drawObjectsMs  = 0.0; // Renderer::drawObjects, incl. frustum cull + instancing
-  double chunkLoadMs   = 0.0; // TEMP: last single addChunk / unloadChunk, in ms
-  int chunkLoadBlocks  = 0;
-  double chunkUnloadMs = 0.0;
 #endif
 
   // ==== update ==== //
@@ -60,4 +57,5 @@ private:
   void drawScoreboard();
   void drawOverlays(float dt);
   void drawDebug();
+  bool chunkUnderPlayerLoaded() const;
 };
