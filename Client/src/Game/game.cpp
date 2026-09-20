@@ -477,9 +477,15 @@ void Game::drawOverlays(float dt) {
 
 void Game::drawDebug() {
 #ifdef DEBUG
+#ifdef __EMSCRIPTEN__
+  if (IsKeyPressed(KEY_K)) {
+    showDebug = !showDebug;
+  }
+#else
   if (IsKeyPressed(KEY_F3)) {
     showDebug = !showDebug;
   }
+#endif
   if (IsKeyPressed(KEY_R)) {
     client.disconnect(); // applyNetworkUpdates starts a fresh session next frame
   }

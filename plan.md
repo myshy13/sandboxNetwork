@@ -27,10 +27,11 @@ Streaming means cost follows what is near each player, not how big the world is.
    O(N) `removeObject` / `damageObject` scans. **Do this. It is a protocol change: bump `PROTOCOL_VERSION`.**
 2. **Chunk = 16x16 cells wide (80x80 world units), full height.** This is separate from the renderer's
    3-cell chunks, which stay as they are (they live inside these).
-3. **(Later, steps 7-9)** **Terrain from a deterministic noise function of (seed, x, z), not the global heightMap + smoothing.**
+3. **(Later, steps 7-8)** **Terrain from a deterministic noise function of (seed, x, z), not the global heightMap + smoothing.**
    The smoothing needs the whole map, so it can't be evaluated per chunk. Use integer-hash value noise
-   (2-3 octaves) so every machine (arm, x86, web) gets identical results. Store the seed in the save.
-4. **(Later, steps 7-9)** **Persist only changed chunks** (dirty flag per chunk). A chunk loads as: saved file if it exists,
+   (2-3 octaves), server-side only (`Server/src/Server/terrain.hpp`, tested like `chunk.hpp`). Store the seed in the save,
+   or a restart would generate different terrain next to saved chunks.
+4. **(Later, steps 7-8)** **Persist only changed chunks** (dirty flag per chunk). A chunk loads as: saved file if it exists,
    otherwise generate it. Reuse the background-save idea from `Server::saveWorldAsync`.
 5. **Bullets:** speed 500 u/s and 20 s lifetime means up to 10 km of travel. **Bullets die on leaving the
    loaded area** for now; generating chunks on demand for bullets can come later.
@@ -85,9 +86,8 @@ Streaming means cost follows what is near each player, not how big the world is.
    for worlds that don't fit in server memory.
 7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`.
 8. **Persistence per chunk:** save only dirty chunks, on the background thread; drop `save.bin`'s single blob.
-9. **Optional, big win:** send the seed once and let the client generate the terrain itself
-   (shared code in `Shared/`). The server then only sends **edits** per chunk. Needs the noise to be
-   bit-identical on every platform, hence the integer-hash noise in decision 3.
+
+Step 9 (client-side terrain from the seed) is dropped: the server always sends the chunks.
 
 ## Pitfalls
 
