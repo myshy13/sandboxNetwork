@@ -77,6 +77,7 @@ Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed)
   }
 
   loadWorld();
+  checkOverlaps();
 }
 
 Server::~Server() {
@@ -180,6 +181,34 @@ void Server::saveWorldAsync() {
                       [path = savePath, snapshot = std::move(snapshot)] {
                         return writeSave(path, snapshot);
                       });
+}
+
+// Diagnostic: occupiedCells keeps one index per cell, so duplicates hide in
+// `objects`.
+int Server::checkOverlaps() const {
+  std::unordered_map<int64_t, int> counts;
+  counts.reserve(objects.size());
+  for (const Object &o : objects) {
+    counts[blockKey(o.getTransform().pos)]++;
+  }
+
+  int cells = 0;
+  int extra = 0;
+  for (const auto &[key, count] : counts) {
+    if (count > 1) {
+      cells++;
+      extra += count - 1;
+    }
+  }
+  if (cells > 0) {
+    std::fprintf(
+        stderr,
+        "overlapping blocks: %d cells hold 2+ blocks (%d extra of %zu)\n",
+        cells, extra, objects.size());
+  } else {
+    std::printf("no overlapping blocks (%zu objects)\n", objects.size());
+  }
+  return extra;
 }
 
 void Server::loadWorld() {
@@ -331,7 +360,7 @@ void Server::generateChunk(int cx, int cz) {
 
       Object top(nextObjectId,
                  ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
-      int topDamage = terrain.hash(cellX, cellZ) % 2;
+      int topDamage = terrain.heightAt(cellX, cellZ) % 3;
       for (int i = 0; i < topDamage; i++) {
         top.damage();
       }
@@ -421,9 +450,9 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   spawnPos.x = rand() % 200 - 100;
   spawnPos.z = rand() % 200 - 100;
   spawnPos.y =
-      terrain.heightAt(spawnPos.x / BLOCK_SIZE, spawnPos.z / BLOCK_SIZE) *
+      (terrain.heightAt(spawnPos.x / BLOCK_SIZE, spawnPos.z / BLOCK_SIZE) + 1) *
           BLOCK_SIZE +
-      BLOCK_SIZE / 2;
+      BLOCK_SIZE / 2 + PLAYER_SCALE.y; // spawn a bit above
   newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
   views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives before the first tick has a view to set
@@ -731,6 +760,7 @@ void Server::tick(float dt) {
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;
     saveWorldAsync();
+    checkOverlaps();
   }
   auto tickStart = std::chrono::steady_clock::now();
   // ==== hit detection ==== //
@@ -783,10 +813,11 @@ void Server::tick(float dt) {
           Vector3 spawnPos;
           spawnPos.x = rand() % 200 - 100;
           spawnPos.z = rand() % 200 - 100;
-          spawnPos.y = terrain.heightAt(spawnPos.x / BLOCK_SIZE,
-                                        spawnPos.z / BLOCK_SIZE) *
+          spawnPos.y = (terrain.heightAt(spawnPos.x / BLOCK_SIZE,
+                                         spawnPos.z / BLOCK_SIZE) +
+                        1) *
                            BLOCK_SIZE +
-                       BLOCK_SIZE / 2;
+                       BLOCK_SIZE / 2 + PLAYER_SCALE.y; // spawn a bit above
           p.health = env::PLAYER_MAX_HEALTH;
           p.pos = spawnPos;
           sendTo(p.id,

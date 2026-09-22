@@ -120,6 +120,8 @@ class Server {
   void updateView(const Player &p);
 
   void loadWorld();
+  // Blocks sharing a grid cell; returns how many are duplicates. 0 is a healthy world.
+  int checkOverlaps() const;
 
   // ==== World generation ==== //
   void generateWorld();
