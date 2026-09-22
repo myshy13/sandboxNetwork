@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
-  Server server(wsPort, savePath, saveTime);
+  Server server(wsPort, savePath, saveTime, seed);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {

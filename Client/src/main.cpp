@@ -23,7 +23,10 @@ int main() {
   // The window (GL context) must exist before Game/Menu: Lighting and Renderer load GPU resources.
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI | FLAG_VSYNC_HINT);
   std::cout << "Create window\n";
-  InitWindow(1280, 720, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
+  // get monitor dim
+  int mw = GetMonitorWidth(0);
+  int mh = GetMonitorHeight(0);
+  InitWindow(mw, mh, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
   SetExitKey(KEY_F12); // force exit button instead of esc
 
   // Own GPU resources, so this scope ends (and they unload) before CloseWindow() kills the GL context.

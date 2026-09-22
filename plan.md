@@ -84,7 +84,13 @@ Streaming means cost follows what is near each player, not how big the world is.
    connect). The slider is capped at `MAX_RENDER_DISTANCE` (640 = server max 8 chunks x 80). Tune R, K and N.
    Steps 2-6 fix join time, client RAM and the freeze on the existing world. The rest is only needed
    for worlds that don't fit in server memory.
-7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`.
+7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`. In pieces:
+   - **7a** `Server/src/Server/terrain.hpp`: `class Terrain` holding the seed (`heightAt`, `hash`, `seed`, private `noise`/`lattice`),
+     plus `Server/test_terrain.cpp` in the `Server/Makefile` `test` target. **In progress (declarations only so far).**
+   - **7b** `Server::generateChunk(cx, cz)`: per column, `heightAt`, a GREEN top block and BROWN below, damage from `hash`.
+   - **7c** `generatedChunks` set; `updateView` calls `ensureChunk` before `sendChunk`.
+   - **7d** Drop `generateWorld` and the startup hang; store the seed in the save and rebuild `generatedChunks` on load.
+   - **7e** Spawn and respawn on the ground using `heightAt` (both sites set `y = 100` today).
 8. **Persistence per chunk:** save only dirty chunks, on the background thread; drop `save.bin`'s single blob.
 
 Step 9 (client-side terrain from the seed) is dropped: the server always sends the chunks.
@@ -130,5 +136,4 @@ Build the server and client, then check:
 - `SERVER_IP` is hard-coded in `env.hpp`; a join-server field on the menu would fit.
 - Other asset types (sounds, fonts, models) aren't in `AssetManager`.
 - Bigger ideas: inventory, structures (fits streaming), more textures (needs a texture atlas in the renderer).
-- Check the "Loading..." overlay in `game.cpp` (an `else if` chain made it show only while paused).
 - Client `World::damageObject` / `World::removeObject` are no longer O(N): 3b looks the block up in `occupiedCells`.

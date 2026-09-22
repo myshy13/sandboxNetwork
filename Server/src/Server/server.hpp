@@ -3,6 +3,7 @@
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
+#include "Server/terrain.hpp"
 #include "env.hpp"
 
 #include <enet/enet.h>
@@ -64,6 +65,10 @@ class Server {
   std::unordered_map<int64_t, std::vector<int>> chunkBlocks;
   std::vector<Bullet> bullets;
 
+  std::unordered_set<int64_t> generatedChunks;
+
+  Terrain terrain;
+
   float saveCountdownTime = saveTime;
   float saveCountdown{saveCountdownTime};
 
@@ -118,13 +123,16 @@ class Server {
 
   // ==== World generation ==== //
   void generateWorld();
+  // Builds chunk (cx, cz) from `terrain` and adds its blocks via addBlock.
+  void generateChunk(int cx, int cz);
+  void ensureChunk(int cx, int cz);
 
 public:
   void saveWorld();
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
   explicit Server(int wsPort = 0, const std::string savePath = "save.bin",
-                  const int saveTime = 30);
+                  const int saveTime = 30, uint32_t seed = 0);
   ~Server();
 
   // ==== static consts ==== //

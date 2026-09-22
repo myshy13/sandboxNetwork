@@ -49,8 +49,8 @@ private:
 
 // ==== connection setup ==== //
 
-Server::Server(int wsPort, std::string savePath, int saveTime)
-    : savePath(std::move(savePath)), saveTime(saveTime) {
+Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed)
+    : savePath(std::move(savePath)), saveTime(saveTime), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -186,7 +186,7 @@ void Server::loadWorld() {
   std::ifstream is(savePath, std::ios::binary);
   if (!is) {
     std::printf("no save at %s, starting fresh\n", savePath.c_str());
-    generateWorld();
+    // generateWorld();
     return;
   }
 
@@ -209,7 +209,7 @@ void Server::loadWorld() {
     occupiedCells.clear();
     chunkBlocks.clear();
     nextObjectId = 1;
-    generateWorld();
+    // generateWorld();
   }
 }
 
@@ -306,6 +306,52 @@ void Server::generateWorld() {
           .count();
   std::cout << "Done building world: " << objects.size() << " blocks in "
             << genSeconds << " s\n";
+}
+
+void Server::ensureChunk(int cx, int cz) {
+  int64_t key = chunkKey(cx, cz);
+  if (generatedChunks.contains(key))
+    return;
+  generatedChunks.insert(key);
+  generateChunk(cx, cz);
+};
+
+void Server::generateChunk(int cx, int cz) {
+  constexpr Vector3 blockSize = {BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE};
+  // A large odd offset so a below-layer's damage roll doesn't reuse another
+  // real column's hash by coincidence.
+  constexpr int DAMAGE_OFFSET = 999983;
+
+  for (int cellX = cx * 16; cellX < cx * 16 + 16; cellX++) {
+    for (int cellZ = cz * 16; cellZ < cz * 16 + 16; cellZ++) {
+      int height = terrain.heightAt(cellX, cellZ);
+      float blockX = cellX * blockSize.x + (blockSize.x / 2);
+      float blockY = height * blockSize.y + (blockSize.y / 2);
+      float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
+
+      Object top(nextObjectId,
+                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
+      int topDamage = terrain.hash(cellX, cellZ) % 2;
+      for (int i = 0; i < topDamage; i++) {
+        top.damage();
+      }
+      addBlock(top);
+      nextObjectId++;
+
+      for (int i = height; i > 0; i--) {
+        blockY -= blockSize.y;
+        Object below(nextObjectId,
+                     ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+                     BROWN);
+        int belowDamage = terrain.hash(cellX + i * DAMAGE_OFFSET, cellZ) % 3;
+        for (int d = 0; d < belowDamage; d++) {
+          below.damage();
+        }
+        addBlock(below);
+        nextObjectId++;
+      }
+    }
+  }
 }
 
 // ==== sending ==== //
@@ -599,6 +645,7 @@ void Server::updateView(const Player &p) {
   size_t count = std::min(toLoad.size(), (size_t)env::CHUNKS_PER_TICK);
   for (size_t i = 0; i < count; i++) {
     auto [cx, cz] = toLoad[i];
+    ensureChunk(cx, cz);
     sendChunk(p.id, cx, cz);
     view.loaded.insert(chunkKey(cx, cz));
   }

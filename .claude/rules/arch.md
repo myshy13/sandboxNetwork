@@ -16,13 +16,16 @@ Client/src/
 main.cpp       opens nothing itself: constructs Game and calls Game::frame() in a loop
 
 Server/src/
-  Server/      game loop (Server::tick), hit detection, bullet lifetime, player bookkeeping
+  Server/      game loop (Server::tick), hit detection, bullet lifetime, player bookkeeping, per-client chunk views
+               (updateView / sendChunk / broadcastToChunk); chunk.hpp = chunk key packing (tested), terrain.hpp = seeded terrain (WIP)
   Net/         Connection interface + WsProxy (browser WebSocket bridge)
 main.cpp       CLI args (--ws-port), owns the Server instance
 
-Shared/Protocol/
-  protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ...)
-  protocol.cpp   pack/unpack, compiled directly into both Client and Server
+Shared/
+  sharedEnv.hpp  constants both sides must agree on (SHARED_PLAYER_SCALE)
+  Protocol/
+    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, ...)
+    protocol.cpp   pack/unpack, compiled directly into both Client and Server
 ```
 
 ## State ownership
@@ -52,11 +55,10 @@ Shared/Protocol/
 
 ## Constants that must stay in sync
 
-`PLAYER_SCALE` in `Server/src/Server/server.cpp` and the client's default
-`Player` scale (`Client/src/Player/player.cpp`) are duplicated by hand and
-must match, or server hit detection and client rendering disagree on the
-player's hitbox. There's a comment at each site pointing at the other —
-keep both in sync when either changes.
+The player's hitbox scale is defined once, as `SHARED_PLAYER_SCALE` in `Shared/sharedEnv.hpp`. The server's
+`PLAYER_SCALE` (`Server/src/Server/server.cpp`) and the client's `env::PLAYER_SCALE` (`Client/src/env.hpp`, template in
+`env.example.hpp`; `env.hpp` is git-ignored, so it must `#include "sharedEnv.hpp"` too) both alias it, so server hit
+detection and the client's body, hitbox and placement check can't disagree. Change it in `sharedEnv.hpp` only.
 
 `World::STREAM_CHUNK_SIZE` (`Client/src/World/world.hpp`) and the server's `CHUNK_SIZE`
 (`Server/src/Server/server.cpp`) are the same streaming-chunk size (16 cells = 80 units), duplicated by hand;
