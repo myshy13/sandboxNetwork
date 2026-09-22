@@ -420,7 +420,10 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   Vector3 spawnPos;
   spawnPos.x = rand() % 200 - 100;
   spawnPos.z = rand() % 200 - 100;
-  spawnPos.y = 100;
+  spawnPos.y =
+      terrain.heightAt(spawnPos.x / BLOCK_SIZE, spawnPos.z / BLOCK_SIZE) *
+          BLOCK_SIZE +
+      BLOCK_SIZE / 2;
   newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
   views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives before the first tick has a view to set
@@ -780,7 +783,10 @@ void Server::tick(float dt) {
           Vector3 spawnPos;
           spawnPos.x = rand() % 200 - 100;
           spawnPos.z = rand() % 200 - 100;
-          spawnPos.y = 100;
+          spawnPos.y = terrain.heightAt(spawnPos.x / BLOCK_SIZE,
+                                        spawnPos.z / BLOCK_SIZE) *
+                           BLOCK_SIZE +
+                       BLOCK_SIZE / 2;
           p.health = env::PLAYER_MAX_HEALTH;
           p.pos = spawnPos;
           sendTo(p.id,
