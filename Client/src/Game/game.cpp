@@ -9,6 +9,7 @@
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
+#include <rlgl.h>
 #include <utility>
 #include <vector>
 #ifdef CHEATS
@@ -208,12 +209,20 @@ void Game::handleActions(float dt) {
   if (paused || inChat || !chunkUnderPlayerLoaded())
     return;
 
+  // Crosshair actions aim straight down the look direction - not
+  // GetScreenToWorldRay(centre, camera) or camera.target - camera.position:
+  // both read camera.target, which UpdateCamera can only build to head's
+  // float precision (see there), so far from the origin they round to a
+  // slightly wrong direction. getLookForward() never touches that huge
+  // position, so it's exact at any distance.
+  Ray aim{camera.position, player.getLookForward()};
+
   if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-    client.createBullet(camera);
+    client.createBullet(aim.position, aim.direction);
   } else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
     bulletCooldown -= dt;
     if (bulletCooldown <= 0) {
-      client.createBullet(camera);
+      client.createBullet(aim.position, aim.direction);
 #ifdef CHEATS
       bulletCooldown = 0.0f;
 #else
@@ -227,15 +236,13 @@ void Game::handleActions(float dt) {
   constexpr float placeCooldownTime = 0.2f;
 #endif
   if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-    Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-    if (world.placeBlock(GetScreenToWorldRay(centre, camera), client, player.getTransform().translation)) {
+    if (world.placeBlock(aim, client, player.getTransform().translation)) {
       placeCooldown = placeCooldownTime;
     }
   } else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
     placeCooldown -= dt;
     if (placeCooldown <= 0) {
-      Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-      if (world.placeBlock(GetScreenToWorldRay(centre, camera), client, player.getTransform().translation)) {
+      if (world.placeBlock(aim, client, player.getTransform().translation)) {
         placeCooldown = placeCooldownTime;
       }
     }
@@ -245,18 +252,37 @@ void Game::handleActions(float dt) {
 // ==== draw ==== //
 void Game::drawScene(float dt) {
   ClearBackground({5, 5, 5, 255});
-  BeginMode3D(camera);
+
+  // Floating origin: the GPU only ever sees coordinates near zero, however far
+  // into the world `camera` itself has drifted. Everything drawn below this
+  // point must subtract camera.position from its world position to match -
+  // miss one and it renders however far from the origin the camera really is.
+  Camera3D relCamera = camera;
+  relCamera.position = {0, 0, 0};
+  // Not camera.target - camera.position: camera.target was already rounded to head's
+  // precision when UpdateCamera built it (see there), so subtracting afterward can't
+  // recover what that add discarded. getLookForward() never touches the huge position,
+  // so it's exact at any distance from the origin.
+  relCamera.target = player.getLookForward();
+
+  BeginMode3D(relCamera);
   lighting.begin();
-  lighting.setViewPos(camera.position);
+  Vector3 originViewPos = {0, 0, 0};
+  lighting.setViewPos(originViewPos); // camera-relative, like everything else in this scene
   client.updateBullets(dt);
   client.updatePlayers();
   Object *targeted = nullptr;
   {
     Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+    // Built from relCamera (exact direction) then shifted back to world space for the
+    // hit-test, which still runs against world-space block positions - only the ray's
+    // origin needs the shift, its direction is already exact.
+    Ray pickRay      = GetScreenToWorldRay(centre, relCamera);
+    pickRay.position = Vector3Add(pickRay.position, camera.position);
 #ifdef DEBUG
     double t1 = GetTime();
 #endif
-    targeted = renderer.drawObjects(world.getObjects(), world, GetScreenToWorldRay(centre, camera), lighting, camera);
+    targeted = renderer.drawObjects(world.getObjects(), world, pickRay, lighting, camera);
 #ifdef DEBUG
     drawObjectsMs = (GetTime() - t1) * 1000.0;
 #endif
@@ -267,23 +293,25 @@ void Game::drawScene(float dt) {
   // per-instance matrix that only the block renderer supplies, so anything else would collapse to 0,0,0.
   if (targeted != nullptr) {
     ObjectTransform t = targeted->getTransform();
-    DrawCubeWiresV(t.pos, t.scale, BLACK);
+    DrawCubeWiresV(Vector3Subtract(t.pos, camera.position), t.scale, BLACK);
   }
   // ==== draw online players ====
   for (const auto &p : client.getPlayers()) {
     Transform transform;
     transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
     transform.scale       = {1, 10, 1};
-    transform.translation = p.pos;
+    transform.translation = Vector3Subtract(p.pos, camera.position);
+    Vector3 localPos      = Vector3Subtract(player.getTransform().translation, camera.position);
     if (p.name.has_value()) {
-      player.DrawPlayer(transform, p.name.value(), player.getTransform().translation);
+      player.DrawPlayer(transform, p.name.value(), localPos);
     } else {
-      player.DrawPlayer(transform, "Player " + std::to_string(p.id), player.getTransform().translation);
+      player.DrawPlayer(transform, "Player " + std::to_string(p.id), localPos);
     }
   }
   for (auto &b : client.getBullets()) {
-    DrawSphere(b.pos, 0.35f, Color{89, 255, 241, 255});
-    DrawCylinderEx(b.pos, Vector3Subtract(b.pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
+    Vector3 pos = Vector3Subtract(b.pos, camera.position);
+    DrawSphere(pos, 0.35f, Color{89, 255, 241, 255});
+    DrawCylinderEx(pos, Vector3Subtract(pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
   }
   drawChunkBorders();
 
@@ -307,19 +335,25 @@ void Game::drawChunkBorders() {
   const int cx         = World::streamChunkCoord(pos.x);
   const int cz         = World::streamChunkCoord(pos.z);
 
+  // These lines are drawn inside the camera-relative BeginMode3D (see drawScene), so every
+  // point needs the same - camera.position offset, or the grid renders far from the blocks.
+  const Vector3 cam = camera.position;
+
   // Grid corner (i, j) is the corner with the smallest x and z of chunk (i, j); yours has four.
   for (int i = cx - RADIUS; i <= cx + RADIUS + 1; i++) {
     for (int j = cz - RADIUS; j <= cz + RADIUS + 1; j++) {
       const bool ownCorner = i >= cx && i <= cx + 1 && j >= cz && j <= cz + 1;
-      DrawLine3D({i * SIZE, 0.0f, j * SIZE}, {i * SIZE, TOP, j * SIZE}, ownCorner ? YELLOW : SKYBLUE);
+      Vector3 bottom       = Vector3Subtract({i * SIZE, 0.0f, j * SIZE}, cam);
+      Vector3 top          = Vector3Subtract({i * SIZE, TOP, j * SIZE}, cam);
+      DrawLine3D(bottom, top, ownCorner ? YELLOW : SKYBLUE);
     }
   }
 
   // Your chunk's outline at your feet, so you can see where the edge is at ground level.
-  const Vector3 c00 = {cx * SIZE, pos.y, cz * SIZE};
-  const Vector3 c10 = {(cx + 1) * SIZE, pos.y, cz * SIZE};
-  const Vector3 c11 = {(cx + 1) * SIZE, pos.y, (cz + 1) * SIZE};
-  const Vector3 c01 = {cx * SIZE, pos.y, (cz + 1) * SIZE};
+  const Vector3 c00 = Vector3Subtract({cx * SIZE, pos.y, cz * SIZE}, cam);
+  const Vector3 c10 = Vector3Subtract({(cx + 1) * SIZE, pos.y, cz * SIZE}, cam);
+  const Vector3 c11 = Vector3Subtract({(cx + 1) * SIZE, pos.y, (cz + 1) * SIZE}, cam);
+  const Vector3 c01 = Vector3Subtract({cx * SIZE, pos.y, (cz + 1) * SIZE}, cam);
   DrawLine3D(c00, c10, YELLOW);
   DrawLine3D(c10, c11, YELLOW);
   DrawLine3D(c11, c01, YELLOW);
@@ -489,6 +523,11 @@ void Game::drawDebug() {
   if (IsKeyPressed(KEY_R)) {
     client.disconnect(); // applyNetworkUpdates starts a fresh session next frame
   }
+  if (IsKeyPressed(KEY_F7)) {
+    nearPlaneStep = (nearPlaneStep + 1) % 5;
+    // Far only has to clear the furthest block drawn, so it tracks render distance.
+    rlSetClipPlanes(NEAR_PLANES[nearPlaneStep], GameState::shared().getRenderDistance() + 100.0);
+  }
 
   constexpr int ROWSIZE  = 30;
   constexpr int FONTSIZE = 20;
@@ -525,6 +564,11 @@ void Game::drawDebug() {
     DrawText(chunkText, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
+    const char *nearText = TextFormat("F7 near: %.2f", NEAR_PLANES[nearPlaneStep]);
+    DrawText(nearText, 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(nearText, 10, rowPos, FONTSIZE, LIME);
+    rowPos += ROWSIZE;
+
     rowPos += ROWSIZE / 2; // small gap before the next section
 
     DrawText("World:", 10, rowPos, FONTSIZE, RED);
@@ -533,7 +577,7 @@ void Game::drawDebug() {
     DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Shown (post-cull): %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("Faces drawn: %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
     DrawText(TextFormat("Player update: %.2f ms", playerUpdateMs), 10, rowPos, FONTSIZE, RED);

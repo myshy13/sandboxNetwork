@@ -22,12 +22,11 @@ void Client::sendPlayerPosition(const Transform &transform, float pitch, float y
   transport->send(bytes, false);
 };
 
-void Client::createBullet(const Camera3D &camera) {
+void Client::createBullet(Vector3 origin, Vector3 dir) {
   if (playerId == -1)
     return;
-  Vector3 dir = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-  auto bytes  = proto::pack(proto::Type::CreateBullet,
-                            proto::CreateBullet{camera.position, dir});
+  auto bytes = proto::pack(proto::Type::CreateBullet,
+                           proto::CreateBullet{origin, dir});
   transport->send(bytes, true);
 }
 

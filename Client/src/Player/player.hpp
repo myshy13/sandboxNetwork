@@ -22,6 +22,8 @@ public:
 
   void Update(float dt, Camera3D &camera, const World &world);
   void UpdateCamera(Camera3D &camera) const;
+  // Exact look direction, unaffected by how far transform.translation is from the origin.
+  Vector3 getLookForward() const;
   const Transform &getTransform() const {
     return transform;
   };

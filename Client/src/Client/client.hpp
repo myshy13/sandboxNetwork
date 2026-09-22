@@ -83,7 +83,7 @@ private:
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
-  void createBullet(const Camera3D &camera);
+  void createBullet(Vector3 origin, Vector3 dir);
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);
   void placeObject(const Object &object);

@@ -154,11 +154,19 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
 // movement is frozen - a respawn while paused moves us, and the view has to
 // come along or it looks like the respawn never happened.
 void Player::UpdateCamera(Camera3D &camera) const {
-  Vector3 lookForward = Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
-
   Vector3 head    = Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
   camera.position = head;
-  camera.target   = Vector3Add(head, lookForward);
+  // camera.target only has to be *a* point in the look direction - GetCameraMatrix and
+  // the frustum cull just need a direction out of it, so this loses nothing they use.
+  // Anything that needs the exact direction (the origin-relative render camera, the
+  // pick ray) should use getLookForward() instead: far from the origin, this add rounds
+  // away anything finer than head's float precision, which is coarser than a mouselook
+  // step, so reading the direction back out of this point would stutter.
+  camera.target = Vector3Add(head, getLookForward());
+}
+
+Vector3 Player::getLookForward() const {
+  return Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
 }
 
 Player::Player() {

@@ -8,9 +8,18 @@
 
 BoundingBox objectBox(const ObjectTransform &t);
 
+// Face order: +X, -X, +Y, -Y, +Z, -Z.
+const Vector3 Renderer::FACE_DIR[6] = {
+    {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+
+const Matrix Renderer::FACE_ROT[6] = {
+    MatrixRotateZ(-PI / 2), MatrixRotateZ(PI / 2),
+    MatrixIdentity(), MatrixRotateX(PI),
+    MatrixRotateX(PI / 2), MatrixRotateX(-PI / 2)};
+
 Renderer::Renderer() {
-  cubeMesh  = GenMeshCube(1, 1, 1);
-  Model tmp = LoadModelFromMesh(cubeMesh);
+  faceMesh  = GenMeshPlane(1, 1, 1, 1); // lies in XZ, normal +Y; FACE_ROT turns it
+  Model tmp = LoadModelFromMesh(faceMesh);
   cubeMat   = tmp.materials[0];
 }
 
@@ -21,7 +30,7 @@ Renderer::~Renderer() {
     if (colorVBO[i])
       rlUnloadVertexBuffer(colorVBO[i]);
   }
-  UnloadMesh(cubeMesh);
+  UnloadMesh(faceMesh);
 }
 void Renderer::ensureBufferCapacity(int slot, size_t count) {
   if (count <= bufferCapacity[slot])
@@ -59,10 +68,20 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, con
 
   GridCell cell;
   for (int i : *blocks) {
-    if (world.isOccluded(objects[i]))
+    const ObjectTransform &t = objects[i].getTransform();
+
+    // A face is drawn only where there's no neighbour to hide it, so no two
+    // faces ever land on the same plane.
+    uint8_t mask = 0;
+    for (int f = 0; f < 6; f++) {
+      Vector3 neighbour = Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
+      if (!world.isOccupied(neighbour))
+        mask |= (uint8_t)(1 << f);
+    }
+    if (mask == 0)
       continue; // fully buried, never contributes a visible pixel
 
-    BoundingBox box = objectBox(objects[i].getTransform());
+    BoundingBox box = objectBox(t);
     if (cell.indices.empty()) {
       cell.bounds = box;
     } else {
@@ -70,6 +89,7 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, con
       cell.bounds.max = Vector3Max(cell.bounds.max, box.max);
     }
     cell.indices.push_back(i);
+    cell.faceMasks.push_back(mask);
   }
 
   if (!cell.indices.empty())
@@ -101,8 +121,8 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
     if (Vector3Distance(Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5), camera.position) > GameState::shared().getRenderDistance())
       continue;
 
-    for (int i : cell.indices) {
-      Object &o         = objects[i];
+    for (size_t n = 0; n < cell.indices.size(); n++) {
+      Object &o         = objects[cell.indices[n]];
       ObjectTransform t = o.getTransform();
       BoundingBox box   = objectBox(t);
 
@@ -119,17 +139,23 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
         }
       }
 
-      Matrix m = MatrixIdentity();
-      m.m0     = t.scale.x;
-      m.m5     = t.scale.y;
-      m.m10    = t.scale.z;
-      m.m12    = t.pos.x;
-      m.m13    = t.pos.y;
-      m.m14    = t.pos.z;
-      instanceMats.push_back(m);
+      Color c        = o.getColor();
+      Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
+      uint8_t mask   = cell.faceMasks[n];
 
-      Color c = o.getColor();
-      instanceColors.push_back({c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f});
+      for (int f = 0; f < 6; f++) {
+        if (!(mask & (1 << f)))
+          continue;
+        // Quad sits on the block's surface: centre + half a block along the face normal.
+        // Drawn camera-relative: world coordinates far from the origin lose precision
+        // in the shader's matrix multiply. Subtracting two nearby floats is exact.
+        Vector3 at = Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
+        at         = Vector3Subtract(at, camera.position);
+        Matrix m   = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
+        m          = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+        instanceMats.push_back(m);
+        instanceColors.push_back(colour);
+      }
     }
   }
 
@@ -147,7 +173,7 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
     rlUpdateVertexBuffer(colorVBO[currentBuffer], instanceColors.data(),
                          (int)(instanceColors.size() * sizeof(Vector4)), 0);
 
-    rlEnableVertexArray(cubeMesh.vaoId);
+    rlEnableVertexArray(faceMesh.vaoId);
     rlEnableVertexBuffer(transformVBO[currentBuffer]);
     for (int i = 0; i < 4; i++) {
       int loc = transformLoc + i;
@@ -162,7 +188,7 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
     rlDisableVertexArray();
 
     cubeMat.shader = lighting.getShader();
-    DrawMeshInstanced(cubeMesh, cubeMat, instanceMats.data(), (int)instanceMats.size());
+    DrawMeshInstanced(faceMesh, cubeMat, instanceMats.data(), (int)instanceMats.size());
   }
 
   lastGpuMs = (GetTime() - gpuStart) * 1000.0;

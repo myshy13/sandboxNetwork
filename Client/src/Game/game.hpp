@@ -38,6 +38,8 @@ private:
 #ifdef DEBUG
   bool showDebug        = false;
   bool showChunkBorders = false; // F4
+  int nearPlaneStep                      = 0;     // F7: cycles NEAR_PLANES, for depth precision
+  static constexpr double NEAR_PLANES[5] = {0.01, 0.5, 1.0, 2.0, 4.0};
   double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
   double drawObjectsMs  = 0.0; // Renderer::drawObjects, incl. frustum cull + instancing
 #endif

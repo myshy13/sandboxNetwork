@@ -19,12 +19,18 @@ public:
                       const Lighting &lighting,
                       const Camera3D &camera);
   size_t getLastDrawnCount() const { return instanceMats.size(); }
+
   double getLastCullMs() const { return lastCullMs; }
   double getLastGpuMs() const { return lastGpuMs; }
 
 private:
-  Mesh cubeMesh;
+  // One quad, instanced once per *visible face*. Drawing whole cubes would put two
+  // coincident faces at every block boundary, which z-fight at distance.
+  Mesh faceMesh;
   Material cubeMat;
+  // Rotations taking the quad's +Y normal onto each of the 6 face directions.
+  static const Matrix FACE_ROT[6];
+  static const Vector3 FACE_DIR[6];
 
   static constexpr int BUFFER_COUNT       = 2; // double-buffered: CPU writes one while GPU reads the other
   unsigned int transformVBO[BUFFER_COUNT] = {0, 0};
@@ -42,6 +48,8 @@ private:
   // World reports dirty get rebuilt, never the whole map.
   struct GridCell {
     std::vector<int> indices; // into the objects vector passed to drawObjects
+    // Parallel to `indices`: bit f set means face f has no neighbour, so it's drawn.
+    std::vector<uint8_t> faceMasks;
     BoundingBox bounds{};
   };
   std::unordered_map<int64_t, GridCell> grid;

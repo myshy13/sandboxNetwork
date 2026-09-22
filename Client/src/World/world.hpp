@@ -37,7 +37,8 @@ public:
   bool isChunkLoaded(int cx, int cz) const;
 
   std::vector<Object> &getObjects();
-  bool isOccluded(const Object &o) const;
+  // True if a block sits in the cell containing pos (the renderer's face-neighbour test).
+  bool isOccupied(Vector3 pos) const;
   // True if box overlaps a placed block. Only tests the handful of grid
   // cells box spans, not every object - see occupiedCells.
   bool boxCollides(BoundingBox box) const;

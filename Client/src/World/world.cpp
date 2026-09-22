@@ -259,27 +259,8 @@ std::vector<Object> &World::getObjects() {
   return objects;
 }
 
-bool World::isOccluded(const Object &o) const {
-  Vector3 pos = o.getTransform().pos;
-  // +x
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {blockSize.x, 0, 0}))))
-    return false;
-  // -x
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {-blockSize.x, 0, 0}))))
-    return false;
-  // +y
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, blockSize.y, 0}))))
-    return false;
-  // -y
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, -blockSize.y, 0}))))
-    return false;
-  // +z
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, 0, blockSize.z}))))
-    return false;
-  // -z
-  if (!occupiedCells.contains(cellKey(Vector3Add(pos, {0, 0, -blockSize.z}))))
-    return false;
-  return true;
+bool World::isOccupied(Vector3 pos) const {
+  return occupiedCells.contains(cellKey(pos));
 }
 
 bool World::boxCollides(BoundingBox box) const {
