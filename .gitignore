@@ -8,6 +8,8 @@ Server/build/
 **/.DS_Store
 Client/src/env.hpp
 
-# server save file
+# server
 *.bin
 save.bin
+
+Server/server.log

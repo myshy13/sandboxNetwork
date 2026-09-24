@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 std::atomic<bool> keep_running(true);
 
@@ -53,6 +52,12 @@ int main(int argc, char **argv) {
       return EXIT_FAILURE;
     }
   }
+
+  // After arg parsing so --help and bad args still reach the terminal.
+  std::printf("logging to server.log\n");
+  std::freopen("server.log", "a", stdout);
+  std::freopen("server.log", "a", stderr);
+  std::setvbuf(stdout, nullptr, _IOLBF, 0); // a file is fully buffered by default
 
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
