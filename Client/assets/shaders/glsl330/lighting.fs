@@ -11,7 +11,11 @@ uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 
 // Output fragment color
+#ifdef GL_ES
+#define finalColor gl_FragColor
+#else
 out vec4 finalColor;
+#endif
 
 // NOTE: Add here your custom variables
 
@@ -31,6 +35,10 @@ struct Light {
 uniform Light lights[MAX_LIGHTS];
 uniform vec4 ambient;
 uniform vec3 viewPos;
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 void main()
 {
@@ -75,4 +83,7 @@ void main()
 
     // Gamma correction
     finalColor = pow(finalColor, vec4(1.0/2.2));
+
+    // Noise keyed to world position so the grain sticks to surfaces; 0.04 = strength
+    finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.04;
 }

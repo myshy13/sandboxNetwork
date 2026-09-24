@@ -138,11 +138,13 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 # ---------------------------------------------------------------------------
 # Keep assets next to the binary for native builds so relative paths
 # (e.g. "assets/models/foo.glb") work the same in-editor and when run.
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+# A target with no OUTPUT is always out of date, so this runs every build (even shader-only edits).
+add_custom_target(copy_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             "${CMAKE_SOURCE_DIR}/assets"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
 )
+add_dependencies(${PROJECT_NAME} copy_assets)
 
 # ---------------------------------------------------------------------------
 # Emscripten (web) specifics
