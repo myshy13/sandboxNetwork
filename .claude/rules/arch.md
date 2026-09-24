@@ -9,7 +9,8 @@ Client/src/
   Game/        Game class: owns every subsystem + per-frame state, frame() = update then draw
   World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks
   Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)
-  Menu/        home menu screen (per-frame draw + button hit tests)
+  Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
+  UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler)
   Settings/    settings screen (reached from the menu; writes values into GameState)
   AssetManager/ owns loaded assets (textures now); enum-indexed get(); built in main.cpp, destroyed before CloseWindow()
   GameState/   singleton shared by menu/settings/game: current MenuState + user settings (e.g. render distance)

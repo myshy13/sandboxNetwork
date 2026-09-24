@@ -360,7 +360,7 @@ void Server::generateChunk(int cx, int cz) {
 
       Object top(nextObjectId,
                  ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
-      int topDamage = terrain.heightAt(cellX, cellZ) % 3;
+      int topDamage = terrain.hash(cellX, cellZ) % 3;
       for (int i = 0; i < topDamage; i++) {
         top.damage();
       }

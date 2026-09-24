@@ -1,7 +1,7 @@
 #include "AssetManager/manager.hpp"
 #include "Game/game.hpp"
 #include "GameState/gameState.hpp"
-#include "Menu/menu.hpp"
+#include "Home/home.hpp"
 #include "Protocol/protocol.hpp"
 #include "Settings/settings.hpp"
 #include "env.hpp"
@@ -36,7 +36,7 @@ int main() {
   {
     AssetManager assets; // declared before Game so it outlives it
     Game game(assets);
-    Menu menu;
+    Home home;
     Settings settings;
     EnableCursor(); // Player's constructor captured it; the menu needs a pointer
 
@@ -44,7 +44,7 @@ int main() {
       if (gameState.getMenu() == MenuState::PLAYING) {
         game.frame();
       } else if (gameState.getMenu() == MenuState::HOME) {
-        menu.frame();
+        home.frame();
       } else {
         settings.frame();
       }
