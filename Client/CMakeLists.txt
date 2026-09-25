@@ -118,6 +118,10 @@ else()
     # The ENet transport runs its network thread with std::thread.
     find_package(Threads REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads)
+    # ENet is a static lib and does not pass its Windows socket/timer libs on to us
+    if(WIN32)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm)
+    endif()
 endif()
 
 # Treat raylib's headers as system headers so its own -Wall/-Wextra

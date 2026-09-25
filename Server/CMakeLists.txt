@@ -88,6 +88,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 find_package(Threads REQUIRED) # std::async for the background world save
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket Threads::Threads)
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm) # same ENet gap as the client
+endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>

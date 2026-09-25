@@ -1,5 +1,7 @@
 # sandboxNetwork
 
+[![Build](https://github.com/myshy13/sandboxNetwork/actions/workflows/build.yml/badge.svg)](https://github.com/myshy13/sandboxNetwork/actions/workflows/build.yml)
+
 A small multiplayer 3D shooter, built to learn how multiplayer games fit
 together: a raylib client (native **and** browser), one authoritative server, and
 a shared binary protocol between them.
@@ -8,7 +10,7 @@ Native clients talk to the server over **ENet/UDP**. Browsers can't open raw UDP
 sockets, so the web build talks **WebSocket** to an optional proxy running inside
 the same server process. Both kinds of client land in the same game world.
 
-```
+```c++
    native client  ──UDP/ENet────────►┐
                                      ├──►  server (players, bullets, hit detection)
    web client     ──TCP/WebSocket───►┘
@@ -37,7 +39,7 @@ are reliable. There's no persistence — restart the server and the world resets
 ## Prerequisites
 
 | | |
-|---|---|
+| --- | --- |
 | CMake | 3.20+ |
 | Compiler | anything with C++20 support |
 | Git | needed at configure time — dependencies are fetched, not vendored |
@@ -61,7 +63,7 @@ cp Client/src/env.example.hpp Client/src/env.hpp
 ```
 
 | define | meaning |
-|---|---|
+| --- | --- |
 | `SERVER_IP` | server hostname or IP, no scheme (e.g. `"127.0.0.1"`) |
 | `SERVER_PORT` | server port (ENet and WebSocket share the number) |
 | `SERVER_WSS` | web build only — use `wss://` instead of `ws://` (needed when the page is served over https) |
@@ -120,7 +122,7 @@ least once first.
 
 ## Layout
 
-```
+```filesystem
 Client/src/
   main.cpp       window, game loop, HUD (chat, crosshair, damage flash)
   Client/        network-facing client: send/receive, player + bullet lists, chat, health
