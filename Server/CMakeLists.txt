@@ -61,6 +61,7 @@ FetchContent_MakeAvailable(cereal)
 # into the same game loop.
 # ---------------------------------------------------------------------------
 set(USE_TLS OFF CACHE BOOL "" FORCE)
+set(USE_ZLIB OFF CACHE BOOL "" FORCE) # not on Windows runners; only used for optional ws compression
 FetchContent_Declare(
   ixwebsocket
   GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
