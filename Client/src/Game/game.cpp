@@ -299,7 +299,7 @@ void Game::drawScene(float dt) {
   for (const auto &p : client.getPlayers()) {
     Transform transform;
     transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
-    transform.scale       = {1, 10, 1};
+    transform.scale       = env::PLAYER_SCALE;
     transform.translation = Vector3Subtract(p.pos, camera.position);
     Vector3 localPos      = Vector3Subtract(player.getTransform().translation, camera.position);
     if (p.name.has_value()) {
@@ -503,7 +503,7 @@ void Game::drawOverlays(float dt) {
   } else if (!paused) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
-    DrawCircleV(centre, (float)GetScreenHeight() / 1080, WHITE);
+    DrawCircleV(centre, (float)GetScreenHeight() / 480, WHITE);
   } else if (!paused && !chunkUnderPlayerLoaded()) {
     DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
   }
