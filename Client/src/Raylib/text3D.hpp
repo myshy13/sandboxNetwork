@@ -56,7 +56,7 @@ static void DrawTextCodepoint3D(Font font, int codepoint, Vector3 position, floa
     const float th = (srcRec.y + srcRec.height) / font.texture.height;
 
     if (SHOW_LETTER_BOUNDRY)
-      DrawCubeWiresV((Vector3){position.x + width / 2, position.y, position.z + height / 2}, (Vector3){width, LETTER_BOUNDRY_SIZE, height}, LETTER_BOUNDRY_COLOR);
+      DrawCubeWiresV(Vector3{position.x + width / 2, position.y, position.z + height / 2}, Vector3{width, LETTER_BOUNDRY_SIZE, height}, LETTER_BOUNDRY_COLOR);
 
     rlCheckRenderBatchLimit(4 + 4 * backface);
     rlSetTexture(font.texture.id);
@@ -123,7 +123,7 @@ inline static void DrawText3D(Font font, const char *text, Vector3 position, flo
       textOffsetX = 0.0f;
     } else {
       if ((codepoint != ' ') && (codepoint != '\t')) {
-        DrawTextCodepoint3D(font, codepoint, (Vector3){position.x + textOffsetX, position.y, position.z + textOffsetY}, fontSize, backface, tint);
+        DrawTextCodepoint3D(font, codepoint, Vector3{position.x + textOffsetX, position.y, position.z + textOffsetY}, fontSize, backface, tint);
       }
 
       if (font.glyphs[index].advanceX == 0)
