@@ -182,7 +182,7 @@ Player::Player() {
   DisableCursor();
 }
 
-static void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
+void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
   Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
   Matrix matRotation = QuaternionToMatrix(transform.rotation);
   Matrix matTranslation =
