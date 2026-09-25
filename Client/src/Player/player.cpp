@@ -137,7 +137,7 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   if (!inputEnabled)
     mouseDelta = {0.0f, 0.0f};
 
-  float mouseSensitivity = 0.003f;
+  float mouseSensitivity = 0.00301f;
 
   yaw -= mouseDelta.x * mouseSensitivity;
   pitch -= mouseDelta.y * mouseSensitivity;
@@ -182,7 +182,7 @@ Player::Player() {
   DisableCursor();
 }
 
-void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
+static void Player::DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos) {
   Matrix matScale    = MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
   Matrix matRotation = QuaternionToMatrix(transform.rotation);
   Matrix matTranslation =
