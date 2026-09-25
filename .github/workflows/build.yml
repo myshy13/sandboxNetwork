@@ -33,6 +33,14 @@ jobs:
         shell: bash
         run: cp Client/src/env.example.hpp Client/src/env.hpp
 
+      # Keeps fetched deps and compiled objects between runs; busts when any CMakeLists changes
+      - uses: actions/cache@v4
+        with:
+          path: |
+            Client/build
+            Server/build
+          key: build-${{ matrix.name }}-${{ hashFiles('**/CMakeLists.txt') }}
+
       - name: Build client
         run: |
           cmake -S Client -B Client/build -DCMAKE_BUILD_TYPE=Release
