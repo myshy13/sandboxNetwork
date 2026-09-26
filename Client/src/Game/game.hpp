@@ -38,6 +38,7 @@ private:
 #ifdef DEBUG
   bool showDebug        = false;
   bool showChunkBorders = false; // F4
+  bool showCollisionDebug = false; // F5
   int nearPlaneStep                      = 0;     // F7: cycles NEAR_PLANES, for depth precision
   static constexpr double NEAR_PLANES[5] = {0.01, 0.5, 1.0, 2.0, 4.0};
   double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
@@ -56,6 +57,7 @@ private:
   // ==== draw ==== //
   void drawScene(float dt);
   void drawChunkBorders();
+  void drawCollisionDebug();
   void drawHealthBar();
   void drawChat();
   void drawScoreboard();

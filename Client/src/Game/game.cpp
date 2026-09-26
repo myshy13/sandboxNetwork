@@ -313,9 +313,39 @@ void Game::drawScene(float dt) {
     DrawSphere(pos, 0.35f, Color{89, 255, 241, 255});
     DrawCylinderEx(pos, Vector3Subtract(pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
   }
+  drawCollisionDebug();
   drawChunkBorders();
 
   EndMode3D();
+}
+
+// F5: red wireframes on every cell the collision grid treats as solid near you, green for your hitbox.
+void Game::drawCollisionDebug() {
+#ifdef DEBUG
+  if (IsKeyPressed(KEY_F5)) {
+    showCollisionDebug = !showCollisionDebug;
+  }
+  if (!showCollisionDebug) {
+    return;
+  }
+
+  constexpr float CELL = 5.0f; // same as blockSize in world.cpp
+  const Vector3 feet   = player.getTransform().translation;
+  for (int dx = -3; dx <= 3; dx++) {
+    for (int dy = -2; dy <= 3; dy++) {
+      for (int dz = -3; dz <= 3; dz++) {
+        Vector3 c = {(floorf(feet.x / CELL) + dx + 0.5f) * CELL,
+                     (floorf(feet.y / CELL) + dy + 0.5f) * CELL,
+                     (floorf(feet.z / CELL) + dz + 0.5f) * CELL};
+        if (world.isOccupied(c)) {
+          DrawCubeWiresV(Vector3Subtract(c, camera.position), {CELL, CELL, CELL}, RED);
+        }
+      }
+    }
+  }
+  const Vector3 size = player.getTransform().scale;
+  DrawCubeWiresV(Vector3Subtract(Vector3Add(feet, {0, size.y * 0.5f, 0}), camera.position), size, GREEN);
+#endif
 }
 
 // F4: draws the server's streaming chunk grid around you, with your own chunk in yellow.
