@@ -52,9 +52,9 @@ static int64_t cellKey(Vector3 coord) {
   Vector3 cell = Vector3Divide(coord, blockSize);
 
   constexpr int64_t OFFSET = 1 << 20;
-  int64_t x                = std::lround(cell.x) + OFFSET;
-  int64_t y                = std::lround(cell.y) + OFFSET;
-  int64_t z                = std::lround(cell.z) + OFFSET;
+  int64_t x                = std::floorf(cell.x) + OFFSET;
+  int64_t y                = std::floorf(cell.y) + OFFSET;
+  int64_t z                = std::floorf(cell.z) + OFFSET;
 
   return (x << 42) | (y << 21) | z;
 }
