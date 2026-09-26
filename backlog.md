@@ -136,7 +136,7 @@ Right now `World::draw` just draws `DrawGrid`. Spawn into something.
 - [ ] an actual gun model in first person + muzzle flash
 - [ ] fix the kills menu
 - [x] better crosshair (hit-marker feedback on a confirmed hit)
-- [ ] bigger / better player model — a stickman instead of the current
+- [x] bigger / better player model — a stickman instead of the current
       "uncooked french fry"
 - [ ] respawn timer + spawn-point selection instead of instant respawn
 - [ ] health regen or pickups

@@ -91,6 +91,7 @@ find_package(Threads REQUIRED) # std::async for the background world save
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket Threads::Threads)
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm) # same ENet gap as the client
+    target_compile_definitions(${PROJECT_NAME} PRIVATE NOGDI NOUSER) # keep windows.h from clashing with raylib's CloseWindow/ShowCursor
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE
