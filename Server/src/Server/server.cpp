@@ -345,6 +345,27 @@ void Server::ensureChunk(int cx, int cz) {
   generateChunk(cx, cz);
 };
 
+// Random column, standing on the tallest cell the player's box overlaps.
+Vector3 Server::randomSpawn() const {
+  Vector3 spawn;
+  spawn.x = rand() % 200 - 100;
+  spawn.z = rand() % 200 - 100;
+
+  // floorf, not an int cast: the cast rounds toward zero, so negative x/z pick the wrong cell.
+  int minX = (int)floorf((spawn.x - PLAYER_SCALE.x / 2) / BLOCK_SIZE);
+  int maxX = (int)floorf((spawn.x + PLAYER_SCALE.x / 2) / BLOCK_SIZE);
+  int minZ = (int)floorf((spawn.z - PLAYER_SCALE.z / 2) / BLOCK_SIZE);
+  int maxZ = (int)floorf((spawn.z + PLAYER_SCALE.z / 2) / BLOCK_SIZE);
+
+  int height = 0;
+  for (int cellX = minX; cellX <= maxX; cellX++)
+    for (int cellZ = minZ; cellZ <= maxZ; cellZ++)
+      height = std::max(height, terrain.heightAt(cellX, cellZ));
+
+  spawn.y = (height + 1) * BLOCK_SIZE + BLOCK_SIZE / 2 + PLAYER_SCALE.y; // a bit above
+  return spawn;
+}
+
 void Server::generateChunk(int cx, int cz) {
   constexpr Vector3 blockSize = {BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE};
   // A large odd offset so a below-layer's damage roll doesn't reuse another
@@ -446,14 +467,8 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
   Player newPlayer;
   newPlayer.id = id;
-  Vector3 spawnPos;
-  spawnPos.x = rand() % 200 - 100;
-  spawnPos.z = rand() % 200 - 100;
-  spawnPos.y =
-      (terrain.heightAt(spawnPos.x / BLOCK_SIZE, spawnPos.z / BLOCK_SIZE) + 1) *
-          BLOCK_SIZE +
-      BLOCK_SIZE / 2 + PLAYER_SCALE.y; // spawn a bit above
-  newPlayer.pos = spawnPos;
+  Vector3 spawnPos = randomSpawn();
+  newPlayer.pos    = spawnPos;
   players.push_back(newPlayer);
   views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives before the first tick has a view to set
 
@@ -810,14 +825,7 @@ void Server::tick(float dt) {
         p.health--;
 
         if (p.health <= 0) {
-          Vector3 spawnPos;
-          spawnPos.x = rand() % 200 - 100;
-          spawnPos.z = rand() % 200 - 100;
-          spawnPos.y = (terrain.heightAt(spawnPos.x / BLOCK_SIZE,
-                                         spawnPos.z / BLOCK_SIZE) +
-                        1) *
-                           BLOCK_SIZE +
-                       BLOCK_SIZE / 2 + PLAYER_SCALE.y; // spawn a bit above
+          Vector3 spawnPos = randomSpawn();
           p.health = env::PLAYER_MAX_HEALTH;
           p.pos = spawnPos;
           sendTo(p.id,

@@ -127,6 +127,7 @@ class Server {
   void generateWorld();
   // Builds chunk (cx, cz) from `terrain` and adds its blocks via addBlock.
   void generateChunk(int cx, int cz);
+  Vector3 randomSpawn() const;
   void ensureChunk(int cx, int cz);
 
 public:
