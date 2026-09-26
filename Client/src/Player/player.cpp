@@ -97,7 +97,7 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   if (!onGround) {
     velocity.y -= GRAVITY * dt;
     // Terminal velocity: cap how fast we can fall.
-    constexpr float TERMINAL_VELOCITY = -80.0f;
+    constexpr float TERMINAL_VELOCITY = -120.0f;
     velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
   }
   // to stop tiny fractions
