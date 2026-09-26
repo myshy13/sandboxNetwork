@@ -17,14 +17,14 @@ int main() {
   GameState &gameState = GameState::shared();
   // suppresses raylib's unnecessary logging levels
   SetTraceLogLevel(LOG_WARNING);
-  std::cout << "Game version: " << VERSION << "\n";
+  std::cout << "Game version: " << env::VERSION << "\n";
   std::cout << "protocol version: " << proto::PROTOCOL_VERSION << "\n";
 
   // The window (GL context) must exist before Game/Menu: Lighting and Renderer load GPU resources.
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI | FLAG_VSYNC_HINT);
   std::cout << "Create window\n";
   // get Monitor
-  InitWindow(1280, 720, std::string("Sandbox Network - " + std::string(VERSION)).c_str());
+  InitWindow(1280, 720, std::string(("Sandbox Network - " + env::VERSION)).c_str());
 
   int mw = GetMonitorWidth(GetCurrentMonitor());
   int mh = GetMonitorHeight(GetCurrentMonitor());

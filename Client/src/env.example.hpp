@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sharedEnv.hpp"
+#include <string>
 
 // ==== connection config ==== //
 namespace env {
@@ -8,13 +9,14 @@ constexpr const char *SERVER_IP = "127.0.0.1";
 constexpr int SERVER_PORT       = 9798;
 constexpr int MAX_HEALTH        = 20; // must match the server's env::PLAYER_MAX_HEALTH
 constexpr Vector3 PLAYER_SCALE  = SHARED_PLAYER_SCALE;
+constexpr std::string VERSION   = SHARED_VERSION;
 } // namespace env
 
 // Compile-time toggles
 // #define SERVER_WSS  // wss:// instead of ws:// (define when the page is https)
 #define DEBUG
 
-// #define CHEATS // debug stuff (for testing)
+#define CHEATS // debug stuff (for testing)
 #define CHAT
 
 #ifdef CHEATS
@@ -22,5 +24,3 @@ constexpr Vector3 PLAYER_SCALE  = SHARED_PLAYER_SCALE;
 #else
 #define REACH 50.0f
 #endif
-
-#define VERSION "0.4.0" // chunk streaming (interest management, loading gate), Release build by default
