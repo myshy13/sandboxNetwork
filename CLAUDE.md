@@ -33,6 +33,7 @@ Do not do any code unless you have concrete evidence that they already would kno
   Ask a question only when there is a real design choice for the creator to make, never as a quiz.
 - The creator trusts Claude's design judgement: give one recommendation with the reasoning, not a menu of options.
 - Plans for larger work live in `plan.md`; keep it current as steps finish.
+- Known bugs live in `bugs.md` (numbered, repo root); "bug #N" means that list. Remove an entry once fixed.
 
 ## Git
 

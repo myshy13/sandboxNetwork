@@ -1,15 +1,34 @@
-.DS_Store
-.cache
+# ==== build output ==== #
 build/
-.vscode
-Client/build/
-Client/build-web/
-Server/build/
-**/.DS_Store
+build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# ==== editor / OS ==== #
+.vscode/
+.idea/
+.cache/
+*.swp
+.DS_Store
+
+# ==== local config ==== #
 Client/src/env.hpp
+.claude/settings.local.json
+.env*
 
-# server
+# ==== server runtime ==== #
 *.bin
-save.bin
+*.log
 
-Server/server.log
+# ==== compiled artifacts ==== #
+*.o
+*.obj
+*.a
+*.dylib
+*.so
+*.exe
+*.dSYM/
+*.wasm
