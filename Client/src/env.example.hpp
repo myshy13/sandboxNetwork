@@ -7,7 +7,7 @@
 namespace env {
 constexpr const char *SERVER_IP = "127.0.0.1";
 constexpr int SERVER_PORT       = 9798;
-constexpr int MAX_HEALTH        = SHARED_PLAYER_HEALTH; // must match the server's env::PLAYER_MAX_HEALTH
+constexpr int MAX_HEALTH        = SHARED_PLAYER_HEALTH;
 constexpr Vector3 PLAYER_SCALE  = SHARED_PLAYER_SCALE;
 constexpr std::string VERSION   = SHARED_VERSION;
 } // namespace env

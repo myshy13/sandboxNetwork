@@ -1,7 +1,5 @@
 # sandboxNetwork
 
-[![Build](https://github.com/myshy13/sandboxNetwork/actions/workflows/build.yml/badge.svg)](https://github.com/myshy13/sandboxNetwork/actions/workflows/build.yml)
-
 A small multiplayer 3D shooter, built to learn how multiplayer games fit
 together: a raylib client (native **and** browser), one authoritative server, and
 a shared binary protocol between them.
