@@ -99,6 +99,43 @@ if(APPLE AND NOT BUILD_WEB)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.sandboxnetwork.client"
         MACOSX_BUNDLE_BUNDLE_NAME "${PROJECT_NAME}"
     )
+
+    # Opt-in signing: cmake -DSIGN_MACOS=ON -DSIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+    # or SIGN_IDENTITY="-" for an ad-hoc seal (no account; can't be notarized)
+    option(SIGN_MACOS "Sign the .app on Release builds" OFF)
+    set(SIGN_IDENTITY "" CACHE STRING "codesign identity")
+    set(NOTARY_PROFILE "notary" CACHE STRING "notarytool keychain profile")
+
+    if(SIGN_MACOS AND CMAKE_BUILD_TYPE STREQUAL "Release")
+        if(NOT SIGN_IDENTITY)
+            message(FATAL_ERROR "SIGN_MACOS needs -DSIGN_IDENTITY=...")
+        endif()
+        set(APP_BUNDLE "$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>")
+        set(SIGN_FLAGS --options runtime --timestamp) # hardened runtime + timestamp: Developer ID only
+        if(SIGN_IDENTITY STREQUAL "-")
+            set(SIGN_FLAGS)
+        endif()
+
+        # Post-build runs after copy_assets (a dependency), so the seal covers them
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND codesign --force --deep ${SIGN_FLAGS}
+                    --sign "${SIGN_IDENTITY}" "${APP_BUNDLE}"
+            COMMAND codesign --verify --deep --strict "${APP_BUNDLE}"
+            VERBATIM
+        )
+
+        # Uploads to Apple and waits, so it's a separate target: cmake --build . --target notarize
+        if(NOT SIGN_IDENTITY STREQUAL "-")
+            add_custom_target(notarize
+                COMMAND ditto -c -k --keepParent "${APP_BUNDLE}" "${CMAKE_BINARY_DIR}/notarize.zip"
+                COMMAND xcrun notarytool submit "${CMAKE_BINARY_DIR}/notarize.zip"
+                        --keychain-profile "${NOTARY_PROFILE}" --wait
+                COMMAND xcrun stapler staple "${APP_BUNDLE}"
+                DEPENDS ${PROJECT_NAME}
+                VERBATIM
+            )
+        endif()
+    endif()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE

@@ -34,6 +34,17 @@ State that matters (positions, bullets, hits, health) is owned by the server.
 Position updates are best-effort; connect/disconnect, bullet spawn, hits and chat
 are reliable. There's no persistence — restart the server and the world resets.
 
+## Installing a release (macOS testers)
+
+The app isn't notarized, and browser downloads get quarantined, so use `curl`
+(it doesn't set the flag) and re-run the same line for every update:
+
+```bash
+curl -L https://github.com/myshy13/sandboxNetwork/releases/latest/download/client-macos.tar.gz | tar xz --strip-components=2
+```
+
+If you downloaded it in a browser instead: `xattr -dr com.apple.quarantine sandboxNetwork.app`.
+
 ## Prerequisites
 
 | | |
