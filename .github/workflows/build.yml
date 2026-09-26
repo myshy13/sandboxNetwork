@@ -15,7 +15,6 @@ jobs:
         include:
           - { os: ubuntu-latest,  name: linux,   client: "Client/build/sandboxNetwork Client/build/assets", server: Server/build/sandboxNetworkServer }
           - { os: macos-latest,   name: macos,   client: Client/build/*.app,             server: Server/build/sandboxNetworkServer }
-          - { os: windows-latest, name: windows, client: Client/build/Release,           server: Server/build/Release }
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -52,20 +51,11 @@ jobs:
           cmake --build Server/build --config Release
 
       # tar keeps the executable bit, which upload-artifact's zip drops
-      - name: Package (Linux/macOS)
-        if: matrix.name != 'windows'
+      - name: Package
         run: |
           mkdir dist
           tar -czf dist/client-${{ matrix.name }}.tar.gz ${{ matrix.client }}
           tar -czf dist/server-${{ matrix.name }}.tar.gz ${{ matrix.server }}
-
-      - name: Package (Windows)
-        if: matrix.name == 'windows'
-        shell: bash
-        run: |
-          mkdir -p dist/client-windows dist/server-windows
-          cp -r ${{ matrix.client }}/. dist/client-windows/
-          cp -r ${{ matrix.server }}/. dist/server-windows/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -84,10 +74,6 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Zip Windows folders
-        run: |
-          cd dist
-          for d in client-windows server-windows; do zip -r "$d.zip" "$d"; rm -r "$d"; done
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
