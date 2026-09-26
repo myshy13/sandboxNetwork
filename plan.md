@@ -89,9 +89,20 @@ Streaming means cost follows what is near each player, not how big the world is.
      plus `Server/test_terrain.cpp` in the `Server/Makefile` `test` target. **In progress (declarations only so far).**
    - **7b** `Server::generateChunk(cx, cz)`: per column, `heightAt`, a GREEN top block and BROWN below, damage from `hash`.
    - **7c** `generatedChunks` set; `updateView` calls `ensureChunk` before `sendChunk`.
-   - **7d** Drop `generateWorld` and the startup hang; store the seed in the save and rebuild `generatedChunks` on load.
+   - **7d** Drop `generateWorld` and the startup hang; store the seed in `meta.bin` (see step 8). `generatedChunks` stays
+     runtime-only: a chunk file on disk is the persistent "edited" marker, unedited chunks regenerate from the seed.
    - **7e** Spawn and respawn on the ground using `heightAt` (both sites set `y = 100` today).
 8. **Persistence per chunk:** save only dirty chunks, on the background thread; drop `save.bin`'s single blob.
+   Layout: `save/meta.bin` (seed, save format version, terrain generator version) plus `save/chunks/c.<cx>.<cz>.bin`,
+   one file per *edited* chunk (file count follows edits, not world size; region files only if that ever hurts).
+   - **8a** `SavedChunk` struct (format version, block count, cell-addressed blocks) with cereal `serialize`, in a header
+     next to `chunk.hpp`, plus a round-trip test in the `Server/Makefile` `test` target.
+   - **8b** Load path in `ensureChunk`: chunk file exists -> load it, else `generateChunk`. Load `meta.bin` before the
+     first `ensureChunk` (wrong seed otherwise); write it once on first creation.
+   - **8c** Save path: game thread snapshots each dirty chunk's blocks and clears its dirty flag *at snapshot time*
+     (clearing after the write loses edits made during it); the background thread writes `.tmp` then `rename()`s.
+   - Pitfalls: an empty chunk file is valid (fully mined-out chunk must not regenerate); mismatched generator
+     version in `meta.bin` -> refuse or warn, since unedited chunks would regenerate differently next to saved ones.
 
 Step 9 (client-side terrain from the seed) is dropped: the server always sends the chunks.
 
