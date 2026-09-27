@@ -79,11 +79,14 @@ void Game::applyNetworkUpdates() {
         world.unloadChunk(e.cx, e.cz);
       }
     }
-    for (const Object &o : client.takeNewObjects()) {
-      world.addObject(o);
-    }
+    // Removals before new objects: a place-over-water sends both in the same
+    // tick, and removeObject looks blocks up by position - reversed, it would
+    // remove the block just added instead of the one it's replacing.
     for (Vector3 pos : client.takeRemovedObjects()) {
       world.removeObject(pos);
+    }
+    for (const Object &o : client.takeNewObjects()) {
+      world.addObject(o);
     }
     for (Vector3 pos : client.takeDamagedObjects()) {
       world.damageObject(pos);

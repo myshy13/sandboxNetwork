@@ -114,7 +114,7 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   }
   float damping = powf(onGround ? 0.7f : 0.9f, dt * 60.0f);
   if (inWater) {
-    damping = 0.3f;
+    damping = 0.6f;
   }
   velocity.x *= damping;
   velocity.z *= damping;

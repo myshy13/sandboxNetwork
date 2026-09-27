@@ -174,24 +174,55 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
         }
       }
 
-      bool water     = o.getType() == BlockType::Water;
-      Color c        = o.getColor();
+      bool water = o.getType() == BlockType::Water;
+      // Only the surface layer drops - a block with water above it is fully
+      // submerged, so shrinking its top would open a gap inside the water body.
+      bool surface = water && !world.isWater(Vector3Add(t.pos, {0, t.scale.y, 0}));
+      Color c      = o.getColor();
       if (water) {
         c.a = 100;
       }
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
       uint8_t mask   = cell.faceMasks[n];
 
+      // Water sits WATER_DROP below a full block, so its surface reads as "not quite
+      // full" without opening a gap against whatever's below it.
+      constexpr float WATER_DROP = 0.6f;
+
       for (int f = 0; f < 6; f++) {
         if (!(mask & (1 << f)))
           continue;
-        // Quad sits on the block's surface: centre + half a block along the face normal.
-        // Drawn camera-relative: world coordinates far from the origin lose precision
-        // in the shader's matrix multiply. Subtracting two nearby floats is exact.
+
         Vector3 at = Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
-        at         = Vector3Subtract(at, camera.position);
-        Matrix m   = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
-        m          = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+        Matrix m;
+
+        // The quad is scaled before FACE_ROT rotates it onto the face, so which
+        // scale axis becomes "vertical" in world space depends on the face:
+        // top/bottom (identity/180 rotation) never rotate y into the plane at
+        // all, so only x/z (the footprint) matter there; the four side faces
+        // rotate their scale.x (+-X faces) or scale.z (+-Z faces) onto world Y.
+        if (surface && f == 2) {
+          // Top face: drop it, footprint untouched.
+          at.y -= WATER_DROP;
+          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
+        } else if (surface && (f == 0 || f == 1)) {
+          // +-X side faces.
+          at.y -= WATER_DROP * 0.5f; // shrinking is centred - shift half the drop so only the top edge moves
+          m = MatrixMultiply(MatrixScale(t.scale.x - WATER_DROP, t.scale.y, t.scale.z), FACE_ROT[f]);
+        } else if (surface && (f == 4 || f == 5)) {
+          // +-Z side faces.
+          at.y -= WATER_DROP * 0.5f;
+          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z - WATER_DROP), FACE_ROT[f]);
+        } else {
+          // Solid faces, submerged water (any face, not just the surface layer),
+          // and water's own bottom face: full size, no shift - must sit flush
+          // against whatever's below/beside it.
+          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
+        }
+
+        at = Vector3Subtract(at, camera.position);
+        m  = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+
         // Water goes in its own batch, drawn after the opaque one below: mixed into
         // the same batch, an unsorted translucent face can write depth in front of an
         // opaque one behind it and punch a hole through solid geometry.

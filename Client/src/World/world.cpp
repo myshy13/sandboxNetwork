@@ -60,6 +60,8 @@ static int64_t cellKey(Vector3 coord) {
 bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   RayCollision best{};
   best.distance = FLT_MAX;
+  // Water hit directly: you're replacing it in place, not building against a face.
+  bool onWater = false;
   // Walk the ray through the cell index instead of testing every block; only cells within REACH matter.
   constexpr float RAY_STEP = 0.25f; // far smaller than a cell, so no cell along the ray is skipped
   for (float t = 0.0f; t <= REACH; t += RAY_STEP) {
@@ -71,12 +73,18 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
     RayCollision rc = GetRayCollisionBox(aim, objectBox(objects[it->second].getTransform()));
     if (rc.hit) {
       best = rc;
+      onWater = objects[it->second].getType() == BlockType::Water;
       break;
     }
   }
 
   Vector3 target;
-  if (best.distance != FLT_MAX) {
+  if (best.distance != FLT_MAX && onWater) {
+    // Nudge past the surface along the ray (not the face normal - water has no
+    // "outward" face here) so snapToCell lands inside the water's own cell, not the
+    // neighbour it's bordering.
+    target = Vector3Add(best.point, Vector3Scale(aim.direction, 0.01f));
+  } else if (best.distance != FLT_MAX) {
     target = Vector3Add(best.point, Vector3Multiply(best.normal, Vector3Scale(env::BLOCKSIZE, 0.5f)));
   } else if (aim.direction.y < 0.0f) {
     float dist = -aim.position.y / aim.direction.y;
@@ -91,8 +99,9 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
 
   Vector3 cell = snapToCell(target);
 
-  if (occupiedCells.contains(cellKey(cell))) {
-    return false; // one block per cell
+  auto occupant = occupiedCells.find(cellKey(cell));
+  if (occupant != occupiedCells.end() && objects[occupant->second].getType() != BlockType::Water) {
+    return false; // one block per cell - water is the only thing you can place over
   }
 
   BoundingBox player;
