@@ -27,6 +27,10 @@ Game::Game(const AssetManager &a) : assets(a) {
       {-50.0f, 100.0f, -40.0f},
       {0.0f, 0.0f, 0.0f},
       {255, 245, 225, 255});
+  lighting.addDirectional(
+      {-50.0f, -100.0f, -40.0f},
+      {0.0f, 0.0f, 0.0f},
+      {255, 245, 225, 255});
 
   // TODO: Sunrise and sunset
 }
