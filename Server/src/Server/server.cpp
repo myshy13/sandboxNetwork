@@ -90,8 +90,8 @@ Server::~Server() {
 }
 
 // ==== block grid ==== //
-constexpr float BLOCK_SIZE =
-    5.0f; // same as the client's blockSize (Client/src/World/world.cpp)
+constexpr Vector3 blockSize = SHARED_BLOCK_SIZE;
+constexpr float BLOCK_SIZE  = blockSize.x; // cubic, see sharedEnv.hpp
 
 static constexpr float CHUNK_SIZE =
     16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE
@@ -254,7 +254,6 @@ void Server::generateWorld() {
   };
 
   std::vector<int> heightMap(SPAN * SPAN);
-  Vector3 blockSize = {5, 5, 5};
 
   std::cout << "Generating Terrain\n";
   for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
@@ -367,7 +366,6 @@ Vector3 Server::randomSpawn() const {
 }
 
 void Server::generateChunk(int cx, int cz) {
-  constexpr Vector3 blockSize = {BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE};
   // A large odd offset so a below-layer's damage roll doesn't reuse another
   // real column's hash by coincidence.
   constexpr int DAMAGE_OFFSET = 999983;
