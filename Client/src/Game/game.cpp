@@ -329,7 +329,7 @@ void Game::drawCollisionDebug() {
     return;
   }
 
-  constexpr float CELL = 5.0f; // same as blockSize in world.cpp
+  constexpr float CELL = 5.0f; // same as env::BLOCKSIZE in world.cpp
   const Vector3 feet   = player.getTransform().translation;
   for (int dx = -3; dx <= 3; dx++) {
     for (int dy = -2; dy <= 3; dy++) {
@@ -578,15 +578,16 @@ void Game::drawDebug() {
     DrawText("Player pos:", 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("X: %f", pos.x), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("X: %f", pos.x), 10, rowPos, FONTSIZE, LIME);
+    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Y: %f", pos.y), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Y: %f", pos.y), 10, rowPos, FONTSIZE, LIME);
+    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
-    DrawText(TextFormat("Z: %f", pos.z), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Z: %f", pos.z), 10, rowPos, FONTSIZE, LIME);
+
+    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
     const char *chunkText = TextFormat("Chunk: %d, %d (F4 borders)", World::streamChunkCoord(pos.x), World::streamChunkCoord(pos.z));

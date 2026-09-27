@@ -10,6 +10,8 @@ constexpr int SERVER_PORT       = 9798;
 constexpr int MAX_HEALTH        = SHARED_PLAYER_HEALTH;
 constexpr Vector3 PLAYER_SCALE  = SHARED_PLAYER_SCALE;
 constexpr std::string VERSION   = SHARED_VERSION;
+constexpr Vector3 BLOCKSIZE     = {5, 5, 5};
+
 } // namespace env
 
 // Compile-time toggles

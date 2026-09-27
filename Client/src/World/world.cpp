@@ -1,6 +1,7 @@
 #include "world.hpp"
 #include "Client/client.hpp"
 #include "Models/Object.hpp"
+#include "env.hpp"
 #include "rlgl.h"
 #include <algorithm>
 #include <cfloat>
@@ -36,20 +37,17 @@ void World::update() {
   }
 }
 
-// Every placed block is this size, and the build grid has cells this size.
-constexpr Vector3 blockSize = {5, 5, 5};
-
-// Snap a world point to the centre of its blockSize-grid cell.
+// Snap a world point to the centre of its env::BLOCKSIZE-grid cell.
 static Vector3 snapToCell(Vector3 p) {
-  return {(floorf(p.x / blockSize.x) + 0.5f) * blockSize.x,
-          (floorf(p.y / blockSize.y) + 0.5f) * blockSize.y,
-          (floorf(p.z / blockSize.z) + 0.5f) * blockSize.z};
+  return {(floorf(p.x / env::BLOCKSIZE.x) + 0.5f) * env::BLOCKSIZE.x,
+          (floorf(p.y / env::BLOCKSIZE.y) + 0.5f) * env::BLOCKSIZE.y,
+          (floorf(p.z / env::BLOCKSIZE.z) + 0.5f) * env::BLOCKSIZE.z};
 }
 
 // Packs a grid cell's (x, y, z) into one hashable key, offset so negative
 // coordinates don't collide with positive ones once shifted into place.
 static int64_t cellKey(Vector3 coord) {
-  Vector3 cell = Vector3Divide(coord, blockSize);
+  Vector3 cell = Vector3Divide(coord, env::BLOCKSIZE);
 
   constexpr int64_t OFFSET = 1 << 20;
   int64_t x                = std::floorf(cell.x) + OFFSET;
@@ -79,7 +77,7 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
 
   Vector3 target;
   if (best.distance != FLT_MAX) {
-    target = Vector3Add(best.point, Vector3Multiply(best.normal, Vector3Scale(blockSize, 0.5f)));
+    target = Vector3Add(best.point, Vector3Multiply(best.normal, Vector3Scale(env::BLOCKSIZE, 0.5f)));
   } else if (aim.direction.y < 0.0f) {
     float dist = -aim.position.y / aim.direction.y;
     target     = Vector3Add(aim.position, Vector3Scale(aim.direction, dist));
@@ -103,10 +101,10 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   player.max = Vector3Add(player.min, env::PLAYER_SCALE);
 
   // cell is the block's centre (see objectBox / snapToCell), not a corner.
-  BoundingBox block = objectBox(ObjectTransform{cell, blockSize});
+  BoundingBox block = objectBox(ObjectTransform{cell, env::BLOCKSIZE});
 
   if (!CheckCollisionBoxes(player, block)) {
-    client.placeObject(Object{-1, ObjectTransform{cell, blockSize}, colors[activeColor]});
+    client.placeObject(Object{-1, ObjectTransform{cell, env::BLOCKSIZE}, colors[activeColor]});
     return true;
   } else {
     return false;
@@ -132,7 +130,7 @@ static int64_t streamKeyAt(Vector3 pos) {
 void World::markDirty(Vector3 pos) {
   dirtyChunks.insert(chunkKey(pos));
   // Chunks span all y, so only the horizontal neighbours can be in another chunk.
-  const Vector3 offsets[] = {{blockSize.x, 0, 0}, {-blockSize.x, 0, 0}, {0, 0, blockSize.z}, {0, 0, -blockSize.z}};
+  const Vector3 offsets[] = {{env::BLOCKSIZE.x, 0, 0}, {-env::BLOCKSIZE.x, 0, 0}, {0, 0, env::BLOCKSIZE.z}, {0, 0, -env::BLOCKSIZE.z}};
   for (const Vector3 &o : offsets) {
     dirtyChunks.insert(chunkKey(Vector3Add(pos, o)));
   }
@@ -264,19 +262,19 @@ bool World::isOccupied(Vector3 pos) const {
 }
 
 bool World::boxCollides(BoundingBox box) const {
-  // Blocks are one-per-cell on the fixed blockSize grid, so only the cells
+  // Blocks are one-per-cell on the fixed env::BLOCKSIZE grid, so only the cells
   // box's own extent spans can possibly contain a hit.
-  int minX = (int)floorf(box.min.x / blockSize.x);
-  int maxX = (int)floorf(box.max.x / blockSize.x);
-  int minY = (int)floorf(box.min.y / blockSize.y);
-  int maxY = (int)floorf(box.max.y / blockSize.y);
-  int minZ = (int)floorf(box.min.z / blockSize.z);
-  int maxZ = (int)floorf(box.max.z / blockSize.z);
+  int minX = (int)floorf(box.min.x / env::BLOCKSIZE.x);
+  int maxX = (int)floorf(box.max.x / env::BLOCKSIZE.x);
+  int minY = (int)floorf(box.min.y / env::BLOCKSIZE.y);
+  int maxY = (int)floorf(box.max.y / env::BLOCKSIZE.y);
+  int minZ = (int)floorf(box.min.z / env::BLOCKSIZE.z);
+  int maxZ = (int)floorf(box.max.z / env::BLOCKSIZE.z);
 
   for (int y = minY; y <= maxY; y++) {
     for (int z = minZ; z <= maxZ; z++) {
       for (int x = minX; x <= maxX; x++) {
-        Vector3 cellPos = {(x + 0.5f) * blockSize.x, (y + 0.5f) * blockSize.y, (z + 0.5f) * blockSize.z};
+        Vector3 cellPos = {(x + 0.5f) * env::BLOCKSIZE.x, (y + 0.5f) * env::BLOCKSIZE.y, (z + 0.5f) * env::BLOCKSIZE.z};
         auto it         = occupiedCells.find(cellKey(cellPos));
         if (it == occupiedCells.end())
           continue;
