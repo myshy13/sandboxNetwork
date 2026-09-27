@@ -1,6 +1,82 @@
-# Plan: real world streaming (written Sun 20 Sep 2026)
+# Plans
 
-## Why
+## Plan: water flow (written Sun 27 Sep 2026)
+
+### Why
+
+Water blocks exist (`BlockType::Water`), the player can swim in them, and they render transparent. Right
+now every water cell placed at world-gen is permanent and still — the next step is for water to spread and
+settle on its own, the way a broken dam or a placed source block would.
+
+### Status (done, this session)
+
+- `BlockType` on `Object` (`Shared/Models/Object.hpp`), serialized, `PROTOCOL_VERSION` bumped.
+- `World::isSolid` / `World::isWater` (client) and `Server::boxCollides(box, type)`-style lookups: collision
+  and face-culling both go through type, not just occupancy.
+- `Server::generateChunk`: below a fixed water-table height, fills with `Water` blocks down to a `Brown` floor.
+- `Player::Update`: `inWater` probe at body-centre height; separate gravity scale, terminal velocity, swim
+  impulse (Space) and horizontal drag/multiplier while submerged.
+- `Renderer`: opaque and water instances draw in two passes (`Renderer::drawBatch`), water second with depth
+  write off, so translucent faces can't punch a depth hole through solid geometry behind them. Water-on-water
+  faces are culled the same way solid-on-solid faces are, so a lake doesn't draw its own internal faces.
+- Underwater screen tint (`Game::drawScene`, checks `world.isWater(camera.position)`).
+- Known bugs, not blocking: `bugs.md` #1 (F3 above pause menu), #2 (holding Space re-fires the swim impulse
+  every frame instead of once).
+
+### Decisions to make first (recommendations in bold)
+
+1. **Fluid level lives on `Object` as one plain field**, e.g. `uint8_t level` (0 = source, 1-7 = flowing,
+   matching the Minecraft convention discussed earlier), the same way `type` was added: a value, serialized,
+   no behaviour on the class itself.
+   Decision: Keep everything as a full block, but keep the water state (0-8)
+2. **The flow simulation is server-owned**, a new small type (e.g. `Server/src/Server/fluidSim.hpp`) or a
+   set of free functions the server calls once per flow tick — not a class `Object` owns or calls into.
+   `Object` stays a dumb, cheap-to-copy, network-safe value type; `Server` decides what water does, the same
+   way it already owns hit detection and bullet lifetime (see `arch.md`).
+3. **Flow ticks slower than the main tick.** Spread doesn't need position-update precision; a fixed interval
+   (e.g. every N `Server::tick` calls, or its own accumulator) keeps the cost off the hot path. **Do this.**
+4. **Spread reads neighbours through the same lookups collision already uses**
+   (`occupiedCells` + `isWater`/`isSolid`-equivalents on the server side), not a second data structure.
+5. **How an edit reaches clients:** decide whether flow changes reuse `DamageObject`/`PlaceObject`-style
+   messages, or need a new `UpdateBlock`-style message (block position + new type/level). A new message is
+   probably cleaner: damage/place both imply a durability or existence change, not a level change.
+
+### Steps (each should leave the game working)
+
+1. Add `level` to `Object`, serialize it, bump `PROTOCOL_VERSION`. No behaviour yet — everything still renders
+   and collides exactly as today (`level` unused).
+2. Add the new protocol message for a block's type/level changing (decision 5); wire it through
+   `Server::handleReceive` / `Server::tick` -> client receive path (`Client::client.cpp`), per `arch.md`'s
+   "adding a new networked feature" steps.
+3. `FluidSim`: one pass, one water cell at a time — pseudocode, not code yet:
+   - source cells (`level == 0`) never change.
+   - a flowing cell with no water/source neighbour one level lower decays: `level++`, removed past a max.
+   - an empty (air) cell next to a source or flowing cell becomes water at `neighbourLevel + 1`, capped at the max.
+   - a solid floor stops downward spread; water above an open drop falls (becomes a falling variant) rather
+     than spreading sideways first — decide if that distinction is worth it now or later.
+4. Tie the pass into `Server::tick` at the slower cadence from decision 3. Confirm: placing a single source
+   block in an empty pit fills it and stops at the edges; breaking a floor block under still water drains it.
+5. Client: `level` only affects rendering for now (maybe a slightly different alpha/tint per level, or ignore
+   it entirely at first) — flow is still server-authoritative, client never predicts it (see `product.md`
+   non-goals: no client-side authority over the world's state).
+
+### Pitfalls
+
+- **Flood fill cost.** An unbounded pass over "every water cell, every tick" gets expensive fast on a big
+  lake. Keep a dirty/active set (cells that changed last pass, plus their neighbours) instead of scanning
+  every water block in the world each tick.
+- **Infinite water.** Every source cell spreads forever unless spread has a max level/distance — cap it
+  (the Minecraft `0..7` convention exists for exactly this).
+- **Orphaned objects.** `Server::indexBlock` overwrites `occupiedCells[key]` without checking for an existing
+  occupant there (`chunkBlocks` isn't cleaned up either) — this bit the water-table floor placement earlier
+  in this session (see git history). Flow edits that reuse a cell must remove the old block first, not just
+  add a new one on top.
+
+---
+
+## Plan: real world streaming (written Sun 20 Sep 2026)
+
+### Why
 
 `WORLD_SIZE` 200 -> 500 made the world 1000x1000 columns: 2.2M blocks at first, 4.6M once the heights became
 `rand() % 20` (was 160,000+ at size 200).
@@ -13,14 +89,14 @@ Everything that touches "all blocks" got ~6x worse, and it grows with the square
 
 Streaming means cost follows what is near each player, not how big the world is.
 
-## Target behaviour
+### Target behaviour
 
 - Each client only holds chunks within its view radius; the server only sends those.
 - The world can be effectively unbounded (chunks are generated the first time someone needs them).
 - Join time and RAM stay flat however big the world is.
 - The render-distance slider finally means something for bandwidth and memory, not just drawing.
 
-## Decisions to make first (recommendations in bold)
+### Decisions to make first (recommendations in bold)
 
 1. **Address blocks by cell (x, y, z), not by id.** Ids come from a counter that has to be saved,
    and terrain that is generated per chunk has no natural id. Cell addressing also removes the client's
@@ -36,7 +112,7 @@ Streaming means cost follows what is near each player, not how big the world is.
 5. **Bullets:** speed 500 u/s and 20 s lifetime means up to 10 km of travel. **Bullets die on leaving the
    loaded area** for now; generating chunks on demand for bullets can come later.
 
-## Steps (each one should leave the game working)
+### Steps (each one should leave the game working)
 
 0. **Done:** background save + dirty flag (`saveWorldAsync`), `placeBlock` uses `occupiedCells`,
    and the `reserve()` fix in `World::addObjects` (see the baseline below).
@@ -91,7 +167,7 @@ Streaming means cost follows what is near each player, not how big the world is.
    - **7c** `generatedChunks` set; `updateView` calls `ensureChunk` before `sendChunk`.
    - **7d** Drop `generateWorld` and the startup hang; store the seed in `meta.bin` (see step 8). `generatedChunks` stays
      runtime-only: a chunk file on disk is the persistent "edited" marker, unedited chunks regenerate from the seed.
-   - **7e** Spawn and respawn on the ground using `heightAt` (both sites set `y = 100` today).
+   - **7e** Spawn and respawn on the ground using `heightAt` (botwh sites set `y = 100` today).
 8. **Persistence per chunk:** save only dirty chunks, on the background thread; drop `save.bin`'s single blob.
    Layout: `save/meta.bin` (seed, save format version, terrain generator version) plus `save/chunks/c.<cx>.<cz>.bin`,
    one file per *edited* chunk (file count follows edits, not world size; region files only if that ever hurts).
@@ -106,7 +182,7 @@ Streaming means cost follows what is near each player, not how big the world is.
 
 Step 9 (client-side terrain from the seed) is dropped: the server always sends the chunks.
 
-## Pitfalls
+### Pitfalls
 
 - **Startup cost:** until step 7 the server builds the whole world in its constructor, before `poll()` runs, so it
   accepts nobody and the client just retries "Joining server". `WORLD_SIZE = 10000` (~1.8 billion blocks) never
@@ -127,14 +203,14 @@ Step 9 (client-side terrain from the seed) is dropped: the server always sends t
 - **Block format:** each block is an `Object` (id, position, scale, colour, durability) plus a hash entry.
   A chunk of 16x16 columns is ~500 of them. A compact per-column format (height + colour) is a later diet.
 
-## How to measure
+### How to measure
 
 - **Join time:** press Play to first frame drawn.
 - **Server:** the `tick:` line (objects / bullets / players) and how long startup takes.
 - **Client:** F3 overlay (Objects, drawObjects ms) and RAM in Activity Monitor.
 - **Network:** bytes sent per join (log it in `handleConnect`).
 
-## Still to check (not confirmed yet)
+### Still to check (not confirmed yet)
 
 Build the server and client, then check:
 
@@ -142,7 +218,7 @@ Build the server and client, then check:
 - Server: stop with Ctrl+C and confirm `save.bin` exists and there is **no leftover `save.bin.tmp`**.
 - Server: place a block, wait one save period (30 s), then stop and restart; the block should still be there.
 
-## Still open from before
+### Still open from before
 
 - `SERVER_IP` is hard-coded in `env.hpp`; a join-server field on the menu would fit.
 - Other asset types (sounds, fonts, models) aren't in `AssetManager`.
