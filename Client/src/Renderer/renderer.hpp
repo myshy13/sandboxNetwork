@@ -18,7 +18,7 @@ public:
                       const Ray &facing,
                       const Lighting &lighting,
                       const Camera3D &camera);
-  size_t getLastDrawnCount() const { return instanceMats.size(); }
+  size_t getLastDrawnCount() const { return instanceMats.size() + waterMats.size(); }
 
   double getLastCullMs() const { return lastCullMs; }
   double getLastGpuMs() const { return lastGpuMs; }
@@ -32,14 +32,24 @@ private:
   static const Matrix FACE_ROT[6];
   static const Vector3 FACE_DIR[6];
 
-  static constexpr int BUFFER_COUNT       = 2; // double-buffered: CPU writes one while GPU reads the other
-  unsigned int transformVBO[BUFFER_COUNT] = {0, 0};
-  unsigned int colorVBO[BUFFER_COUNT]     = {0, 0};
-  size_t bufferCapacity[BUFFER_COUNT]     = {0, 0};
+  // 4 slots, not 2: opaque and water each draw separately now (see drawObjects),
+  // so a frame uses 2 slots and needs a frame of headroom behind it.
+  static constexpr int BUFFER_COUNT       = 4;
+  unsigned int transformVBO[BUFFER_COUNT] = {};
+  unsigned int colorVBO[BUFFER_COUNT]     = {};
+  size_t bufferCapacity[BUFFER_COUNT]     = {};
   int currentBuffer                       = 0;
 
   std::vector<Matrix> instanceMats;
   std::vector<Vector4> instanceColors;
+  std::vector<Matrix> waterMats;
+  std::vector<Vector4> waterColors;
+
+  // Uploads mats/colors into buffer slot `slot` and issues one instanced draw.
+  // depthWrite off for water: it must not occlude other water behind it, or
+  // stacked faces punch holes in each other the way bug #2 (fixed) did.
+  void drawBatch(const std::vector<Matrix> &mats, const std::vector<Vector4> &colors,
+                 int slot, int transformLoc, int colorLoc, bool depthWrite);
 
   double lastCullMs = 0.0;
   double lastGpuMs  = 0.0;

@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 5; // removed initBlocks
+constexpr int PROTOCOL_VERSION = 6; // Added blocktype
 
 enum class Type : uint8_t {
   // player

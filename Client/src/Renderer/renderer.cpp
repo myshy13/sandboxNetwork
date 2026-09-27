@@ -1,5 +1,6 @@
 #include "Renderer/renderer.hpp"
 #include "GameState/gameState.hpp"
+#include "Models/Object.hpp"
 #include "env.hpp"
 #include <cfloat>
 #include <raylib.h>
@@ -46,6 +47,36 @@ void Renderer::ensureBufferCapacity(int slot, size_t count) {
   colorVBO[slot]     = rlLoadVertexBuffer(nullptr, (int)(count * sizeof(Vector4)), true);
 }
 
+void Renderer::drawBatch(const std::vector<Matrix> &mats, const std::vector<Vector4> &colors,
+                         int slot, int transformLoc, int colorLoc, bool depthWrite) {
+  if (mats.empty())
+    return;
+
+  ensureBufferCapacity(slot, mats.size());
+  rlUpdateVertexBuffer(transformVBO[slot], mats.data(), (int)(mats.size() * sizeof(Matrix)), 0);
+  rlUpdateVertexBuffer(colorVBO[slot], colors.data(), (int)(colors.size() * sizeof(Vector4)), 0);
+
+  rlEnableVertexArray(faceMesh.vaoId);
+  rlEnableVertexBuffer(transformVBO[slot]);
+  for (int i = 0; i < 4; i++) {
+    int loc = transformLoc + i;
+    rlEnableVertexAttribute(loc);
+    rlSetVertexAttribute(loc, 4, RL_FLOAT, false, sizeof(Matrix), i * sizeof(Vector4));
+    rlSetVertexAttributeDivisor(loc, 1);
+  }
+  rlEnableVertexBuffer(colorVBO[slot]);
+  rlEnableVertexAttribute(colorLoc);
+  rlSetVertexAttribute(colorLoc, 4, RL_FLOAT, false, sizeof(Vector4), 0);
+  rlSetVertexAttributeDivisor(colorLoc, 1);
+  rlDisableVertexArray();
+
+  if (!depthWrite)
+    rlDisableDepthMask();
+  DrawMeshInstanced(faceMesh, cubeMat, mats.data(), (int)mats.size());
+  if (!depthWrite)
+    rlEnableDepthMask();
+}
+
 bool Renderer::boxInFrustum(const Frustum &f, BoundingBox box) {
   for (const auto &p : f.planes) {
     Vector3 pv = {
@@ -72,10 +103,12 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, con
 
     // A face is drawn only where there's no neighbour to hide it, so no two
     // faces ever land on the same plane.
-    uint8_t mask = 0;
+    // Water-on-water faces are skipped too: stacked transparent faces would add up their alpha.
+    const bool water = objects[i].getType() == BlockType::Water;
+    uint8_t mask     = 0;
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour = Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
-      if (!world.isOccupied(neighbour))
+      if (!world.isSolid(neighbour) && !(water && world.isWater(neighbour)))
         mask |= (uint8_t)(1 << f);
     }
     if (mask == 0)
@@ -109,6 +142,8 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
 
   instanceMats.clear();
   instanceColors.clear();
+  waterMats.clear();
+  waterColors.clear();
 
   Object *targeted   = nullptr;
   float bestDistance = FLT_MAX;
@@ -139,7 +174,11 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
         }
       }
 
+      bool water     = o.getType() == BlockType::Water;
       Color c        = o.getColor();
+      if (water) {
+        c.a = 100;
+      }
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
       uint8_t mask   = cell.faceMasks[n];
 
@@ -153,8 +192,16 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
         at         = Vector3Subtract(at, camera.position);
         Matrix m   = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
         m          = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
-        instanceMats.push_back(m);
-        instanceColors.push_back(colour);
+        // Water goes in its own batch, drawn after the opaque one below: mixed into
+        // the same batch, an unsorted translucent face can write depth in front of an
+        // opaque one behind it and punch a hole through solid geometry.
+        if (water) {
+          waterMats.push_back(m);
+          waterColors.push_back(colour);
+        } else {
+          instanceMats.push_back(m);
+          instanceColors.push_back(colour);
+        }
       }
     }
   }
@@ -162,34 +209,15 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
   lastCullMs      = (GetTime() - cullStart) * 1000.0;
   double gpuStart = GetTime();
 
-  if (!instanceMats.empty()) {
-    currentBuffer    = (currentBuffer + 1) % BUFFER_COUNT;
-    int transformLoc = lighting.getTransformLoc();
-    int colorLoc     = lighting.getColorLoc();
-    ensureBufferCapacity(currentBuffer, instanceMats.size());
+  cubeMat.shader   = lighting.getShader();
+  int transformLoc = lighting.getTransformLoc();
+  int colorLoc     = lighting.getColorLoc();
 
-    rlUpdateVertexBuffer(transformVBO[currentBuffer], instanceMats.data(),
-                         (int)(instanceMats.size() * sizeof(Matrix)), 0);
-    rlUpdateVertexBuffer(colorVBO[currentBuffer], instanceColors.data(),
-                         (int)(instanceColors.size() * sizeof(Vector4)), 0);
+  currentBuffer = (currentBuffer + 1) % BUFFER_COUNT;
+  drawBatch(instanceMats, instanceColors, currentBuffer, transformLoc, colorLoc, /*depthWrite=*/true);
 
-    rlEnableVertexArray(faceMesh.vaoId);
-    rlEnableVertexBuffer(transformVBO[currentBuffer]);
-    for (int i = 0; i < 4; i++) {
-      int loc = transformLoc + i;
-      rlEnableVertexAttribute(loc);
-      rlSetVertexAttribute(loc, 4, RL_FLOAT, false, sizeof(Matrix), i * sizeof(Vector4));
-      rlSetVertexAttributeDivisor(loc, 1);
-    }
-    rlEnableVertexBuffer(colorVBO[currentBuffer]);
-    rlEnableVertexAttribute(colorLoc);
-    rlSetVertexAttribute(colorLoc, 4, RL_FLOAT, false, sizeof(Vector4), 0);
-    rlSetVertexAttributeDivisor(colorLoc, 1);
-    rlDisableVertexArray();
-
-    cubeMat.shader = lighting.getShader();
-    DrawMeshInstanced(faceMesh, cubeMat, instanceMats.data(), (int)instanceMats.size());
-  }
+  currentBuffer = (currentBuffer + 1) % BUFFER_COUNT;
+  drawBatch(waterMats, waterColors, currentBuffer, transformLoc, colorLoc, /*depthWrite=*/false);
 
   lastGpuMs = (GetTime() - gpuStart) * 1000.0;
 

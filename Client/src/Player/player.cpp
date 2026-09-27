@@ -1,4 +1,5 @@
 #include "Player/player.hpp"
+#include "Models/Object.hpp"
 #include "Raylib/text3D.hpp"
 #include "env.hpp"
 #include <cstdlib>
@@ -37,8 +38,11 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   auto hitsBlock = [&](BoundingBox b) {
     return world.boxCollides(b);
   };
+  auto hitsWater = [&](BoundingBox b) {
+    return world.boxCollides(b, BlockType::Water);
+  };
   // The player's body box, bottom at the feet (translation), scale tall.
-  auto blocked = [&](Vector3 feet) {
+  auto blocked = [&](Vector3 feet) -> bool {
     return hitsBlock({Vector3Subtract(feet, half),
                       Vector3Add(Vector3Subtract(feet, half), transform.scale)});
   };
@@ -57,6 +61,12 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
     }
   }
 
+  BoundingBox probe{Vector3Subtract(transform.translation, {half.x, 0.0f, half.z}),
+                    Vector3Add(Vector3Subtract(transform.translation, {half.x, 0.0f, half.z}),
+                               {transform.scale.x, transform.scale.y * 0.5f, transform.scale.z})};
+
+  bool inWater = hitsWater(probe);
+
   Vector3 moveDir = Vector3Zero();
 
   if (inputEnabled) {
@@ -70,7 +80,8 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
       moveDir = Vector3Subtract(moveDir, moveRight);
   }
 
-  float multiplier = onGround ? 1.0f : 0.05f;
+  float multiplier = onGround ? 1.0f : inWater ? 0.5f
+                                               : 0.05f;
   if (IsKeyDown(KEY_LEFT_SHIFT)) {
     multiplier *= 0.2f;
   }
@@ -80,9 +91,19 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
     velocity = Vector3Add(velocity, Vector3Scale(moveDir, speed * multiplier * dt * 60));
   }
 
-  if (inputEnabled && onGround && IsKeyDown(KEY_SPACE)) {
+  if (!inWater && inputEnabled && (onGround) && IsKeyDown(KEY_SPACE)) {
     onGround   = false;
     velocity.y = jumpPower;
+  }
+
+  waterMoveCooldown -= dt;
+  if (inputEnabled && inWater && IsKeyDown(KEY_SPACE)) {
+    if (waterMoveCooldown <= 0) {
+      onGround   = false;
+      velocity.y = swimPower;
+    } else {
+      waterMoveCooldown = waterMoveCooldownTime;
+    }
   }
 
   Vector2 horizontalVel = {velocity.x, velocity.z};
@@ -92,13 +113,23 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
     velocity.z    = horizontalVel.y;
   }
   float damping = powf(onGround ? 0.7f : 0.9f, dt * 60.0f);
+  if (inWater) {
+    damping = 0.3f;
+  }
   velocity.x *= damping;
   velocity.z *= damping;
   if (!onGround) {
-    velocity.y -= GRAVITY * dt;
-    // Terminal velocity: cap how fast we can fall.
-    constexpr float TERMINAL_VELOCITY = -120.0f;
-    velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
+    if (inWater) {
+      velocity.y -= GRAVITY * dt * 0.2f;
+      // Terminal velocity: cap how fast we can fall.
+      constexpr float TERMINAL_VELOCITY = -20;
+      velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
+    } else {
+      velocity.y -= GRAVITY * dt;
+      // Terminal velocity: cap how fast we can fall.
+      constexpr float TERMINAL_VELOCITY = -120.0f;
+      velocity.y                        = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);
+    }
   }
   // to stop tiny fractions
   if (Vector3LengthSqr(velocity) < 0.01f) {

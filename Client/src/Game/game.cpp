@@ -321,6 +321,9 @@ void Game::drawScene(float dt) {
   drawChunkBorders();
 
   EndMode3D();
+
+  if (world.isWater(camera.position))
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(SKYBLUE, 0.35f));
 }
 
 // F5: red wireframes on every cell the collision grid treats as solid near you, green for your hitbox.

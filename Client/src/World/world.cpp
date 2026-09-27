@@ -261,7 +261,17 @@ bool World::isOccupied(Vector3 pos) const {
   return occupiedCells.contains(cellKey(pos));
 }
 
-bool World::boxCollides(BoundingBox box) const {
+bool World::isSolid(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  return it != occupiedCells.end() && objects[it->second].getType() == BlockType::Solid;
+}
+
+bool World::isWater(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  return it != occupiedCells.end() && objects[it->second].getType() == BlockType::Water;
+}
+
+bool World::boxCollides(BoundingBox box, BlockType type) const {
   // Blocks are one-per-cell on the fixed env::BLOCKSIZE grid, so only the cells
   // box's own extent spans can possibly contain a hit.
   int minX = (int)floorf(box.min.x / env::BLOCKSIZE.x);
@@ -278,7 +288,8 @@ bool World::boxCollides(BoundingBox box) const {
         auto it         = occupiedCells.find(cellKey(cellPos));
         if (it == occupiedCells.end())
           continue;
-        if (CheckCollisionBoxes(box, objectBox(objects[it->second].getTransform())))
+        const Object &o = objects[it->second];
+        if (o.getType() == type && CheckCollisionBoxes(box, objectBox(o.getTransform())))
           return true;
       }
     }

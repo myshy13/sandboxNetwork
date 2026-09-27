@@ -39,9 +39,13 @@ public:
   std::vector<Object> &getObjects();
   // True if a block sits in the cell containing pos (the renderer's face-neighbour test).
   bool isOccupied(Vector3 pos) const;
+  // checks if a block type is solid (can the player collide with it)
+  bool isSolid(Vector3 pos) const;
+  // True if the cell containing pos holds a water block.
+  bool isWater(Vector3 pos) const;
   // True if box overlaps a placed block. Only tests the handful of grid
   // cells box spans, not every object - see occupiedCells.
-  bool boxCollides(BoundingBox box) const;
+  bool boxCollides(BoundingBox box, BlockType type = BlockType::Solid) const;
 
   static constexpr float CHUNK_SIZE = 15.0f; // world units per chunk (3 blocks)
 

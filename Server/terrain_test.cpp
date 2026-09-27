@@ -5,6 +5,8 @@
 #include <chrono>
 #include <climits>
 #include <iostream>
+#include <map>
+#include <unordered_map>
 
 int main() {
   // init
@@ -23,6 +25,8 @@ int main() {
   // generation
   assert(terrain1.heightAt(5, -7) == terrain2.heightAt(5, -7));
   assert(terrain1.heightAt(-43, 2) == terrain2.heightAt(-43, 2));
+
+  std::map<int, int> heightCount;
 
   int differenceCount = 0;
   int totalDifference = 0;
@@ -44,10 +48,19 @@ int main() {
       // min/max
       height1min = std::min(height1min, height1);
       height1max = std::max(height1max, height1);
+
+      heightCount[height1]++;
     }
   }
   assert(totalDifference > 10);
   assert(differenceCount > 10);
+
+  std::cout << "TERRAIN INFO:\n";
+  std::cout << "|- Height ---- | - Count -|";
+  for (auto [height, count] : heightCount) {
+    std::cout << "| " << height << " | " << count << " |\n";
+  }
+  std::cout << "|-------------------------|\n";
 
   // Heights must be in range [1, 22] (see heightAt)
   assert(height1min >= 1 && height1max <= 22);

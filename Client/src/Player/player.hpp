@@ -7,13 +7,18 @@
 #include <raymath.h>
 #include <string>
 
+constexpr float waterMoveCooldownTime = 0.5f;
+
 class Player : public Entity {
 private:
   const float speed = 90.0f;
   float jumpPower   = 45.0f;
+  float swimPower   = 15.0f;
 
   float yaw   = 0.0f;
   float pitch = 0.0f;
+
+  float waterMoveCooldown = 0.5f;
 
 public:
   // When false, Update still runs physics (gravity, momentum, collision) but

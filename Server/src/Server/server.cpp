@@ -1,4 +1,3 @@
-
 #include "Server/server.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
@@ -350,7 +349,8 @@ Vector3 Server::randomSpawn() const {
   spawn.x = rand() % 200 - 100;
   spawn.z = rand() % 200 - 100;
 
-  // floorf, not an int cast: the cast rounds toward zero, so negative x/z pick the wrong cell.
+  // floorf, not an int cast: the cast rounds toward zero, so negative x/z pick
+  // the wrong cell.
   int minX = (int)floorf((spawn.x - PLAYER_SCALE.x / 2) / BLOCK_SIZE);
   int maxX = (int)floorf((spawn.x + PLAYER_SCALE.x / 2) / BLOCK_SIZE);
   int minZ = (int)floorf((spawn.z - PLAYER_SCALE.z / 2) / BLOCK_SIZE);
@@ -361,7 +361,8 @@ Vector3 Server::randomSpawn() const {
     for (int cellZ = minZ; cellZ <= maxZ; cellZ++)
       height = std::max(height, terrain.heightAt(cellX, cellZ));
 
-  spawn.y = (height + 1) * BLOCK_SIZE + BLOCK_SIZE / 2 + PLAYER_SCALE.y; // a bit above
+  spawn.y = (height + 1) * BLOCK_SIZE + BLOCK_SIZE / 2 +
+            PLAYER_SCALE.y; // a bit above
   return spawn;
 }
 
@@ -373,29 +374,54 @@ void Server::generateChunk(int cx, int cz) {
   for (int cellX = cx * 16; cellX < cx * 16 + 16; cellX++) {
     for (int cellZ = cz * 16; cellZ < cz * 16 + 16; cellZ++) {
       int height = terrain.heightAt(cellX, cellZ);
-      float blockX = cellX * blockSize.x + (blockSize.x / 2);
-      float blockY = height * blockSize.y + (blockSize.y / 2);
-      float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
+      if (height >= 5) {
+        float blockX = cellX * blockSize.x + (blockSize.x / 2);
+        float blockY = height * blockSize.y + (blockSize.y / 2);
+        float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
-      Object top(nextObjectId,
-                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
-      int topDamage = terrain.hash(cellX, cellZ) % 3;
-      for (int i = 0; i < topDamage; i++) {
-        top.damage();
-      }
-      addBlock(top);
-      nextObjectId++;
-
-      for (int i = height; i > 0; i--) {
-        blockY -= blockSize.y;
-        Object below(nextObjectId,
-                     ObjectTransform{{blockX, blockY, blockZ}, blockSize},
-                     BROWN);
-        int belowDamage = terrain.hash(cellX + i * DAMAGE_OFFSET, cellZ) % 3;
-        for (int d = 0; d < belowDamage; d++) {
-          below.damage();
+        Object top(nextObjectId,
+                   ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
+        int topDamage = terrain.hash(cellX, cellZ) % 3;
+        for (int i = 0; i < topDamage; i++) {
+          top.damage();
         }
-        addBlock(below);
+        addBlock(top);
+        nextObjectId++;
+
+        for (int i = height; i > 0; i--) {
+          blockY -= blockSize.y;
+          Object below(nextObjectId,
+                       ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+                       BROWN);
+          int belowDamage = terrain.hash(cellX + i * DAMAGE_OFFSET, cellZ) % 3;
+          for (int d = 0; d < belowDamage; d++) {
+            below.damage();
+          }
+          addBlock(below);
+          nextObjectId++;
+        }
+      } else {
+        // water
+        float blockX = cellX * blockSize.x + (blockSize.x / 2);
+        float blockY = 5 * blockSize.y + blockSize.y / 2;
+        float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
+
+        for (int i = height + 1; i > 1; i--) {
+          blockY -= blockSize.y;
+          Object o(nextObjectId,
+                   ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BLUE,
+                   BlockType::Water);
+          addBlock(o);
+          nextObjectId++;
+        }
+        blockY -= blockSize.y;
+        Object o(nextObjectId,
+                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BROWN);
+        int damage = terrain.hash(cellX + height - 1, cellZ) % 2;
+        for (int d = 0; d < damage; d++) {
+          o.damage();
+        }
+        addBlock(o);
         nextObjectId++;
       }
     }
@@ -466,9 +492,10 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   Player newPlayer;
   newPlayer.id = id;
   Vector3 spawnPos = randomSpawn();
-  newPlayer.pos    = spawnPos;
+  newPlayer.pos = spawnPos;
   players.push_back(newPlayer);
-  views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives before the first tick has a view to set
+  views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives
+                                   // before the first tick has a view to set
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
@@ -557,10 +584,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
     msg.object.setId(nextObjectId++); // server owns ids, clients send -1
     addBlock(msg.object);
-    broadcastToChunk(chunk,
-                     proto::pack(proto::Type::NewObject,
-                                 proto::NewObject{msg.object}),
-                     true); // reliable
+    broadcastToChunk(
+        chunk,
+        proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
+        true); // reliable
     break;
   }
 
@@ -793,16 +820,16 @@ void Server::tick(float dt) {
       const Vector3 pos = o.getTransform().pos;
       const int64_t chunk = chunkKeyAt(pos);
       if (o.getDurability() <= 0) {
-        broadcastToChunk(chunk,
-                         proto::pack(proto::Type::RemoveObject,
-                                     proto::RemoveObject{pos}),
-                         true);
+        broadcastToChunk(
+            chunk,
+            proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
+            true);
         removeBlock(hit); // invalidates `o`
       } else {
-        broadcastToChunk(chunk,
-                         proto::pack(proto::Type::DamageObject,
-                                     proto::DamageObject{pos}),
-                         true);
+        broadcastToChunk(
+            chunk,
+            proto::pack(proto::Type::DamageObject, proto::DamageObject{pos}),
+            true);
       }
     }
 
