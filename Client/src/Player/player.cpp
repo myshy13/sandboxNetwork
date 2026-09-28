@@ -97,13 +97,10 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   }
 
   waterMoveCooldown -= dt;
-  if (inputEnabled && inWater && IsKeyDown(KEY_SPACE)) {
-    if (waterMoveCooldown <= 0) {
-      onGround   = false;
-      velocity.y = swimPower;
-    } else {
-      waterMoveCooldown = waterMoveCooldownTime;
-    }
+  if (inputEnabled && inWater && IsKeyDown(KEY_SPACE) && waterMoveCooldown <= 0) {
+    onGround          = false;
+    velocity.y        = swimPower;
+    waterMoveCooldown = waterMoveCooldownTime;
   }
 
   Vector2 horizontalVel = {velocity.x, velocity.z};
