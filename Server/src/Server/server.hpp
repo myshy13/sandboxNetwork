@@ -3,7 +3,7 @@
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
-#include "Server/terrain.hpp"
+#include "Terrain/terrain.hpp"
 #include "env.hpp"
 
 #include <enet/enet.h>

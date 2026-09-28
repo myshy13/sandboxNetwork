@@ -1,4 +1,4 @@
-#include "Server/terrain.hpp"
+#include "Terrain/terrain.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -6,7 +6,6 @@
 #include <climits>
 #include <iostream>
 #include <map>
-#include <unordered_map>
 
 int main() {
   // init

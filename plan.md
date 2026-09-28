@@ -160,14 +160,7 @@ Streaming means cost follows what is near each player, not how big the world is.
    connect). The slider is capped at `MAX_RENDER_DISTANCE` (640 = server max 8 chunks x 80). Tune R, K and N.
    Steps 2-6 fix join time, client RAM and the freeze on the existing world. The rest is only needed
    for worlds that don't fit in server memory.
-7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`. In pieces:
-   - **7a** `Server/src/Server/terrain.hpp`: `class Terrain` holding the seed (`heightAt`, `hash`, `seed`, private `noise`/`lattice`),
-     plus `Server/test_terrain.cpp` in the `Server/Makefile` `test` target. **In progress (declarations only so far).**
-   - **7b** `Server::generateChunk(cx, cz)`: per column, `heightAt`, a GREEN top block and BROWN below, damage from `hash`.
-   - **7c** `generatedChunks` set; `updateView` calls `ensureChunk` before `sendChunk`.
-   - **7d** Drop `generateWorld` and the startup hang; store the seed in `meta.bin` (see step 8). `generatedChunks` stays
-     runtime-only: a chunk file on disk is the persistent "edited" marker, unedited chunks regenerate from the seed.
-   - **7e** Spawn and respawn on the ground using `heightAt` (botwh sites set `y = 100` today).
+7. **Per-chunk generation** from the noise function (decision 3), lazily, replacing `generateWorld`.
 8. **Persistence per chunk:** save only dirty chunks, on the background thread; drop `save.bin`'s single blob.
    Layout: `save/meta.bin` (seed, save format version, terrain generator version) plus `save/chunks/c.<cx>.<cz>.bin`,
    one file per *edited* chunk (file count follows edits, not world size; region files only if that ever hurts).

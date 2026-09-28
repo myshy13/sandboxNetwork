@@ -1,7 +1,7 @@
 #include "Server/server.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
-#include "Server/chunk.hpp"
+#include "Terrain/chunk.hpp"
 #include "enet/enet.h"
 #include "env.hpp"
 #include "raylib.h"
@@ -10,7 +10,6 @@
 #include <cereal/types/vector.hpp>
 #include <cfloat>
 #include <chrono>
-#include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
