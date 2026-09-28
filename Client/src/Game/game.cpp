@@ -511,7 +511,7 @@ void Game::drawOverlays(float dt) {
   GameState &gameState = GameState::shared();
 
   if (paused) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {50, 50, 50, 50});
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
 
     DrawText("Paused", GetScreenWidth() / 2 - MeasureText("Paused", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
 

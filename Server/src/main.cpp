@@ -1,4 +1,5 @@
 #include "Server/server.hpp"
+#include "Terrain/chunk.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -21,7 +22,7 @@ int main(int argc, char **argv) {
                       std::chrono::system_clock::now().time_since_epoch())
                       .count();
   int wsPort = 0;
-  std::string savePath = "save.bin";
+  std::string savePath = "save";
   int saveTime = 30;
 
   for (int i = 1; i < argc; i++) {
@@ -59,9 +60,18 @@ int main(int argc, char **argv) {
   std::freopen("server.log", "a", stderr);
   std::setvbuf(stdout, nullptr, _IOLBF, 0); // a file is fully buffered by default
 
+  // A saved seed overrides the CLI/current-time one: unedited chunks have to
+  // regenerate with the same terrain as the edited chunks already on disk.
+  int nextObjectId = 1;
+  auto meta = readMetaFile(metaFilePath(savePath));
+  if (meta.has_value()) {
+    seed = meta->seed;
+    nextObjectId = meta->nextObjectId;
+  }
+
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
-  Server server(wsPort, savePath, saveTime, seed);
+  Server server(wsPort, savePath, saveTime, seed, nextObjectId);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {

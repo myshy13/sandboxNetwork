@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 // ==== server tunables ==== //
 // Gameplay/config constants in one place. Compile-time only, like the client's
@@ -23,5 +24,8 @@ constexpr int PLAYER_MAX_HEALTH =
 constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
 constexpr int DEFAULT_VIEW_RADIUS = 4; // default
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
+
+constexpr uint32_t saveFormatVersion = 1;
+constexpr uint32_t terrainVersion = 2; // raised water
 
 } // namespace env

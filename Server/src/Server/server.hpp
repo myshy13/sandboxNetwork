@@ -66,6 +66,7 @@ class Server {
   std::vector<Bullet> bullets;
 
   std::unordered_set<int64_t> generatedChunks;
+  std::unordered_set<int64_t> dirtyChunks; // modified chunks since last save
 
   Terrain terrain;
 
@@ -74,9 +75,7 @@ class Server {
 
   // ==== World saving ==== //
   // Periodic saves write on another thread; `saving` is that write in flight.
-  std::future<bool> saving;
-  // Set by every block change, so an unchanged world isn't rewritten.
-  bool worldChanged{false};
+  std::future<std::unordered_set<int64_t>> saving;
   void saveWorldAsync();
 
   Player *findPlayer(int id) {
@@ -105,8 +104,11 @@ class Server {
   void pumpWebSockets();
 
   // ==== Blocks ==== //
-  // Both keep `objects`, `occupiedCells` and `chunkBlocks` in sync (removal is swap-and-pop).
-  void addBlock(const Object &block);
+  // Both keep `objects`, `occupiedCells` and `chunkBlocks` in sync (removal is
+  // swap-and-pop). markDirty is false for generated/loaded baseline content,
+  // which isn't an edit and shouldn't cause an unchanged chunk to be rewritten
+  // to disk.
+  void addBlock(const Object &block, bool markDirty = true);
   void removeBlock(int index);
   // Records objects[i] in occupiedCells and in its chunk's list.
   void indexBlock(int i);
@@ -119,7 +121,6 @@ class Server {
   // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
   void updateView(const Player &p);
 
-  void loadWorld();
   // Blocks sharing a grid cell; returns how many are duplicates. 0 is a healthy world.
   int checkOverlaps() const;
 
@@ -133,8 +134,9 @@ public:
   void saveWorld();
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
-  explicit Server(int wsPort = 0, const std::string savePath = "save.bin",
-                  const int saveTime = 30, uint32_t seed = 0);
+  explicit Server(int wsPort = 0, const std::string savePath = "save",
+                  const int saveTime = 30, uint32_t seed = 0,
+                  int nextObjectId = 1);
   ~Server();
 
   // ==== static consts ==== //

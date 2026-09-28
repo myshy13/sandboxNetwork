@@ -1,15 +1,18 @@
 #pragma once
 
 #include "Models/Object.hpp"
+#include "Protocol/protocol.hpp"
 #include "cereal/archives/binary.hpp"
 #include "cereal/details/helpers.hpp"
+#include "cereal/types/vector.hpp"
+#include "env.hpp"
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <iostream>
 #include <optional>
 #include <string>
-#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -26,9 +29,19 @@ inline std::pair<int, int> chunkCoords(int64_t key) {
 }
 
 struct SavedChunk {
-  uint32_t formatVersion;
+  uint32_t formatVersion{env::saveFormatVersion};
   std::vector<Object> blocks;
   template <class A> void serialize(A &ar) { ar(formatVersion, blocks); }
+};
+
+struct SaveMeta {
+  uint32_t saveFormatVersion;
+  uint32_t terrainVersion;
+  uint32_t seed;
+  int nextObjectId;
+  template <class A> void serialize(A &ar) {
+    ar(saveFormatVersion, terrainVersion, seed, nextObjectId);
+  }
 };
 
 inline std::string chunkFilePath(std::string savePath, int cx, int cz) {
@@ -36,7 +49,11 @@ inline std::string chunkFilePath(std::string savePath, int cx, int cz) {
          std::to_string(cz) + ".bin";
 }
 
-inline bool writeChunkFile(std::string path, SavedChunk &chunk) {
+inline std::string metaFilePath(std::string savePath) {
+  return savePath + "/meta.bin";
+}
+
+inline bool writeChunkFile(std::string path, const SavedChunk &chunk) {
   try {
     std::filesystem::create_directories(
         std::filesystem::path(path).parent_path());
@@ -47,7 +64,7 @@ inline bool writeChunkFile(std::string path, SavedChunk &chunk) {
     }
 
     std::filesystem::rename(path + ".tmp", path);
-  } catch (const cereal::Exception &e) {
+  } catch (const std::exception &e) {
     std::cerr << "ERR: Failed to save chunk at path: " << path << "\n";
     std::cerr << e.what() << "\n";
     return false;
@@ -66,6 +83,40 @@ inline std::optional<SavedChunk> readChunkFile(std::string path) {
     return chunk;
   } catch (const cereal::Exception &e) {
     std::cerr << "ERR: Failed to read chunk at path: " << path << "\n";
+    std::cerr << e.what() << "\n";
+    return std::nullopt;
+  }
+}
+
+inline bool writeMetaFile(std::string path, SaveMeta &meta) {
+  try {
+    std::filesystem::create_directories(
+        std::filesystem::path(path).parent_path());
+    std::ofstream os(path + ".tmp", std::ios::binary);
+    {
+      cereal::BinaryOutputArchive ar(os);
+      ar(meta);
+    }
+    std::filesystem::rename(path + ".tmp", path);
+  } catch (const std::exception &e) {
+    std::cerr << "ERR: Failed to save meta at path: " << path << "\n";
+    std::cerr << e.what() << "\n";
+    return false;
+  }
+  return true;
+}
+
+inline std::optional<SaveMeta> readMetaFile(std::string path) {
+  std::ifstream is(path, std::ios::binary);
+  if (!is.is_open())
+    return std::nullopt;
+  try {
+    cereal::BinaryInputArchive ar(is);
+    SaveMeta meta;
+    ar(meta);
+    return meta;
+  } catch (const cereal::Exception &e) {
+    std::cerr << "ERR: Failed to read meta at path: " << path << "\n";
     std::cerr << e.what() << "\n";
     return std::nullopt;
   }

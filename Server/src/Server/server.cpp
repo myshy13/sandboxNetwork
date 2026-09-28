@@ -7,14 +7,11 @@
 #include "raylib.h"
 #include "sharedEnv.hpp"
 #include <algorithm>
-#include <cereal/types/vector.hpp>
 #include <cfloat>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <future>
 #include <optional>
 #include <raymath.h>
@@ -47,8 +44,10 @@ private:
 
 // ==== connection setup ==== //
 
-Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed)
-    : savePath(std::move(savePath)), saveTime(saveTime), terrain(seed) {
+Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
+               int nextObjectId)
+    : savePath(std::move(savePath)), saveTime(saveTime),
+      nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -74,7 +73,6 @@ Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed)
     }
   }
 
-  loadWorld();
   checkOverlaps();
 }
 
@@ -89,7 +87,7 @@ Server::~Server() {
 
 // ==== block grid ==== //
 constexpr Vector3 blockSize = SHARED_BLOCK_SIZE;
-constexpr float BLOCK_SIZE  = blockSize.x; // cubic, see sharedEnv.hpp
+constexpr float BLOCK_SIZE = blockSize.x; // cubic, see sharedEnv.hpp
 
 static constexpr float CHUNK_SIZE =
     16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE
@@ -116,69 +114,85 @@ static int64_t chunkKeyAt(Vector3 pos) {
                   (int)floorf(pos.z / CHUNK_SIZE));
 }
 
-struct WorldSave {
-  std::vector<Object> objects{};
-  int nextObjectId{1};
-  template <class A> void serialize(A &ar) { ar(objects, nextObjectId); }
-};
-
 // ==== World saving ==== //
-// Writes to a temp file and renames it over the save, so a crash mid-write
-// can't corrupt the old save. Runs on any thread: it only touches `save`.
-static bool writeSave(const std::string &path, const WorldSave &save) {
-  try {
-    const std::string tmp = path + ".tmp";
-    {
-      std::ofstream os(tmp, std::ios::binary);
-      cereal::BinaryOutputArchive ar(os);
-      ar(save);
-      os.flush();
-      if (!os)
-        return false;
-    }
-    std::filesystem::rename(tmp, path);
-    return true;
-  } catch (const std::exception &e) {
-    std::fprintf(stderr, "save failed (%s)\n", e.what());
-    return false;
-  }
-}
-
 // Blocks until any background save has finished, then writes synchronously.
 // Used at shutdown, where the write has to be done before we exit.
 void Server::saveWorld() {
-  if (saving.valid() && !saving.get())
-    worldChanged = true; // the background write failed, so redo it
-  if (!worldChanged)
-    return; // the file on disk is already current
+  if (saving.valid() &&
+      saving.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+    return; // still writing the last batch, try again next period
+  if (saving.valid()) {
+    for (int64_t failedKey : saving.get())
+      dirtyChunks.insert(failedKey); // retry ones that failed last time
+  }
+  if (dirtyChunks.empty())
+    return;
 
-  WorldSave save;
-  save.objects = objects;
-  save.nextObjectId = nextObjectId;
-  if (writeSave(savePath, save))
-    worldChanged = false;
+  std::unordered_map<int64_t, SavedChunk> snapshot;
+  for (int64_t key : dirtyChunks) {
+    std::vector<int> blocks = chunkBlocks[key];
+    std::vector<Object> chunkObjects;
+    for (int b : blocks) {
+      chunkObjects.push_back(objects[b]);
+    }
+    SavedChunk chunk;
+    chunk.blocks = std::move(chunkObjects);
+    snapshot[key] = chunk;
+  }
+  dirtyChunks.clear(); // clear right after the copy, not after the write
+
+  SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
+                nextObjectId};
+  writeMetaFile(metaFilePath(savePath), meta);
+
+  std::unordered_set<int64_t> failed;
+  for (auto &[key, chunk] : snapshot) {
+    auto [cx, cz] = chunkCoords(key);
+    if (!writeChunkFile(chunkFilePath(savePath, cx, cz), chunk))
+      failed.insert(key);
+  }
 }
 
 // Snapshots the world here (a memory copy), then writes it on another thread
 // so the tick never waits on the disk.
 void Server::saveWorldAsync() {
+  if (saving.valid() &&
+      saving.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+    return; // still writing the last batch, try again next period
   if (saving.valid()) {
-    if (saving.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-      return; // still writing the last one, try again next period
-    if (!saving.get())
-      worldChanged = true; // it failed, so retry with fresh data
+    for (int64_t failedKey : saving.get())
+      dirtyChunks.insert(failedKey); // retry ones that failed last time
   }
-  if (!worldChanged)
+  if (dirtyChunks.empty())
     return;
-  worldChanged = false;
 
-  WorldSave snapshot;
-  snapshot.objects = objects;
-  snapshot.nextObjectId = nextObjectId;
-  saving = std::async(std::launch::async,
-                      [path = savePath, snapshot = std::move(snapshot)] {
-                        return writeSave(path, snapshot);
-                      });
+  std::unordered_map<int64_t, SavedChunk> snapshot;
+  for (int64_t key : dirtyChunks) {
+    std::vector<int> blocks = chunkBlocks[key];
+    std::vector<Object> chunkObjects;
+    for (int b : blocks) {
+      chunkObjects.push_back(objects[b]);
+    }
+    SavedChunk chunk;
+    chunk.blocks = std::move(chunkObjects);
+    snapshot[key] = chunk;
+  }
+  dirtyChunks.clear(); // clear right after the copy, not after the write
+
+  SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
+                nextObjectId};
+  writeMetaFile(metaFilePath(savePath), meta);
+
+  saving = std::async(
+      std::launch::async, [path = savePath, snapshot = std::move(snapshot)] {
+        std::unordered_set<int64_t> failed;
+        for (auto &[key, chunk] : snapshot) {
+          auto [cx, cz] = chunkCoords(key);
+          if (!writeChunkFile(chunkFilePath(path, cx, cz), chunk))
+            failed.insert(key);
+        }
+        return failed;
+      });
 }
 
 // Diagnostic: occupiedCells keeps one index per cell, so duplicates hide in
@@ -209,41 +223,20 @@ int Server::checkOverlaps() const {
   return extra;
 }
 
-void Server::loadWorld() {
-  std::ifstream is(savePath, std::ios::binary);
-  if (!is) {
-    std::printf("no save at %s, starting fresh\n", savePath.c_str());
-    return;
-  }
-
-  try {
-    WorldSave save;
-    cereal::BinaryInputArchive ar(is);
-    ar(save); // reads objects + nextObjectId back out
-
-    objects = std::move(save.objects);
-    nextObjectId = save.nextObjectId;
-    for (int i = 0; i < (int)objects.size(); i++) {
-      indexBlock(i); // not addBlock: the block is already in `objects`, and
-                     // this isn't a change to save
-    }
-    std::printf("loaded %zu objects from %s\n", objects.size(),
-                savePath.c_str());
-  } catch (const cereal::Exception &e) {
-    std::fprintf(stderr, "save file corrupt (%s), starting fresh\n", e.what());
-    objects.clear();
-    occupiedCells.clear();
-    chunkBlocks.clear();
-    nextObjectId = 1;
-  }
-}
-
 void Server::ensureChunk(int cx, int cz) {
   int64_t key = chunkKey(cx, cz);
   if (generatedChunks.contains(key))
     return;
+
+  auto saved = readChunkFile(chunkFilePath(savePath, cx, cz));
+  if (saved.has_value()) {
+    for (const Object &block : saved->blocks) {
+      addBlock(block, false); // loaded, not a new edit
+    }
+  } else {
+    generateChunk(cx, cz);
+  }
   generatedChunks.insert(key);
-  generateChunk(cx, cz);
 };
 
 // Random column, standing on the tallest cell the player's box overlaps.
@@ -288,7 +281,7 @@ void Server::generateChunk(int cx, int cz) {
         for (int i = 0; i < topDamage; i++) {
           top.damage();
         }
-        addBlock(top);
+        addBlock(top, false); // generated, not a new edit
         nextObjectId++;
 
         for (int i = height; i > 0; i--) {
@@ -300,13 +293,13 @@ void Server::generateChunk(int cx, int cz) {
           for (int d = 0; d < belowDamage; d++) {
             below.damage();
           }
-          addBlock(below);
+          addBlock(below, false); // generated, not a new edit
           nextObjectId++;
         }
       } else {
         // water
         float blockX = cellX * blockSize.x + (blockSize.x / 2);
-        float blockY = 5 * blockSize.y + blockSize.y / 2;
+        float blockY = 6 * blockSize.y + blockSize.y / 2;
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
         for (int i = height + 1; i > 1; i--) {
@@ -314,7 +307,7 @@ void Server::generateChunk(int cx, int cz) {
           Object o(nextObjectId,
                    ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BLUE,
                    BlockType::Water);
-          addBlock(o);
+          addBlock(o, false); // generated, not a new edit
           nextObjectId++;
         }
         blockY -= blockSize.y;
@@ -324,7 +317,7 @@ void Server::generateChunk(int cx, int cz) {
         for (int d = 0; d < damage; d++) {
           o.damage();
         }
-        addBlock(o);
+        addBlock(o, false); // generated, not a new edit
         nextObjectId++;
       }
     }
@@ -482,8 +475,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
     if (view == views.end() || !view->second.loaded.contains(chunk)) {
       break; // a player can only edit a chunk they hold
     }
-    if (occupiedCells.contains(blockKey(pos))) {
-      break; // one block per cell
+    if (auto occupant = occupiedCells.find(blockKey(pos));
+        occupant != occupiedCells.end()) {
+      if (objects[occupant->second].getType() != BlockType::Water) {
+        break; // one block per cell, and only water can be placed over
+      }
+      broadcastToChunk(
+          chunk,
+          proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
+          true);
+      removeBlock(occupant->second);
     }
     msg.object.setId(nextObjectId++); // server owns ids, clients send -1
     addBlock(msg.object);
@@ -626,16 +627,19 @@ void Server::updateView(const Player &p) {
   }
 }
 
-void Server::addBlock(const Object &block) {
+void Server::addBlock(const Object &block, bool markDirty) {
   objects.push_back(block);
   indexBlock((int)objects.size() - 1);
-  worldChanged = true;
+  if (markDirty) {
+    dirtyChunks.insert(chunkKeyAt(block.getTransform().pos));
+  }
 }
 
 void Server::removeBlock(int index) {
   // Copied, because objects[index] is overwritten by the swap below.
   const Vector3 pos = objects[index].getTransform().pos;
   occupiedCells.erase(blockKey(pos));
+  dirtyChunks.insert(chunkKeyAt(pos));
 
   // Take `index` out of its chunk's list. This must come before the swap fix-up
   // below (see there).
@@ -659,7 +663,6 @@ void Server::removeBlock(int index) {
     std::replace(moved.begin(), moved.end(), last, index);
   }
   objects.pop_back();
-  worldChanged = true;
 }
 
 int Server::findBlockHit(Vector3 from, Vector3 to) const {
@@ -680,6 +683,8 @@ int Server::findBlockHit(Vector3 from, Vector3 to) const {
         auto it = occupiedCells.find(cellKey(x, y, z));
         if (it == occupiedCells.end())
           continue;
+        if (objects[it->second].getType() == BlockType::Water)
+          continue; // bullets pass through water
 
         const ObjectTransform &t = objects[it->second].getTransform();
         Vector3 half = Vector3Scale(t.scale, 0.5f);
@@ -711,7 +716,14 @@ void Server::tick(float dt) {
     b.deathCountdown -= dt;
 
     Vector3 prevPos = b.pos;
-    b.pos = Vector3Add(b.pos, Vector3Scale(b.vel, dt));
+    auto cell =
+        occupiedCells.find(cellKey((int)floorf(prevPos.x / BLOCK_SIZE),
+                                   (int)floorf(prevPos.y / BLOCK_SIZE),
+                                   (int)floorf(prevPos.z / BLOCK_SIZE)));
+    bool inWater = cell != occupiedCells.end() &&
+                   objects[cell->second].getType() == BlockType::Water;
+    b.pos =
+        Vector3Add(b.pos, Vector3Scale(b.vel, dt * (inWater ? 0.8f : 1.0f)));
 
     int hit = findBlockHit(prevPos, b.pos);
     if (hit >= 0) {
@@ -719,9 +731,9 @@ void Server::tick(float dt) {
 
       Object &o = objects[hit];
       o.damage();
-      worldChanged = true;
       const Vector3 pos = o.getTransform().pos;
       const int64_t chunk = chunkKeyAt(pos);
+      dirtyChunks.insert(chunk); // damaged in place, still an edit
       if (o.getDurability() <= 0) {
         broadcastToChunk(
             chunk,
