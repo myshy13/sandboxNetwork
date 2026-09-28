@@ -214,7 +214,6 @@ void Server::loadWorld() {
   std::ifstream is(savePath, std::ios::binary);
   if (!is) {
     std::printf("no save at %s, starting fresh\n", savePath.c_str());
-    // generateWorld();
     return;
   }
 
@@ -237,102 +236,7 @@ void Server::loadWorld() {
     occupiedCells.clear();
     chunkBlocks.clear();
     nextObjectId = 1;
-    // generateWorld();
   }
-}
-
-void Server::generateWorld() {
-  std::cout << "Generating World\n";
-  const auto genStart = std::chrono::steady_clock::now();
-  // World spans [-WORLD_SIZE, WORLD_SIZE) on both axes; SPAN is the grid's
-  // actual width/height, and toIndex offsets x/z so they're never negative.
-  constexpr int WORLD_SIZE = 200;
-  constexpr int SPAN = 2 * WORLD_SIZE;
-  auto toIndex = [](int x, int z) {
-    return (z + WORLD_SIZE) * SPAN + (x + WORLD_SIZE);
-  };
-
-  std::vector<int> heightMap(SPAN * SPAN);
-
-  std::cout << "Generating Terrain\n";
-  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
-    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-      heightMap[toIndex(x, z)] = rand() % 20;
-    }
-  }
-
-  std::cout << "Smoothing terrain\n";
-  for (int i = 0; i < 7; i++) {
-    std::vector<int> smoothed(heightMap.size());
-    for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
-      for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-        int sum = 0, count = 0;
-        for (int dz = -1; dz <= 1; dz++) {
-          for (int dx = -1; dx <= 1; dx++) {
-            int nx = x + dx, nz = z + dz;
-            if (nx < -WORLD_SIZE || nx >= WORLD_SIZE || nz < -WORLD_SIZE ||
-                nz >= WORLD_SIZE)
-              continue;
-            sum += heightMap[toIndex(nx, nz)];
-            count++;
-          }
-        }
-        smoothed[toIndex(x, z)] = sum / count;
-      }
-    }
-    heightMap = std::move(smoothed);
-  }
-
-  std::cout << "Lowest terrain\n";
-  int lowest = INT_MAX;
-  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
-    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-      lowest = std::min(lowest, heightMap[toIndex(x, z)]);
-    }
-  }
-
-  std::cout << "Lowering terrain\n";
-  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
-    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-      heightMap[toIndex(x, z)] -= lowest;
-    }
-  }
-
-  std::cout << "Building terrain\n";
-  for (int z = -WORLD_SIZE; z < WORLD_SIZE; z++) {
-    for (int x = -WORLD_SIZE; x < WORLD_SIZE; x++) {
-      int height = heightMap[toIndex(x, z)];
-      float blockX = x * blockSize.x + (blockSize.x / 2);
-      float blockY = height * blockSize.y + (blockSize.y / 2);
-      float blockZ = z * blockSize.z + (blockSize.z / 2);
-
-      Object o(nextObjectId,
-               ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
-      int damage = rand() % 2;
-      for (int i = 0; i < damage; i++) {
-        o.damage();
-      }
-      addBlock(o);
-      nextObjectId++;
-
-      for (int i = height; i > 0; i--) {
-        blockY -= blockSize.y;
-        Object o(nextObjectId,
-                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BROWN);
-        int damage = rand() % 3;
-        for (int i = 0; i < damage; i++) {
-          o.damage();
-        }
-        addBlock(o);
-        nextObjectId++;
-      }
-    }
-  }
-  const double genSeconds =
-      std::chrono::duration<double>(std::chrono::steady_clock::now() - genStart)
-          .count();
-  std::cout << "Done building world: " << objects.size() << " blocks in "
-            << genSeconds << " s\n";
 }
 
 void Server::ensureChunk(int cx, int cz) {
@@ -887,8 +791,6 @@ void Server::tick(float dt) {
     updateView(p);
   }
 
-  // Hit detection is a brute-force scan of every object per bullet per tick,
-  // so this is where a big world (see generateWorld) is expected to hurt.
   static float debugPrintCountdown = 0.0f;
   debugPrintCountdown -= dt;
   if (debugPrintCountdown <= 0.0f) {

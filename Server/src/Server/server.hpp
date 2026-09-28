@@ -124,7 +124,6 @@ class Server {
   int checkOverlaps() const;
 
   // ==== World generation ==== //
-  void generateWorld();
   // Builds chunk (cx, cz) from `terrain` and adds its blocks via addBlock.
   void generateChunk(int cx, int cz);
   Vector3 randomSpawn() const;
