@@ -51,6 +51,7 @@ bool Client::connect() {
   pendingObjects.clear();
   pendingRemovals.clear();
   pendingDamage.clear();
+  pendingWaterLevel.clear();
   pendingChunkEvents.clear();
   health           = env::MAX_HEALTH;
   playerId         = -1;
@@ -207,6 +208,11 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::DamageObject: {
     pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).pos);
+    break;
+  }
+  case proto::Type::UpdateWaterLevel: {
+    auto msg = proto::unpack<proto::UpdateWaterLevel>(data);
+    pendingWaterLevel.push_back({msg.pos, msg.level});
     break;
   }
   case proto::Type::kick: {

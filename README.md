@@ -15,11 +15,13 @@ the same server process. Both kinds of client land in the same game world.
                      (--ws-port)
 ```
 
+**note:** The env is more of a config. _(server side)_
+
 ## Features
 
 - **Movement** — WASD + mouselook, Space to jump, Shift to sprint, `C` toggles
   first/third person.
-- **Shooting** — left click fires a bullet along the camera's aim. The *server*
+- **Shooting** — left click fires a bullet along the camera's aim. The _server_
   decides hits: a bullet swept through another player's box kills the bullet and
   damages that player (you can't hit yourself). Bullets expire after a few
   seconds if they hit nothing.
@@ -47,12 +49,12 @@ If you downloaded it in a browser instead: `xattr -dr com.apple.quarantine sandb
 
 ## Prerequisites
 
-| | |
-| --- | --- |
-| CMake | 3.20+ |
-| Compiler | anything with C++20 support |
-| Git | needed at configure time — dependencies are fetched, not vendored |
-| Emscripten | only for the web client (`brew install emscripten`) |
+|            |                                                                   |
+| ---------- | ----------------------------------------------------------------- |
+| CMake      | 3.20+                                                             |
+| Compiler   | anything with C++20 support                                       |
+| Git        | needed at configure time — dependencies are fetched, not vendored |
+| Emscripten | only for the web client (`brew install emscripten`)               |
 
 Dependencies download themselves on first configure via CMake `FetchContent`, so
 the first build of each target is slow and needs a network connection:
@@ -71,13 +73,13 @@ git-ignored. Copy the template before the first build:
 cp Client/src/env.example.hpp Client/src/env.hpp
 ```
 
-| define | meaning |
-| --- | --- |
-| `SERVER_IP` | server hostname or IP, no scheme (e.g. `"127.0.0.1"`) |
-| `SERVER_PORT` | server port (ENet and WebSocket share the number) |
-| `SERVER_WSS` | web build only — use `wss://` instead of `ws://` (needed when the page is served over https) |
-| `DEBUG` | show an FPS counter |
-| `CHEATS` | enable aimbot / rapid-fire (off by default) |
+| define        | meaning                                                                                      |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| `SERVER_IP`   | server hostname or IP, no scheme (e.g. `"127.0.0.1"`)                                        |
+| `SERVER_PORT` | server port (ENet and WebSocket share the number)                                            |
+| `SERVER_WSS`  | web build only — use `wss://` instead of `ws://` (needed when the page is served over https) |
+| `DEBUG`       | show an FPS counter                                                                          |
+| `CHEATS`      | enable aimbot / rapid-fire (off by default)                                                  |
 
 ## Build & run
 
@@ -113,7 +115,7 @@ cd Client/build-web && python3 -m http.server 8080
 Then open <http://localhost:8080/sandboxNetwork.html> with the server running
 `--ws-port 9798`. `emcmake` sets `EMSCRIPTEN`, which turns on `BUILD_WEB`, which
 makes CMake skip ENet and compile `transport_ws.cpp` instead of
-`transport_enet.cpp` — that build switch is the *only* native/web split; there
+`transport_enet.cpp` — that build switch is the _only_ native/web split; there
 are no platform `#ifdef`s in game code.
 
 Serve over plain `http://`: the client connects with `ws://`, which browsers

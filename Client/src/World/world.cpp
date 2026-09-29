@@ -72,7 +72,7 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
     // The ray is inside this cell, so it hits the block; the exact test gives the entry point and face normal.
     RayCollision rc = GetRayCollisionBox(aim, objectBox(objects[it->second].getTransform()));
     if (rc.hit) {
-      best = rc;
+      best    = rc;
       onWater = objects[it->second].getType() == BlockType::Water;
       break;
     }
@@ -113,7 +113,13 @@ bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
   BoundingBox block = objectBox(ObjectTransform{cell, env::BLOCKSIZE});
 
   if (!CheckCollisionBoxes(player, block)) {
-    client.placeObject(Object{-1, ObjectTransform{cell, env::BLOCKSIZE}, colors[activeColor]});
+    if (activeColor == 5) {
+      Object o = Object{-1, ObjectTransform{cell, env::BLOCKSIZE}, colors[activeColor], BlockType::Water};
+      client.placeObject(o);
+    } else {
+      Object o = Object{-1, ObjectTransform{cell, env::BLOCKSIZE}, colors[activeColor]};
+      client.placeObject(o);
+    }
     return true;
   } else {
     return false;
@@ -218,6 +224,14 @@ void World::damageObject(Vector3 pos) {
     return;
 
   objects[it->second].damage();
+}
+
+void World::setWaterLevel(Vector3 pos, uint8_t level) {
+  auto it = occupiedCells.find(cellKey(pos));
+  if (it == occupiedCells.end())
+    return;
+
+  objects[it->second].setLevel(level);
 }
 
 void World::clear() {

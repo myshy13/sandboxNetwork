@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
@@ -70,6 +71,8 @@ class Server {
 
   Terrain terrain;
 
+  FluidSim fluidSim;
+
   float saveCountdownTime = saveTime;
   float saveCountdown{saveCountdownTime};
 
@@ -108,8 +111,11 @@ class Server {
   // swap-and-pop). markDirty is false for generated/loaded baseline content,
   // which isn't an edit and shouldn't cause an unchanged chunk to be rewritten
   // to disk.
-  void addBlock(const Object &block, bool markDirty = true);
+  void addBlock(const Object &block, bool markDirty = true, bool activate = true);
   void removeBlock(int index);
+  // Sets a water cell's flow level and notifies every player holding its chunk.
+  // No-op off a water cell.
+  void setWaterLevel(Vector3 pos, uint8_t level);
   // Records objects[i] in occupiedCells and in its chunk's list.
   void indexBlock(int i);
   // Sends chunk (cx, cz) to one player as a ChunkData, empty chunks included.

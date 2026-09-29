@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 6; // Added blocktype
+constexpr int PROTOCOL_VERSION = 7; // Added level to water
 
 enum class Type : uint8_t {
   // player
@@ -39,10 +39,11 @@ enum class Type : uint8_t {
   NewObject,
   RemoveObject,
   DamageObject,
+  UpdateWaterLevel,
 
   ChunkData,
   ChunkUnload,
-  SetViewRadius
+  SetViewRadius,
 };
 
 struct PlayerUpdate {
@@ -113,6 +114,11 @@ struct RemoveObject {
 struct DamageObject {
   Vector3 pos;
   template <class A> void serialize(A &ar) { ar(pos); }
+};
+struct UpdateWaterLevel {
+  Vector3 pos;
+  uint8_t level;
+  template <class A> void serialize(A &ar) { ar(pos, level); }
 };
 struct clientHandshake {
   int ver; // client version

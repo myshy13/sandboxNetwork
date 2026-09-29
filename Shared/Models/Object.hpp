@@ -16,6 +16,7 @@ private:
   Color color{WHITE};
   int durability{3};
   BlockType type{BlockType::Solid};
+  uint8_t level{0}; // source block
 
 public:
   const ObjectTransform &getTransform() const { return transform; }
@@ -27,6 +28,8 @@ public:
     durability--;
     color = ColorBrightness(color, -0.25f); // darken toward black, keep hue
   }
+  void setLevel(uint8_t newLevel) { level = newLevel; };
+  uint8_t getLevel() const { return level; };
 
   void setId(int newId) { id = newId; }
 
@@ -45,6 +48,6 @@ public:
   // Vector3's serializer is the free function in Shared/Protocol/protocol.hpp.
   template <class Archive> void serialize(Archive &ar) {
     ar(id, transform.pos, transform.scale, color.r, color.g, color.b, color.a,
-       durability, type);
+       durability, type, level);
   }
 };

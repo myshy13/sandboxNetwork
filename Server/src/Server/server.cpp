@@ -1,4 +1,5 @@
 #include "Server/server.hpp"
+#include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 #include "Terrain/chunk.hpp"
@@ -86,25 +87,7 @@ Server::~Server() {
 }
 
 // ==== block grid ==== //
-constexpr Vector3 blockSize = SHARED_BLOCK_SIZE;
-constexpr float BLOCK_SIZE = blockSize.x; // cubic, see sharedEnv.hpp
-
-static constexpr float CHUNK_SIZE =
-    16 * BLOCK_SIZE; // must match World::STREAM_CHUNK_SIZE
-                     // (Client/src/World/world.hpp)
-
-// Packs a grid cell's (x, y, z) into one hashable key, offset so negative cells
-// don't collide.
-static int64_t cellKey(int x, int y, int z) {
-  constexpr int64_t OFFSET = 1 << 20;
-  return ((x + OFFSET) << 42) | ((y + OFFSET) << 21) | (z + OFFSET);
-}
-
-static int64_t blockKey(Vector3 pos) {
-  return cellKey((int)floorf(pos.x / BLOCK_SIZE),
-                 (int)floorf(pos.y / BLOCK_SIZE),
-                 (int)floorf(pos.z / BLOCK_SIZE));
-}
+#include "./blockHelpers.hpp"
 
 // The key of the chunk a world position falls in.
 static int64_t chunkKeyAt(Vector3 pos) {
@@ -230,8 +213,31 @@ void Server::ensureChunk(int cx, int cz) {
 
   auto saved = readChunkFile(chunkFilePath(savePath, cx, cz));
   if (saved.has_value()) {
+    // Only each column's topmost water block is a live FluidSim source - the
+    // rest are already settled beneath it (same reasoning as generateChunk).
+    std::unordered_map<int64_t, int>
+        topWaterY; // column key (x,z) -> highest y seen
     for (const Object &block : saved->blocks) {
-      addBlock(block, false); // loaded, not a new edit
+      if (block.getType() != BlockType::Water)
+        continue;
+      Vector3 p = block.getTransform().pos;
+      int64_t col = cellKey((int)floorf(p.x / BLOCK_SIZE), 0,
+                            (int)floorf(p.z / BLOCK_SIZE));
+      int y = (int)floorf(p.y / BLOCK_SIZE);
+      auto it = topWaterY.find(col);
+      if (it == topWaterY.end() || y > it->second)
+        topWaterY[col] = y;
+    }
+    for (const Object &block : saved->blocks) {
+      bool activate = false;
+      if (block.getType() == BlockType::Water) {
+        Vector3 p = block.getTransform().pos;
+        int64_t col = cellKey((int)floorf(p.x / BLOCK_SIZE), 0,
+                              (int)floorf(p.z / BLOCK_SIZE));
+        int y = (int)floorf(p.y / BLOCK_SIZE);
+        activate = topWaterY[col] == y;
+      }
+      addBlock(block, false, activate); // loaded, not a new edit
     }
   } else {
     generateChunk(cx, cz);
@@ -270,7 +276,7 @@ void Server::generateChunk(int cx, int cz) {
   for (int cellX = cx * 16; cellX < cx * 16 + 16; cellX++) {
     for (int cellZ = cz * 16; cellZ < cz * 16 + 16; cellZ++) {
       int height = terrain.heightAt(cellX, cellZ);
-      if (height >= 5) {
+      if (height >= 6) {
         float blockX = cellX * blockSize.x + (blockSize.x / 2);
         float blockY = height * blockSize.y + (blockSize.y / 2);
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
@@ -302,12 +308,17 @@ void Server::generateChunk(int cx, int cz) {
         float blockY = 6 * blockSize.y + blockSize.y / 2;
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
-        for (int i = height + 1; i > 1; i--) {
+        for (int i = height + 1; i > 0; i--) {
           blockY -= blockSize.y;
           Object o(nextObjectId,
                    ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BLUE,
                    BlockType::Water);
-          addBlock(o, false); // generated, not a new edit
+          // Only the topmost layer is a live source; the rest are already at
+          // rest against the floor and each other, so they don't need FluidSim
+          // to touch them - seeding every layer floods activeCells on every
+          // chunk load and stalls the client on chunk-mesh rebuilds.
+          bool isTopLayer = (i == height + 1);
+          addBlock(o, false, isTopLayer); // generated, not a new edit
           nextObjectId++;
         }
         blockY -= blockSize.y;
@@ -627,12 +638,37 @@ void Server::updateView(const Player &p) {
   }
 }
 
-void Server::addBlock(const Object &block, bool markDirty) {
+void Server::addBlock(const Object &block, bool markDirty, bool activate) {
   objects.push_back(block);
   indexBlock((int)objects.size() - 1);
   if (markDirty) {
     dirtyChunks.insert(chunkKeyAt(block.getTransform().pos));
   }
+  if (activate && block.getType() == BlockType::Water)
+    fluidSim.markActive(blockKey(block.getTransform().pos));
+}
+
+void Server::setWaterLevel(Vector3 pos, uint8_t level) {
+  auto occupant = occupiedCells.find(blockKey(pos));
+  if (occupant == occupiedCells.end()) {
+    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BLUE,
+             BlockType::Water);
+    o.setLevel(level);
+    addBlock(o);
+    broadcastToChunk(chunkKeyAt(pos),
+                     proto::pack(proto::Type::NewObject, proto::NewObject{o}),
+                     true);
+    return;
+  }
+  if (objects[occupant->second].getType() != BlockType::Water) {
+    return; // solid, can't flow into an occupied cell
+  }
+  objects[occupant->second].setLevel(level);
+  dirtyChunks.insert(chunkKeyAt(pos));
+  broadcastToChunk(chunkKeyAt(pos),
+                   proto::pack(proto::Type::UpdateWaterLevel,
+                               proto::UpdateWaterLevel{pos, level}),
+                   true);
 }
 
 void Server::removeBlock(int index) {
@@ -663,6 +699,21 @@ void Server::removeBlock(int index) {
     std::replace(moved.begin(), moved.end(), last, index);
   }
   objects.pop_back();
+
+  // Horizontal testing (X and Y)
+  const int64_t neighborKeys[] = {
+      blockKey(Vector3Add(pos, {BLOCK_SIZE, 0, 0})),
+      blockKey(Vector3Add(pos, {-BLOCK_SIZE, 0, 0})),
+      blockKey(Vector3Add(pos, {0, 0, BLOCK_SIZE})),
+      blockKey(Vector3Add(pos, {0, 0, -BLOCK_SIZE})),
+      blockKey(Vector3Add(pos, {0, BLOCK_SIZE, 0}))};
+
+  for (const int64_t key : neighborKeys) {
+    auto it = occupiedCells.find(key);
+    if (it != occupiedCells.end() &&
+        objects[it->second].getType() == BlockType::Water)
+      fluidSim.markActive(key);
+  }
 }
 
 int Server::findBlockHit(Vector3 from, Vector3 to) const {
@@ -812,6 +863,12 @@ void Server::tick(float dt) {
     std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n", tickMs,
                 objects.size(), bullets.size(), players.size());
   }
+
+  fluidSim.tick(dt, FluidWorld{objects, occupiedCells,
+                               [&](Vector3 pos, int level) {
+                                 setWaterLevel(pos, (uint8_t)level);
+                               },
+                               [&](int index) { removeBlock(index); }});
 }
 
 // ==== transport plumbing ==== //

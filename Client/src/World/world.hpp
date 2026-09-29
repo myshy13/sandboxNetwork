@@ -13,7 +13,7 @@
 
 class World {
 private:
-  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED, BLUE};
+  const Color colors[MAX_COLOURS] = {{0, 0, 0, 0}, BROWN, GREEN, DARKGRAY, RED, BLUE};
   int activeColor                 = 0;
   std::vector<Object> objects{};
 
@@ -26,6 +26,7 @@ public:
   // indexes each object as it's added, no full rebuild.
   void addObjects(const std::vector<Object> &newObjects);
   void damageObject(Vector3 pos);
+  void setWaterLevel(Vector3 pos, uint8_t level);
   // Empties the world (leaving a session); old chunks stay dirty so the renderer drops them.
   void clear();
 

@@ -41,7 +41,11 @@ Game::~Game() {
 
 // ==== one frame ==== //
 void Game::frame() {
-  float dt = GetFrameTime();
+  // Caps how far a single frame can move physics forward - a chunk-rebuild
+  // stall would otherwise report a huge dt and tunnel the player through the
+  // floor (gravity integrated over the whole stall in one uncollided step).
+  constexpr float MAX_DT = 1.0f / 30.0f;
+  float dt               = std::min(GetFrameTime(), MAX_DT);
 
   applyNetworkUpdates();
   handlePause();
@@ -91,6 +95,9 @@ void Game::applyNetworkUpdates() {
     for (Vector3 pos : client.takeDamagedObjects()) {
       world.damageObject(pos);
     }
+    // for (const WaterLevelUpdate &u : client.takeWaterLevelUpdates()) {
+    //   world.setWaterLevel(u.pos, u.level);
+    // }
     syncViewRadius();
   } else if (client.connect()) {
     world.clear(); // the server re-streams every block on join

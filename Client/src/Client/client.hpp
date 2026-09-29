@@ -45,6 +45,11 @@ struct ChunkEvent {
   std::vector<Object> blocks;
 };
 
+struct WaterLevelUpdate {
+  Vector3 pos;
+  uint8_t level;
+};
+
 class Client {
 private:
   int port{env::SERVER_PORT};
@@ -65,6 +70,7 @@ private:
   std::vector<Object> pendingObjects{};
   std::vector<Vector3> pendingRemovals{};
   std::vector<Vector3> pendingDamage{};
+  std::vector<WaterLevelUpdate> pendingWaterLevel{};
   std::vector<ChunkEvent> pendingChunkEvents{};
 
   bool handshakeSent{false};
@@ -166,6 +172,9 @@ public:
   }
   std::vector<Vector3> takeDamagedObjects() {
     return std::exchange(pendingDamage, {});
+  }
+  std::vector<WaterLevelUpdate> takeWaterLevelUpdates() {
+    return std::exchange(pendingWaterLevel, {});
   }
   std::vector<ChunkEvent> takeChunkEvents() {
     return std::exchange(pendingChunkEvents, {});

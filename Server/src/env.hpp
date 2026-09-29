@@ -28,4 +28,6 @@ constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 constexpr uint32_t saveFormatVersion = 1;
 constexpr uint32_t terrainVersion = 2; // raised water
 
+constexpr float FLOW_INTERVAL = 0.5f;
+
 } // namespace env

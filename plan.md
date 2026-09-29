@@ -28,7 +28,6 @@ settle on its own, the way a broken dam or a placed source block would.
 1. **Fluid level lives on `Object` as one plain field**, e.g. `uint8_t level` (0 = source, 1-7 = flowing,
    matching the Minecraft convention discussed earlier), the same way `type` was added: a value, serialized,
    no behaviour on the class itself.
-   Decision: Keep everything as a full block, but keep the water state (0-8)
 2. **The flow simulation is server-owned**, a new small type (e.g. `Server/src/Server/fluidSim.hpp`) or a
    set of free functions the server calls once per flow tick — not a class `Object` owns or calls into.
    `Object` stays a dumb, cheap-to-copy, network-safe value type; `Server` decides what water does, the same
