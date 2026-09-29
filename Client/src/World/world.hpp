@@ -13,7 +13,7 @@
 
 class World {
 private:
-  const Color colors[MAX_COLOURS] = {{0, 0, 0, 0}, BROWN, GREEN, DARKGRAY, RED, BLUE};
+  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED, BLUE};
   int activeColor                 = 0;
   std::vector<Object> objects{};
 
