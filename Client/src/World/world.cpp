@@ -58,6 +58,8 @@ static int64_t cellKey(Vector3 coord) {
 }
 
 bool World::placeBlock(Ray aim, Client &client, const Vector3 &playerPos) {
+  if (colors[activeColor].a == 0)
+    return false; // a transparent hotbar slot is an empty hand
   RayCollision best{};
   best.distance = FLT_MAX;
   // Water hit directly: you're replacing it in place, not building against a face.
@@ -232,6 +234,7 @@ void World::setWaterLevel(Vector3 pos, uint8_t level) {
     return;
 
   objects[it->second].setLevel(level);
+  markDirty(pos); // its surface height (and its neighbours' side faces) changed
 }
 
 void World::clear() {
@@ -292,6 +295,13 @@ bool World::isSolid(Vector3 pos) const {
 bool World::isWater(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
   return it != occupiedCells.end() && objects[it->second].getType() == BlockType::Water;
+}
+
+int World::waterLevel(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  if (it == occupiedCells.end() || objects[it->second].getType() != BlockType::Water)
+    return -1;
+  return objects[it->second].getLevel();
 }
 
 bool World::boxCollides(BoundingBox box, BlockType type) const {

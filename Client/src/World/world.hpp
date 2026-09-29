@@ -44,6 +44,8 @@ public:
   bool isSolid(Vector3 pos) const;
   // True if the cell containing pos holds a water block.
   bool isWater(Vector3 pos) const;
+  // The flow level of the water in pos's cell (0 = source), or -1 if there's no water there.
+  int waterLevel(Vector3 pos) const;
   // True if box overlaps a placed block. Only tests the handful of grid
   // cells box spans, not every object - see occupiedCells.
   bool boxCollides(BoundingBox box, BlockType type = BlockType::Solid) const;

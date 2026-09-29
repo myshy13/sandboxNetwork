@@ -54,6 +54,20 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Refuse an old save rather than lose it: old chunk files can't be read, and
+  // unedited chunks would generate differently next to the saved ones.
+  auto meta = readMetaFile(metaFilePath(savePath));
+  if (meta.has_value() && (meta->saveFormatVersion != env::saveFormatVersion ||
+                           meta->terrainVersion != env::terrainVersion)) {
+    std::fprintf(stderr,
+                 "%s was saved by an older server (save format %u, terrain %u; "
+                 "this server writes %u, %u).\nMove it aside or use --save-path "
+                 "to start a new world.\n",
+                 savePath.c_str(), meta->saveFormatVersion, meta->terrainVersion,
+                 env::saveFormatVersion, env::terrainVersion);
+    return EXIT_FAILURE;
+  }
+
   // After arg parsing so --help and bad args still reach the terminal.
   std::printf("logging to server.log\n");
   std::freopen("server.log", "a", stdout);
@@ -63,7 +77,6 @@ int main(int argc, char **argv) {
   // A saved seed overrides the CLI/current-time one: unedited chunks have to
   // regenerate with the same terrain as the edited chunks already on disk.
   int nextObjectId = 1;
-  auto meta = readMetaFile(metaFilePath(savePath));
   if (meta.has_value()) {
     seed = meta->seed;
     nextObjectId = meta->nextObjectId;

@@ -45,14 +45,11 @@ bool Client::connect() {
   bullets.clear();
   chat.clear();
   kills.clear();
+  pendingNames.clear();
   kickReason.reset();
   playerName.reset();
   respawnTo.reset();
-  pendingObjects.clear();
-  pendingRemovals.clear();
-  pendingDamage.clear();
-  pendingWaterLevel.clear();
-  pendingChunkEvents.clear();
+  pendingWorldEvents.clear();
   health           = env::MAX_HEALTH;
   playerId         = -1;
   handshakeSent    = false;
@@ -103,6 +100,10 @@ void Client::handleMessage(const std::string &data) {
         newPlayer.last2yaw[1] = msg.yaw;
         newPlayer.updatedAt   = GetTime();
         newPlayer.glideTime   = POS_UPDATE_INTERVAL;
+        if (auto name = pendingNames.find(msg.id); name != pendingNames.end()) {
+          newPlayer.name = name->second;
+          pendingNames.erase(name);
+        }
         players.push_back(newPlayer);
       } else {
         const double now = GetTime();
@@ -133,6 +134,7 @@ void Client::handleMessage(const std::string &data) {
     auto msg = proto::unpack<proto::DeletePlayer>(data);
     if (msg.id != playerId) {
       deletePlayer(msg.id);
+      pendingNames.erase(msg.id);
     }
     break;
   }
@@ -174,6 +176,7 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::Respawn: {
     respawnTo = proto::unpack<proto::Respawn>(data).pos;
+    health    = env::MAX_HEALTH; // the killing PlayerHit left it at 0
     break;
   }
   case proto::Type::ChatMessage: {
@@ -194,25 +197,36 @@ void Client::handleMessage(const std::string &data) {
     OnlinePlayer *p = findPlayer(msg.id);
     if (p) {
       p->name = msg.name;
+    } else {
+      pendingNames[msg.id] = msg.name; // applied when their first PlayerUpdate creates them
     }
     break;
   }
   // Server assigns the id and echoes NewObject to everyone (including us).
   case proto::Type::NewObject: {
-    pendingObjects.push_back(proto::unpack<proto::NewObject>(data).object);
+    WorldEvent e{WorldEvent::Kind::Add};
+    e.object = proto::unpack<proto::NewObject>(data).object;
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   case proto::Type::RemoveObject: {
-    pendingRemovals.push_back(proto::unpack<proto::RemoveObject>(data).pos);
+    WorldEvent e{WorldEvent::Kind::Remove};
+    e.pos = proto::unpack<proto::RemoveObject>(data).pos;
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   case proto::Type::DamageObject: {
-    pendingDamage.push_back(proto::unpack<proto::DamageObject>(data).pos);
+    WorldEvent e{WorldEvent::Kind::Damage};
+    e.pos = proto::unpack<proto::DamageObject>(data).pos;
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   case proto::Type::UpdateWaterLevel: {
     auto msg = proto::unpack<proto::UpdateWaterLevel>(data);
-    pendingWaterLevel.push_back({msg.pos, msg.level});
+    WorldEvent e{WorldEvent::Kind::WaterLevel};
+    e.pos   = msg.pos;
+    e.level = msg.level;
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   case proto::Type::kick: {
@@ -225,15 +239,19 @@ void Client::handleMessage(const std::string &data) {
   }
   case proto::Type::ChunkData: {
     auto msg = proto::unpack<proto::ChunkData>(data);
-    pendingChunkEvents.push_back({true,
-                                  msg.cx,
-                                  msg.cz,
-                                  std::move(msg.blocks)});
+    WorldEvent e{WorldEvent::Kind::LoadChunk};
+    e.cx     = msg.cx;
+    e.cz     = msg.cz;
+    e.blocks = std::move(msg.blocks);
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   case proto::Type::ChunkUnload: {
     auto msg = proto::unpack<proto::ChunkUnload>(data);
-    pendingChunkEvents.push_back({false, msg.cx, msg.cz, {}});
+    WorldEvent e{WorldEvent::Kind::UnloadChunk};
+    e.cx = msg.cx;
+    e.cz = msg.cz;
+    pendingWorldEvents.push_back(std::move(e));
     break;
   }
   default:

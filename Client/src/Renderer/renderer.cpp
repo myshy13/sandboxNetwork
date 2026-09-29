@@ -2,6 +2,7 @@
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
 #include "env.hpp"
+#include <algorithm>
 #include <cfloat>
 #include <raylib.h>
 #include <raymath.h>
@@ -90,6 +91,20 @@ bool Renderer::boxInFrustum(const Frustum &f, BoundingBox box) {
   return true;
 }
 
+// Water surface height above pos's cell floor (0 = no water): full under more water, so a falling column reads as one
+// stream; otherwise lower the weaker the flow.
+static float waterHeight(const World &world, Vector3 pos) {
+  const int level = world.waterLevel(pos);
+  if (level < 0)
+    return 0.0f;
+  const float size = env::BLOCKSIZE.y;
+  if (world.isWater(Vector3Add(pos, {0, size, 0})))
+    return size;
+  constexpr float SURFACE_DROP = 0.6f; // even a source sits a little below full, so it reads as water
+  constexpr int STEPS          = SHARED_WATER_MAX_LEVEL + 1;
+  return (size - SURFACE_DROP) * (STEPS - std::min(level, SHARED_WATER_MAX_LEVEL)) / STEPS;
+}
+
 void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, const World &world) {
   grid.erase(key);
 
@@ -105,11 +120,23 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, con
     // faces ever land on the same plane.
     // Water-on-water faces are skipped too: stacked transparent faces would add up their alpha.
     const bool water = objects[i].getType() == BlockType::Water;
-    uint8_t mask     = 0;
+    WaterShape shape;
+    if (water)
+      shape.top = waterHeight(world, t.pos);
+    uint8_t mask = 0;
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour = Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
-      if (!world.isSolid(neighbour) && !(water && world.isWater(neighbour)))
-        mask |= (uint8_t)(1 << f);
+      if (world.isSolid(neighbour))
+        continue;
+      if (water && world.isWater(neighbour)) {
+        if (FACE_DIR[f].y != 0)
+          continue; // above/below is the same body of water
+        // A side only shows where it rises above the neighbour's surface.
+        shape.sideBottom[f] = waterHeight(world, neighbour);
+        if (shape.sideBottom[f] >= shape.top)
+          continue;
+      }
+      mask |= (uint8_t)(1 << f);
     }
     if (mask == 0)
       continue; // fully buried, never contributes a visible pixel
@@ -123,6 +150,7 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object> &objects, con
     }
     cell.indices.push_back(i);
     cell.faceMasks.push_back(mask);
+    cell.waterShapes.push_back(shape);
   }
 
   if (!cell.indices.empty())
@@ -175,50 +203,33 @@ Object *Renderer::drawObjects(std::vector<Object> &objects,
       }
 
       bool water = o.getType() == BlockType::Water;
-      // Only the surface layer drops - a block with water above it is fully
-      // submerged, so shrinking its top would open a gap inside the water body.
-      bool surface = water && !world.isWater(Vector3Add(t.pos, {0, t.scale.y, 0}));
-      Color c      = o.getColor();
+      Color c    = o.getColor();
       if (water) {
         c.a = 100;
       }
-      Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
-      uint8_t mask   = cell.faceMasks[n];
-
-      // Water sits WATER_DROP below a full block, so its surface reads as "not quite
-      // full" without opening a gap against whatever's below it.
-      constexpr float WATER_DROP = 0.6f;
+      Vector4 colour           = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
+      uint8_t mask             = cell.faceMasks[n];
+      const WaterShape &shape  = cell.waterShapes[n];
+      const float floorY       = t.pos.y - t.scale.y * 0.5f;
 
       for (int f = 0; f < 6; f++) {
         if (!(mask & (1 << f)))
           continue;
 
-        Vector3 at = Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
-        Matrix m;
+        Vector3 at   = Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
+        Vector3 size = t.scale;
 
-        // The quad is scaled before FACE_ROT rotates it onto the face, so which
-        // scale axis becomes "vertical" in world space depends on the face:
-        // top/bottom (identity/180 rotation) never rotate y into the plane at
-        // all, so only x/z (the footprint) matter there; the four side faces
-        // rotate their scale.x (+-X faces) or scale.z (+-Z faces) onto world Y.
-        if (surface && f == 2) {
-          // Top face: drop it, footprint untouched.
-          at.y -= WATER_DROP;
-          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
-        } else if (surface && (f == 0 || f == 1)) {
-          // +-X side faces.
-          at.y -= WATER_DROP * 0.5f; // shrinking is centred - shift half the drop so only the top edge moves
-          m = MatrixMultiply(MatrixScale(t.scale.x - WATER_DROP, t.scale.y, t.scale.z), FACE_ROT[f]);
-        } else if (surface && (f == 4 || f == 5)) {
-          // +-Z side faces.
-          at.y -= WATER_DROP * 0.5f;
-          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z - WATER_DROP), FACE_ROT[f]);
-        } else {
-          // Solid faces, submerged water (any face, not just the surface layer),
-          // and water's own bottom face: full size, no shift - must sit flush
-          // against whatever's below/beside it.
-          m = MatrixMultiply(MatrixScale(t.scale.x, t.scale.y, t.scale.z), FACE_ROT[f]);
+        // The quad is scaled before FACE_ROT turns it onto its face: the +-X faces
+        // turn scale.x onto world Y, the +-Z faces scale.z; top/bottom keep the footprint.
+        if (water && f == 2) {
+          at.y = floorY + shape.top;
+        } else if (water && f != 3) {
+          // Side face: only the strip from where it becomes visible up to the surface.
+          const float bottom                  = shape.sideBottom[f];
+          at.y                                = floorY + (bottom + shape.top) * 0.5f;
+          ((f == 0 || f == 1) ? size.x : size.z) = shape.top - bottom;
         }
+        Matrix m = MatrixMultiply(MatrixScale(size.x, size.y, size.z), FACE_ROT[f]);
 
         at = Vector3Subtract(at, camera.position);
         m  = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));

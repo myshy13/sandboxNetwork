@@ -18,7 +18,9 @@ main.cpp       opens nothing itself: constructs Game and calls Game::frame() in 
 
 Server/src/
   Server/      game loop (Server::tick), hit detection, bullet lifetime, player bookkeeping, per-client chunk views
-               (updateView / sendChunk / broadcastToChunk); chunk.hpp = chunk key packing (tested), terrain.hpp = seeded terrain (WIP)
+               (updateView / sendChunk / broadcastToChunk); blockHelpers.hpp = block size, cell keys
+  Terrain/     chunk.hpp = chunk keys + chunk save files (tested), terrain.cpp = seeded terrain (tested)
+  Fluid/       FluidSim: server-owned water flow, reaches the world only through FluidWorld (tested)
   Net/         Connection interface + WsProxy (browser WebSocket bridge)
 main.cpp       CLI args (--ws-port), owns the Server instance
 
@@ -49,7 +51,9 @@ Shared/
 2. Server: handle it in `Server::handleReceive` (client -> server) or emit
    it from `Server::tick` / an event handler (server -> client).
 3. Client: handle the reply in the client's receive path
-   (`Client/src/Client/client.cpp`).
+   (`Client/src/Client/client.cpp`). Anything that changes blocks or chunks goes into the one `WorldEvent`
+   queue, which `Game::applyNetworkUpdates` applies in arrival order. Don't add a queue per message type:
+   draining them one after another reorders edits and leaves ghost blocks.
 4. If it needs constant per-tick simulation, that's `Server::tick` on the
    server side and the per-frame loop in `Client/src/main.cpp` on the
    client side — don't invent a second update loop.
@@ -62,7 +66,7 @@ The player's hitbox scale is defined once, as `SHARED_PLAYER_SCALE` in `Shared/s
 detection and the client's body, hitbox and placement check can't disagree. Change it in `sharedEnv.hpp` only.
 
 `World::STREAM_CHUNK_SIZE` (`Client/src/World/world.hpp`) and the server's `CHUNK_SIZE`
-(`Server/src/Server/server.cpp`) are the same streaming-chunk size (16 cells = 80 units), duplicated by hand;
+(`Server/src/Server/blockHelpers.hpp`) are the same streaming-chunk size (16 cells = 80 units), duplicated by hand;
 the client's debug chunk borders and (later) chunk loading rely on them agreeing.
 
 `GameState::MAX_RENDER_DISTANCE` (`Client/src/GameState/gameState.hpp`) must equal the server's `env::MAX_VIEW_RADIUS`

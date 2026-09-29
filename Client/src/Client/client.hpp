@@ -39,15 +39,16 @@ struct ChatEntry {
   double receivedAt = GetTime();
 };
 
-struct ChunkEvent {
-  bool load;
-  int cx, cz;
-  std::vector<Object> blocks;
-};
-
-struct WaterLevelUpdate {
-  Vector3 pos;
-  uint8_t level;
+// One change to the block world. Applied in arrival order: grouping by kind reorders them and leaves ghost blocks.
+struct WorldEvent {
+  enum class Kind : uint8_t { LoadChunk, UnloadChunk, Add, Remove, Damage, WaterLevel };
+  explicit WorldEvent(Kind k) : kind(k) {}
+  Kind kind;
+  int cx{0}, cz{0};           // LoadChunk / UnloadChunk
+  std::vector<Object> blocks; // LoadChunk
+  Object object;              // Add
+  Vector3 pos{0, 0, 0};       // Remove / Damage / WaterLevel
+  uint8_t level{0};           // WaterLevel
 };
 
 class Client {
@@ -61,17 +62,14 @@ private:
   std::vector<ChatEntry> chat{};
   std::optional<std::string> playerName;
   std::unordered_map<int, int> kills;
+  std::unordered_map<int, std::string> pendingNames; // names that arrived before that player's first position
 
   int health{env::MAX_HEALTH};
   int playerId{-1};
   std::optional<Vector3> respawnTo{};
 
   // ==== drain variables ==== //
-  std::vector<Object> pendingObjects{};
-  std::vector<Vector3> pendingRemovals{};
-  std::vector<Vector3> pendingDamage{};
-  std::vector<WaterLevelUpdate> pendingWaterLevel{};
-  std::vector<ChunkEvent> pendingChunkEvents{};
+  std::vector<WorldEvent> pendingWorldEvents{};
 
   bool handshakeSent{false};
   double connectStartedAt{0.0};
@@ -164,20 +162,8 @@ public:
     return std::exchange(respawnTo, std::nullopt);
   }
   // ==== drains ==== //
-  std::vector<Object> takeNewObjects() {
-    return std::exchange(pendingObjects, {});
-  }
-  std::vector<Vector3> takeRemovedObjects() {
-    return std::exchange(pendingRemovals, {});
-  }
-  std::vector<Vector3> takeDamagedObjects() {
-    return std::exchange(pendingDamage, {});
-  }
-  std::vector<WaterLevelUpdate> takeWaterLevelUpdates() {
-    return std::exchange(pendingWaterLevel, {});
-  }
-  std::vector<ChunkEvent> takeChunkEvents() {
-    return std::exchange(pendingChunkEvents, {});
+  std::vector<WorldEvent> takeWorldEvents() {
+    return std::exchange(pendingWorldEvents, {});
   }
 
   void updateBullets(float dt) {

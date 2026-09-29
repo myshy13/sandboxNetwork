@@ -33,6 +33,7 @@ struct Player {
   float yaw{0.0f};
   int health{env::PLAYER_MAX_HEALTH};
   std::optional<std::string> displayName;
+  float shotBudget{env::SHOT_BURST}; // refills one shot per SHOT_INTERVAL, up to SHOT_BURST
 };
 
 struct ClientView {

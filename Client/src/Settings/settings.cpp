@@ -34,7 +34,9 @@ void Settings::frame() {
   Rectangle sliderRec = {static_cast<float>(sliderX - 10), 190, 20, 40};
   if (changingRenderDistance && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {
     changingRenderDistance = false;
-  } else if (!changingRenderDistance && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec({sliderRec.x, static_cast<float>(GetMouseY())}, sliderRec)) {
+  } else if (!changingRenderDistance && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+             CheckCollisionPointRec(GetMousePosition(), {static_cast<float>(screenDistance5th), 190, static_cast<float>(screenDistance5th * 3), 40})) {
+    // Anywhere along the bar grabs it (and jumps the knob there), not anywhere across the whole row.
     changingRenderDistance = true;
   }
   DrawText(std::string("Render distance:" + std::to_string(gameState.getRenderDistance() / 5)).c_str(), screenDistance5th, 150, 30, WHITE); // divided by 5 to match the block size

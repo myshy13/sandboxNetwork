@@ -80,6 +80,10 @@ inline std::optional<SavedChunk> readChunkFile(std::string path) {
     cereal::BinaryInputArchive ar(is);
     SavedChunk chunk;
     ar(chunk);
+    if (chunk.formatVersion != env::saveFormatVersion) {
+      std::cerr << "ERR: chunk at " << path << " has save format " << chunk.formatVersion << "\n";
+      return std::nullopt;
+    }
     return chunk;
   } catch (const cereal::Exception &e) {
     std::cerr << "ERR: Failed to read chunk at path: " << path << "\n";

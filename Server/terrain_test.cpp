@@ -55,7 +55,7 @@ int main() {
   assert(differenceCount > 10);
 
   std::cout << "TERRAIN INFO:\n";
-  std::cout << "|- Height ---- | - Count -|";
+  std::cout << "|- Height ---- | - Count -|\n";
   for (auto [height, count] : heightCount) {
     std::cout << "| " << height << " | " << count << " |\n";
   }

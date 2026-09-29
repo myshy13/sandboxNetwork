@@ -8,56 +8,49 @@ Water blocks exist (`BlockType::Water`), the player can swim in them, and they r
 now every water cell placed at world-gen is permanent and still — the next step is for water to spread and
 settle on its own, the way a broken dam or a placed source block would.
 
-### Status (done, this session)
+### Status
 
-- `BlockType` on `Object` (`Shared/Models/Object.hpp`), serialized, `PROTOCOL_VERSION` bumped.
-- `World::isSolid` / `World::isWater` (client) and `Server::boxCollides(box, type)`-style lookups: collision
-  and face-culling both go through type, not just occupancy.
-- `Server::generateChunk`: below a fixed water-table height, fills with `Water` blocks down to a `Brown` floor.
-- `Player::Update`: `inWater` probe at body-centre height; separate gravity scale, terminal velocity, swim
-  impulse (Space) and horizontal drag/multiplier while submerged.
-- `Renderer`: opaque and water instances draw in two passes (`Renderer::drawBatch`), water second with depth
-  write off, so translucent faces can't punch a depth hole through solid geometry behind them. Water-on-water
-  faces are culled the same way solid-on-solid faces are, so a lake doesn't draw its own internal faces.
-- Underwater screen tint (`Game::drawScene`, checks `world.isWater(camera.position)`).
-- Known bugs, not blocking: `bugs.md` #1 (F3 above pause menu), #2 (holding Space re-fires the swim impulse
-  every frame instead of once).
+Built: `level` on `Object`, `UpdateWaterLevel`, `FluidSim` (`Server/src/Fluid/`, tested in
+`Server/test_fluid.cpp`), ticked from `Server::tick` every `env::FLOW_INTERVAL`, and water drawn by level.
+Earlier groundwork (water `BlockType`, swim physics, two-pass translucent rendering, underwater tint) is in git history.
 
-### Decisions to make first (recommendations in bold)
+### Requirements
 
-1. **Fluid level lives on `Object` as one plain field**, e.g. `uint8_t level` (0 = source, 1-7 = flowing,
-   matching the Minecraft convention discussed earlier), the same way `type` was added: a value, serialized,
-   no behaviour on the class itself.
-2. **The flow simulation is server-owned**, a new small type (e.g. `Server/src/Server/fluidSim.hpp`) or a
-   set of free functions the server calls once per flow tick — not a class `Object` owns or calls into.
-   `Object` stays a dumb, cheap-to-copy, network-safe value type; `Server` decides what water does, the same
-   way it already owns hit detection and bullet lifetime (see `arch.md`).
-3. **Flow ticks slower than the main tick.** Spread doesn't need position-update precision; a fixed interval
-   (e.g. every N `Server::tick` calls, or its own accumulator) keeps the cost off the hot path. **Do this.**
-4. **Spread reads neighbours through the same lookups collision already uses**
-   (`occupiedCells` + `isWater`/`isSolid`-equivalents on the server side), not a second data structure.
-5. **How an edit reaches clients:** decide whether flow changes reuse `DamageObject`/`PlaceObject`-style
-   messages, or need a new `UpdateBlock`-style message (block position + new type/level). A new message is
-   probably cleaner: damage/place both imply a durability or existence change, not a level change.
+Each rule below should have a test in `Server/test_fluid.cpp` (flow) or be visible in game (rendering).
 
-### Steps (each should leave the game working)
+**Levels.** `level` 0 is a source; 1..`SHARED_WATER_MAX_LEVEL` (`Shared/sharedEnv.hpp`, now 3) is flowing water,
+weaker as the number grows. Past the max, water is removed. The server owns every level; clients only draw them.
 
-1. Add `level` to `Object`, serialize it, bump `PROTOCOL_VERSION`. No behaviour yet — everything still renders
-   and collides exactly as today (`level` unused).
-2. Add the new protocol message for a block's type/level changing (decision 5); wire it through
-   `Server::handleReceive` / `Server::tick` -> client receive path (`Client::client.cpp`), per `arch.md`'s
-   "adding a new networked feature" steps.
-3. `FluidSim`: one pass, one water cell at a time — pseudocode, not code yet:
-   - source cells (`level == 0`) never change.
-   - a flowing cell with no water/source neighbour one level lower decays: `level++`, removed past a max.
-   - an empty (air) cell next to a source or flowing cell becomes water at `neighbourLevel + 1`, capped at the max.
-   - a solid floor stops downward spread; water above an open drop falls (becomes a falling variant) rather
-     than spreading sideways first — decide if that distinction is worth it now or later.
-4. Tie the pass into `Server::tick` at the slower cadence from decision 3. Confirm: placing a single source
-   block in an empty pit fills it and stops at the edges; breaking a floor block under still water drains it.
-5. Client: `level` only affects rendering for now (maybe a slightly different alpha/tint per level, or ignore
-   it entirely at first) — flow is still server-authoritative, client never predicts it (see `product.md`
-   non-goals: no client-side authority over the world's state).
+**Flow, one pass every `FLOW_INTERVAL` (only cells in `activeCells` are looked at):**
+1. *Fall:* water with an empty cell below it (and y >= 0) fills that cell, at its own level but never 0.
+   Falling copies strength down; it never creates a source.
+2. *Feed:* a non-source cell's level becomes the strongest level a neighbour gives it: side water at level n gives
+   n + 1, water directly above gives its own level (at least 1). Feeding can strengthen as well as weaken a cell.
+3. *Drain:* a non-source cell with no feeder weakens by 1 per pass and is removed past the max. It does not spread.
+4. *Spread:* a source, or fed flowing water standing on something solid (or the world floor), fills each empty
+   side neighbour at its level + 1, if that is within the max. Flowing water over air or water doesn't spread
+   sideways, so a waterfall falls straight down and spreads where it lands.
+5. *Stop:* water never replaces or passes a solid block, never goes below y = 0, and never enters a chunk the
+   server hasn't generated yet.
+6. *Pacing:* a cell woken during a pass is processed next pass, never in the same one, so flow moves exactly one
+   cell per pass in every direction.
+
+**What wakes a cell:** a change to its own level, a level change or removal of the water that feeds it, a block
+broken beside or below it, and loading its chunk. On load only surface water (no water above it) is woken;
+water under a surface is already settled.
+
+**Generation:** the top water block of each generated column is a source; the water under it is level 1.
+
+**Networking:** every level change is sent as `UpdateWaterLevel`, every new cell as `NewObject`, every removal as
+`RemoveObject`, all reliable and only to players holding that chunk. Clients apply world events in arrival order.
+
+**Rendering (client):**
+- A water surface sits lower the weaker it is (a source sits just under a full block). Water with water above
+  it is drawn full height, so a falling column reads as one stream.
+- A water face touching the same body (above, below, or a side neighbour at the same height or higher) is not
+  drawn. A side face next to lower water is drawn only above that water's surface, so there are no gaps and
+  no doubled-up translucent faces.
+- A level change re-meshes the chunks around it.
 
 ### Pitfalls
 

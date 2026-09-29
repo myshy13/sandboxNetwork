@@ -1,4 +1,4 @@
-#include "Server/chunk.hpp"
+#include "Terrain/chunk.hpp"
 #include <cassert>
 #include <cstdio>
 

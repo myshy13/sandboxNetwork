@@ -43,7 +43,8 @@ public:
     velocity              = Vector3Zero();
     onGround              = false;
     yaw                   = 0.0f;
-    transform.rotation    = {};
+    pitch                 = 0.0f;
+    transform.rotation    = QuaternionIdentity(); // not {}: a zero quaternion has no look direction
   }
   Player();
 

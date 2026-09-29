@@ -2,14 +2,15 @@
 
 #include "Models/Object.hpp"
 #include "raylib.h"
+#include "sharedEnv.hpp"
 #include <cstdint>
 #include <functional>
 #include <set>
 #include <unordered_map>
 #include <vector>
 
-#define SOURCE 0
-#define MAX_LEVEL 3
+constexpr int SOURCE = 0;
+constexpr int MAX_LEVEL = SHARED_WATER_MAX_LEVEL; // past this, water is removed
 
 struct FluidWorld {
   std::vector<Object> &objects;

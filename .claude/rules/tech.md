@@ -48,5 +48,6 @@
   (`cd Shared/Protocol && make test`) that needs no client or server
   running. It reuses headers already fetched into `Client/build`, so
   build the native client at least once first.
-- `Server/src/Server/chunk.hpp` (chunk key packing) has its own test: `cd Server && make test`.
-  Pure functions only, so it needs no raylib or ENet; put testable server logic in headers like this.
+- `cd Server && make test` runs the chunk-key (`Server/src/Terrain/chunk.hpp`), terrain and `FluidSim` tests.
+  They need no ENet and no running server, but reuse cereal/raylib headers from `Client/build`. `FluidSim` is
+  tested through a stand-in `FluidWorld` (`Server/test_fluid.cpp`); keep new server logic testable the same way.

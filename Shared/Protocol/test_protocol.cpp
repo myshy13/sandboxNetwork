@@ -94,6 +94,26 @@ int main() {
     assert(msg.blocks[1199].getTransform().pos.x == 1199 * 5.0f + 2.5f);
   }
 
+  // ==== ChunkData: water blocks keep their type and flow level ==== //
+  {
+    Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}}, BLUE, BlockType::Water);
+    water.setLevel(3);
+    Object solid(10, ObjectTransform{{7.5f, 2.5f, 2.5f}, {5, 5, 5}}, BROWN);
+
+    auto msg = proto::unpack<proto::ChunkData>(proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, {water, solid}}));
+    assert(msg.blocks[0].getType() == BlockType::Water && msg.blocks[0].getLevel() == 3);
+    assert(msg.blocks[1].getType() == BlockType::Solid && msg.blocks[1].getLevel() == 0); // default: source/unset
+  }
+
+  // ==== UpdateWaterLevel ==== //
+  {
+    auto bytes = proto::pack(proto::Type::UpdateWaterLevel, proto::UpdateWaterLevel{{-2.5f, 12.5f, 7.5f}, 7});
+    assert(proto::peekType(bytes) == proto::Type::UpdateWaterLevel);
+    auto msg = proto::unpack<proto::UpdateWaterLevel>(bytes);
+    assert(msg.pos.x == -2.5f && msg.pos.y == 12.5f && msg.pos.z == 7.5f);
+    assert(msg.level == 7);
+  }
+
   // ==== ChunkUnload ==== //
   {
     auto bytes = proto::pack(proto::Type::ChunkUnload, proto::ChunkUnload{-7, 12});

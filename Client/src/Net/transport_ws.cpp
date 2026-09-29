@@ -13,11 +13,7 @@ namespace {
 
 class WebSocketTransport final : public Transport {
 public:
-  ~WebSocketTransport() override {
-    if (socket > 0) {
-      emscripten_websocket_close(socket, 1000, "client shutting down");
-    }
-  }
+  ~WebSocketTransport() override { release("client shutting down"); }
 
   void connect(const std::string &hostName, int port) override {
     if (!emscripten_websocket_is_supported()) {
@@ -49,12 +45,7 @@ public:
     emscripten_websocket_set_onmessage_callback(socket, this, onMessage);
   }
 
-  void disconnect() override {
-    if (socket > 0)
-      emscripten_websocket_close(socket, 1000, "leaving");
-    socket    = 0;
-    connected = false;
-  }
+  void disconnect() override { release("leaving"); }
 
   bool isConnected() const override { return connected; }
 
@@ -78,6 +69,16 @@ public:
   }
 
 private:
+  // Closes and deletes the socket: delete unregisters the callbacks, which hold `this` and would otherwise fire after we're gone.
+  void release(const char *reason) {
+    if (socket > 0) {
+      emscripten_websocket_close(socket, 1000, reason);
+      emscripten_websocket_delete(socket);
+    }
+    socket    = 0;
+    connected = false;
+  }
+
   // Callbacks fire on the browser's main thread between frames, so they can
   // touch our state directly - no locking needed.
   static EM_BOOL onOpen(int, const EmscriptenWebSocketOpenEvent *,

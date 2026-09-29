@@ -61,8 +61,8 @@ void Game::frame() {
   drawHealthBar();
   drawChat();
   drawScoreboard();
+  drawDebug(); // before the overlays, so the pause menu covers it
   drawOverlays(dt);
-  drawDebug();
   EndDrawing();
 }
 
@@ -75,29 +75,29 @@ void Game::applyNetworkUpdates() {
       client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
       player.UpdateCamera(camera);
     }
-    std::vector<ChunkEvent> chunkEvents = client.takeChunkEvents();
-    for (ChunkEvent &e : chunkEvents) {
-      if (e.load) {
+    // In arrival order: the server already sends a place-over-water as Remove then Add.
+    for (WorldEvent &e : client.takeWorldEvents()) {
+      switch (e.kind) {
+      case WorldEvent::Kind::LoadChunk:
         world.addChunk(e.cx, e.cz, e.blocks);
-      } else {
+        break;
+      case WorldEvent::Kind::UnloadChunk:
         world.unloadChunk(e.cx, e.cz);
+        break;
+      case WorldEvent::Kind::Add:
+        world.addObject(e.object);
+        break;
+      case WorldEvent::Kind::Remove:
+        world.removeObject(e.pos);
+        break;
+      case WorldEvent::Kind::Damage:
+        world.damageObject(e.pos);
+        break;
+      case WorldEvent::Kind::WaterLevel:
+        world.setWaterLevel(e.pos, e.level);
+        break;
       }
     }
-    // Removals before new objects: a place-over-water sends both in the same
-    // tick, and removeObject looks blocks up by position - reversed, it would
-    // remove the block just added instead of the one it's replacing.
-    for (Vector3 pos : client.takeRemovedObjects()) {
-      world.removeObject(pos);
-    }
-    for (const Object &o : client.takeNewObjects()) {
-      world.addObject(o);
-    }
-    for (Vector3 pos : client.takeDamagedObjects()) {
-      world.damageObject(pos);
-    }
-    // for (const WaterLevelUpdate &u : client.takeWaterLevelUpdates()) {
-    //   world.setWaterLevel(u.pos, u.level);
-    // }
     syncViewRadius();
   } else if (client.connect()) {
     world.clear(); // the server re-streams every block on join
@@ -547,12 +547,12 @@ void Game::drawOverlays(float dt) {
     const char *msg = client.getKickReason() ? client.getKickReason()->c_str() : "Connecting...";
     Color col       = client.getKickReason() ? RED : WHITE;
     DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
+  } else if (!paused && !chunkUnderPlayerLoaded()) {
+    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
   } else if (!paused) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 480, WHITE);
-  } else if (!paused && !chunkUnderPlayerLoaded()) {
-    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
   }
 }
 

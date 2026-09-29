@@ -54,6 +54,7 @@ polish notes remain.
 - [/] larger builds: 2x2x2 or drag a line of blocks **(other half, no)**
 - [/] snap-to-grid ghost block **Reason:** it will look ugly and hide the view
 - [/] clamp `PlaceObject` colour to the palette **Reason:** cosmetic only
+- [ ] sound effects
 
 ## Lighting & rendering
 

@@ -10,9 +10,11 @@
 #include <algorithm>
 #include <cfloat>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <future>
 #include <optional>
 #include <raymath.h>
@@ -23,6 +25,19 @@
 constexpr Vector3 PLAYER_SCALE = SHARED_PLAYER_SCALE;
 
 namespace {
+// Client-sent positions go through this: a NaN or infinity would make every
+// floorf-to-int cell lookup undefined.
+bool isFinite(Vector3 v) {
+  return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
+
+// A player-claimed position the server will act on: real numbers, inside the
+// range cell keys can hold.
+bool isValidPosition(Vector3 v) {
+  return isFinite(v) && std::abs(v.x) < env::WORLD_LIMIT &&
+         std::abs(v.y) < env::WORLD_LIMIT && std::abs(v.z) < env::WORLD_LIMIT;
+}
+
 // An ENet client. The WebSocket equivalent lives in Net/ws_proxy.cpp.
 class EnetConnection final : public Connection {
 public:
@@ -101,11 +116,9 @@ static int64_t chunkKeyAt(Vector3 pos) {
 // Blocks until any background save has finished, then writes synchronously.
 // Used at shutdown, where the write has to be done before we exit.
 void Server::saveWorld() {
-  if (saving.valid() &&
-      saving.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-    return; // still writing the last batch, try again next period
   if (saving.valid()) {
-    for (int64_t failedKey : saving.get())
+    for (int64_t failedKey :
+         saving.get()) // get() waits for the background write to finish
       dirtyChunks.insert(failedKey); // retry ones that failed last time
   }
   if (dirtyChunks.empty())
@@ -113,10 +126,12 @@ void Server::saveWorld() {
 
   std::unordered_map<int64_t, SavedChunk> snapshot;
   for (int64_t key : dirtyChunks) {
-    std::vector<int> blocks = chunkBlocks[key];
     std::vector<Object> chunkObjects;
-    for (int b : blocks) {
-      chunkObjects.push_back(objects[b]);
+    if (auto it = chunkBlocks.find(key);
+        it != chunkBlocks.end()) { // find, not []: no empty lists
+      for (int b : it->second) {
+        chunkObjects.push_back(objects[b]);
+      }
     }
     SavedChunk chunk;
     chunk.blocks = std::move(chunkObjects);
@@ -128,11 +143,11 @@ void Server::saveWorld() {
                 nextObjectId};
   writeMetaFile(metaFilePath(savePath), meta);
 
-  std::unordered_set<int64_t> failed;
   for (auto &[key, chunk] : snapshot) {
     auto [cx, cz] = chunkCoords(key);
     if (!writeChunkFile(chunkFilePath(savePath, cx, cz), chunk))
-      failed.insert(key);
+      std::printf("ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
+                  cz); // no later save to retry in
   }
 }
 
@@ -151,10 +166,12 @@ void Server::saveWorldAsync() {
 
   std::unordered_map<int64_t, SavedChunk> snapshot;
   for (int64_t key : dirtyChunks) {
-    std::vector<int> blocks = chunkBlocks[key];
     std::vector<Object> chunkObjects;
-    for (int b : blocks) {
-      chunkObjects.push_back(objects[b]);
+    if (auto it = chunkBlocks.find(key);
+        it != chunkBlocks.end()) { // find, not []: no empty lists
+      for (int b : it->second) {
+        chunkObjects.push_back(objects[b]);
+      }
     }
     SavedChunk chunk;
     chunk.blocks = std::move(chunkObjects);
@@ -213,31 +230,19 @@ void Server::ensureChunk(int cx, int cz) {
 
   auto saved = readChunkFile(chunkFilePath(savePath, cx, cz));
   if (saved.has_value()) {
-    // Only each column's topmost water block is a live FluidSim source - the
-    // rest are already settled beneath it (same reasoning as generateChunk).
-    std::unordered_map<int64_t, int>
-        topWaterY; // column key (x,z) -> highest y seen
+    // Wake the surface of every body of water (water with no water above it),
+    // including mid-flow water; what lies under a surface is already settled.
+    std::unordered_set<int64_t> waterCells;
     for (const Object &block : saved->blocks) {
-      if (block.getType() != BlockType::Water)
-        continue;
-      Vector3 p = block.getTransform().pos;
-      int64_t col = cellKey((int)floorf(p.x / BLOCK_SIZE), 0,
-                            (int)floorf(p.z / BLOCK_SIZE));
-      int y = (int)floorf(p.y / BLOCK_SIZE);
-      auto it = topWaterY.find(col);
-      if (it == topWaterY.end() || y > it->second)
-        topWaterY[col] = y;
+      if (block.getType() == BlockType::Water)
+        waterCells.insert(blockKey(block.getTransform().pos));
     }
     for (const Object &block : saved->blocks) {
-      bool activate = false;
-      if (block.getType() == BlockType::Water) {
-        Vector3 p = block.getTransform().pos;
-        int64_t col = cellKey((int)floorf(p.x / BLOCK_SIZE), 0,
-                              (int)floorf(p.z / BLOCK_SIZE));
-        int y = (int)floorf(p.y / BLOCK_SIZE);
-        activate = topWaterY[col] == y;
-      }
-      addBlock(block, false, activate); // loaded, not a new edit
+      const Vector3 above =
+          Vector3Add(block.getTransform().pos, {0, BLOCK_SIZE, 0});
+      const bool surface = block.getType() == BlockType::Water &&
+                           !waterCells.contains(blockKey(above));
+      addBlock(block, false, surface); // loaded, not a new edit
     }
   } else {
     generateChunk(cx, cz);
@@ -305,7 +310,7 @@ void Server::generateChunk(int cx, int cz) {
       } else {
         // water
         float blockX = cellX * blockSize.x + (blockSize.x / 2);
-        float blockY = 6 * blockSize.y + blockSize.y / 2;
+        float blockY = 7 * blockSize.y + blockSize.y / 2;
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
         for (int i = height + 1; i > 0; i--) {
@@ -318,6 +323,8 @@ void Server::generateChunk(int cx, int cz) {
           // to touch them - seeding every layer floods activeCells on every
           // chunk load and stalls the client on chunk-mesh rebuilds.
           bool isTopLayer = (i == height + 1);
+          if (!isTopLayer)
+            o.setLevel(1); // fed from above, not a source: drains if cut off
           addBlock(o, false, isTopLayer); // generated, not a new edit
           nextObjectId++;
         }
@@ -374,6 +381,14 @@ std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
   if (player == nullptr) {
     return std::nullopt;
   }
+  // The client picks the aim ray (see CreateBullet), but it must start at the
+  // shooter, and only so often.
+  if (!isFinite(origin) || !isFinite(dir) || Vector3Length(dir) == 0.0f ||
+      Vector3Distance(origin, player->pos) > env::MAX_MUZZLE_OFFSET ||
+      player->shotBudget < 1.0f) {
+    return std::nullopt;
+  }
+  player->shotBudget -= 1.0f;
 
   Vector3 forward = Vector3Normalize(dir);
 
@@ -407,6 +422,16 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
+  // Names are only broadcast when set, so a newcomer needs everyone's current
+  // one.
+  for (const Player &p : players) {
+    if (p.displayName.has_value()) {
+      sendTo(id,
+             proto::pack(proto::Type::SetName,
+                         proto::SetName{*p.displayName, p.id}),
+             true);
+    }
+  }
   return id;
 }
 
@@ -425,114 +450,141 @@ void Server::handleReceive(int playerId, const std::string &data) {
   if (data.empty()) {
     return;
   }
+  try {
+    switch (proto::peekType(data)) {
+    // ==== pos update handler ==== //
+    case proto::Type::PlayerUpdate: {
+      auto msg = proto::unpack<proto::PlayerUpdate>(data);
+      msg.id = playerId; // trust the connection, not the payload
+      if (!isValidPosition(msg.pos) || !std::isfinite(msg.pitch) ||
+          !std::isfinite(msg.yaw)) {
+        break;
+      }
 
-  switch (proto::peekType(data)) {
-  // ==== pos update handler ==== //
-  case proto::Type::PlayerUpdate: {
-    auto msg = proto::unpack<proto::PlayerUpdate>(data);
-    msg.id = playerId; // trust the connection, not the payload
-
-    Player *player = findPlayer(playerId);
-    if (player != nullptr) {
-      player->pos = msg.pos;
-      player->pitch = msg.pitch;
-      player->yaw = msg.yaw;
+      Player *player = findPlayer(playerId);
+      if (player != nullptr) {
+        player->pos = msg.pos;
+        player->pitch = msg.pitch;
+        player->yaw = msg.yaw;
+      }
+      // ==== notify all peers ==== //
+      // Unreliable on purpose: a dropped position is superseded a frame later.
+      broadcast(proto::pack(proto::Type::PlayerUpdate, msg), false);
+      break;
     }
-    // ==== notify all peers ==== //
-    // Unreliable on purpose: a dropped position is superseded a frame later.
-    broadcast(proto::pack(proto::Type::PlayerUpdate, msg), false);
-    break;
-  }
 
-  case proto::Type::CreateBullet: {
-    auto msg = proto::unpack<proto::CreateBullet>(data);
-    std::optional<Bullet> bullet = createBullet(playerId, msg.origin, msg.dir);
-    if (bullet.has_value()) {
-      proto::NewBullet packetMsg;
-      packetMsg.bulletId = bullet->bulletId;
-      packetMsg.playerId = bullet->playerId;
-      packetMsg.pos = bullet->pos;
-      packetMsg.vel = bullet->vel;
-      broadcast(proto::pack(proto::Type::NewBullet, packetMsg), true);
+    case proto::Type::CreateBullet: {
+      auto msg = proto::unpack<proto::CreateBullet>(data);
+      std::optional<Bullet> bullet =
+          createBullet(playerId, msg.origin, msg.dir);
+      if (bullet.has_value()) {
+        proto::NewBullet packetMsg;
+        packetMsg.bulletId = bullet->bulletId;
+        packetMsg.playerId = bullet->playerId;
+        packetMsg.pos = bullet->pos;
+        packetMsg.vel = bullet->vel;
+        broadcast(proto::pack(proto::Type::NewBullet, packetMsg), true);
+      }
+      break;
     }
-    break;
-  }
 
-  case proto::Type::ChatMessage: {
-    auto msg = proto::unpack<proto::ChatMessage>(data);
-    broadcast(data, true);
-    break;
-  }
+    case proto::Type::ChatMessage: {
+      auto msg = proto::unpack<proto::ChatMessage>(data);
+      msg.id = playerId; // trust the connection, not the payload
+      broadcast(proto::pack(proto::Type::ChatMessage, msg), true);
+      break;
+    }
 
-  case proto::Type::SetName: {
-    auto msg = proto::unpack<proto::SetName>(data);
-    if (auto *player = findPlayer(playerId)) {
-      for (Player &p : players) {
-        if (msg.name == p.displayName) {
-          break;
+    case proto::Type::SetName: {
+      auto msg = proto::unpack<proto::SetName>(data);
+      msg.id = playerId; // trust the connection, not the payload
+      const bool taken =
+          std::any_of(players.begin(), players.end(), [&](const Player &p) {
+            return p.id != playerId && p.displayName == msg.name;
+          });
+      if (auto *player = findPlayer(playerId); player && !taken) {
+        player->displayName = msg.name;
+        broadcast(proto::pack(proto::Type::SetName, msg), true);
+      }
+      break;
+    }
+
+    case proto::Type::PlaceObject: {
+      auto msg = proto::unpack<proto::PlaceObject>(data);
+      const Vector3 sentPos = msg.object.getTransform().pos;
+      const BlockType type = msg.object.getType();
+      const Player *player = findPlayer(playerId);
+      if (player == nullptr || !isValidPosition(sentPos) ||
+          (type != BlockType::Solid && type != BlockType::Water)) {
+        break;
+      }
+      // Only the type and colour are the client's choice: snap to the grid, no
+      // further than the player can reach.
+      const Vector3 pos = {(floorf(sentPos.x / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
+                           (floorf(sentPos.y / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
+                           (floorf(sentPos.z / BLOCK_SIZE) + 0.5f) *
+                               BLOCK_SIZE};
+      if (Vector3Distance(pos, player->pos) > env::PLACE_REACH) {
+        break;
+      }
+      const int64_t chunk = chunkKeyAt(pos);
+      auto view = views.find(playerId);
+      if (view == views.end() || !view->second.loaded.contains(chunk)) {
+        break; // a player can only edit a chunk they hold
+      }
+      if (auto occupant = occupiedCells.find(blockKey(pos));
+          occupant != occupiedCells.end()) {
+        if (objects[occupant->second].getType() != BlockType::Water) {
+          break; // one block per cell, and only water can be placed over
         }
+        broadcastToChunk(
+            chunk,
+            proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
+            true);
+        removeBlock(occupant->second);
       }
-      player->displayName = msg.name;
-      broadcast(data, true);
-    }
-    break;
-  }
-
-  case proto::Type::PlaceObject: {
-    auto msg = proto::unpack<proto::PlaceObject>(data);
-    const Vector3 pos = msg.object.getTransform().pos;
-    const int64_t chunk = chunkKeyAt(pos);
-    auto view = views.find(playerId);
-    if (view == views.end() || !view->second.loaded.contains(chunk)) {
-      break; // a player can only edit a chunk they hold
-    }
-    if (auto occupant = occupiedCells.find(blockKey(pos));
-        occupant != occupiedCells.end()) {
-      if (objects[occupant->second].getType() != BlockType::Water) {
-        break; // one block per cell, and only water can be placed over
-      }
+      // A fresh block: default durability, source level, block size and a
+      // server-owned id.
+      const Object placed(nextObjectId++, ObjectTransform{pos, blockSize},
+                          msg.object.getColor(), type);
+      addBlock(placed);
       broadcastToChunk(
-          chunk,
-          proto::pack(proto::Type::RemoveObject, proto::RemoveObject{pos}),
-          true);
-      removeBlock(occupant->second);
+          chunk, proto::pack(proto::Type::NewObject, proto::NewObject{placed}),
+          true); // reliable
+      break;
     }
-    msg.object.setId(nextObjectId++); // server owns ids, clients send -1
-    addBlock(msg.object);
-    broadcastToChunk(
-        chunk,
-        proto::pack(proto::Type::NewObject, proto::NewObject{msg.object}),
-        true); // reliable
-    break;
-  }
 
-  case proto::Type::SetViewRadius: {
-    auto msg = proto::unpack<proto::SetViewRadius>(data);
-    // Identity comes from the connection; the radius is client-supplied, so
-    // clamp it.
-    if (auto it = views.find(playerId); it != views.end()) {
-      it->second.radius = std::clamp(msg.radius, 2, env::MAX_VIEW_RADIUS);
+    case proto::Type::SetViewRadius: {
+      auto msg = proto::unpack<proto::SetViewRadius>(data);
+      // Identity comes from the connection; the radius is client-supplied, so
+      // clamp it.
+      if (auto it = views.find(playerId); it != views.end()) {
+        it->second.radius = std::clamp(msg.radius, 2, env::MAX_VIEW_RADIUS);
+      }
+      break;
     }
-    break;
-  }
 
-  case proto::Type::clientHandshake: {
-    auto msg = proto::unpack<proto::clientHandshake>(data);
-    if (msg.ver != proto::PROTOCOL_VERSION) {
-      auto kickBytes = proto::pack(
-          proto::Type::kick,
-          proto::kick{playerId,
-                      "Mismatch Client version: " + std::to_string(msg.ver) +
-                          ". Server version: " +
-                          std::to_string(proto::PROTOCOL_VERSION)});
-      sendTo(playerId, kickBytes, true);
+    case proto::Type::clientHandshake: {
+      auto msg = proto::unpack<proto::clientHandshake>(data);
+      if (msg.ver != proto::PROTOCOL_VERSION) {
+        auto kickBytes = proto::pack(
+            proto::Type::kick,
+            proto::kick{playerId,
+                        "Mismatch Client version: " + std::to_string(msg.ver) +
+                            ". Server version: " +
+                            std::to_string(proto::PROTOCOL_VERSION)});
+        sendTo(playerId, kickBytes, true);
+      }
+      break;
     }
-    break;
-  }
 
-  default:
-    std::printf("Invalid request\n");
-    break;
+    default:
+      std::printf("Invalid request\n");
+      break;
+    }
+  } catch (const std::exception &e) {
+    std::printf("ERR: bad message (type %d) from player %d: %s\n",
+                (int)proto::peekType(data), playerId, e.what());
   }
 }
 
@@ -571,8 +623,8 @@ void Server::indexBlock(int i) {
 
 void Server::sendChunk(int playerId, int cx, int cz) {
   proto::ChunkData msg{cx, cz, {}};
-  // find, not []: [] would insert an empty list. An empty chunk is still sent,
-  // so the client knows it has loaded.
+  // find, not []: [] would insert an empty list. An empty chunk is still
+  // sent, so the client knows it has loaded.
   auto it = chunkBlocks.find(chunkKey(cx, cz));
   if (it != chunkBlocks.end()) {
     msg.blocks.reserve(it->second.size());
@@ -651,6 +703,9 @@ void Server::addBlock(const Object &block, bool markDirty, bool activate) {
 void Server::setWaterLevel(Vector3 pos, uint8_t level) {
   auto occupant = occupiedCells.find(blockKey(pos));
   if (occupant == occupiedCells.end()) {
+    if (!generatedChunks.contains(chunkKeyAt(pos)))
+      return; // generateChunk would later build over it (or it'd save as a
+              // terrain-less chunk)
     Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BLUE,
              BlockType::Water);
     o.setLevel(level);
@@ -677,8 +732,8 @@ void Server::removeBlock(int index) {
   occupiedCells.erase(blockKey(pos));
   dirtyChunks.insert(chunkKeyAt(pos));
 
-  // Take `index` out of its chunk's list. This must come before the swap fix-up
-  // below (see there).
+  // Take `index` out of its chunk's list. This must come before the swap
+  // fix-up below (see there).
   auto chunk = chunkBlocks.find(chunkKeyAt(pos));
   std::erase(chunk->second, index);
   if (chunk->second.empty()) {
@@ -692,15 +747,15 @@ void Server::removeBlock(int index) {
     const Vector3 movedPos = objects[last].getTransform().pos;
     objects[index] = objects[last];
     occupiedCells[blockKey(movedPos)] = index;
-    // The moved block was listed as `last` in its chunk; it is `index` now. If
-    // it shares a chunk with the removed block, doing this before the erase
-    // above would leave `index` listed twice.
+    // The moved block was listed as `last` in its chunk; it is `index` now.
+    // If it shares a chunk with the removed block, doing this before the
+    // erase above would leave `index` listed twice.
     std::vector<int> &moved = chunkBlocks[chunkKeyAt(movedPos)];
     std::replace(moved.begin(), moved.end(), last, index);
   }
   objects.pop_back();
 
-  // Horizontal testing (X and Y)
+  // Water beside or above the gap may now flow into it.
   const int64_t neighborKeys[] = {
       blockKey(Vector3Add(pos, {BLOCK_SIZE, 0, 0})),
       blockKey(Vector3Add(pos, {-BLOCK_SIZE, 0, 0})),
@@ -762,6 +817,10 @@ void Server::tick(float dt) {
     checkOverlaps();
   }
   auto tickStart = std::chrono::steady_clock::now();
+  for (Player &p : players) {
+    p.shotBudget =
+        std::min(env::SHOT_BURST, p.shotBudget + dt / env::SHOT_INTERVAL);
+  }
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;
@@ -814,6 +873,11 @@ void Server::tick(float dt) {
       if (SegmentIntersectsBox(prevPos, b.pos, player)) {
         b.deathCountdown = 0.0f;
         p.health--;
+        // Before any reset below, so clients see health <= 0 and count the
+        // kill.
+        broadcast(proto::pack(proto::Type::PlayerHit,
+                              proto::PlayerHit{p.health, p.id, b.playerId}),
+                  true);
 
         if (p.health <= 0) {
           Vector3 spawnPos = randomSpawn();
@@ -824,10 +888,6 @@ void Server::tick(float dt) {
                  true);
           kills[b.playerId] += 1;
         }
-
-        broadcast(proto::pack(proto::Type::PlayerHit,
-                              proto::PlayerHit{p.health, p.id, b.playerId}),
-                  true);
         break;
       }
     }
@@ -864,11 +924,19 @@ void Server::tick(float dt) {
                 objects.size(), bullets.size(), players.size());
   }
 
-  fluidSim.tick(dt, FluidWorld{objects, occupiedCells,
-                               [&](Vector3 pos, int level) {
-                                 setWaterLevel(pos, (uint8_t)level);
-                               },
-                               [&](int index) { removeBlock(index); }});
+  fluidSim.tick(
+      dt, FluidWorld{objects, occupiedCells,
+                     [&](Vector3 pos, int level) {
+                       setWaterLevel(pos, (uint8_t)level);
+                     },
+                     [&](int index) {
+                       const Vector3 pos = objects[index].getTransform().pos;
+                       broadcastToChunk(chunkKeyAt(pos),
+                                        proto::pack(proto::Type::RemoveObject,
+                                                    proto::RemoveObject{pos}),
+                                        true);
+                       removeBlock(index);
+                     }});
 }
 
 // ==== transport plumbing ==== //
@@ -946,7 +1014,8 @@ void Server::poll() {
   auto now = std::chrono::steady_clock::now();
   float dt = std::chrono::duration<float>(now - lastTick).count();
   if (dt >= env::TICK_RATE) {
-    tick(dt);
+    tick(std::min(dt, env::MAX_TICK_DT)); // after a stall, don't sweep bullets
+                                          // across huge boxes in one step
     lastTick = now;
   }
 }
