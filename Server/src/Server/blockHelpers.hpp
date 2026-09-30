@@ -18,7 +18,6 @@ static int64_t cellKey(int x, int y, int z) {
 }
 
 static int64_t blockKey(Vector3 pos) {
-  return cellKey((int)floorf(pos.x / BLOCK_SIZE),
-                 (int)floorf(pos.y / BLOCK_SIZE),
-                 (int)floorf(pos.z / BLOCK_SIZE));
+  return cellKey((int)(pos.x / BLOCK_SIZE), (int)floor(pos.y / BLOCK_SIZE),
+                 (int)floor(pos.z / BLOCK_SIZE));
 }

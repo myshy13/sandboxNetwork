@@ -39,9 +39,9 @@ void World::update() {
 
 // Snap a world point to the centre of its env::BLOCKSIZE-grid cell.
 static Vector3 snapToCell(Vector3 p) {
-  return {(floorf(p.x / env::BLOCKSIZE.x) + 0.5f) * env::BLOCKSIZE.x,
-          (floorf(p.y / env::BLOCKSIZE.y) + 0.5f) * env::BLOCKSIZE.y,
-          (floorf(p.z / env::BLOCKSIZE.z) + 0.5f) * env::BLOCKSIZE.z};
+  return {(floor(p.x / env::BLOCKSIZE.x) + 0.5f) * env::BLOCKSIZE.x,
+          (floor(p.y / env::BLOCKSIZE.y) + 0.5f) * env::BLOCKSIZE.y,
+          (floor(p.z / env::BLOCKSIZE.z) + 0.5f) * env::BLOCKSIZE.z};
 }
 
 // Packs a grid cell's (x, y, z) into one hashable key, offset so negative
@@ -50,9 +50,9 @@ static int64_t cellKey(Vector3 coord) {
   Vector3 cell = Vector3Divide(coord, env::BLOCKSIZE);
 
   constexpr int64_t OFFSET = 1 << 20;
-  int64_t x                = std::floorf(cell.x) + OFFSET;
-  int64_t y                = std::floorf(cell.y) + OFFSET;
-  int64_t z                = std::floorf(cell.z) + OFFSET;
+  int64_t x = std::floor(cell.x) + OFFSET;
+  int64_t y = std::floor(cell.y) + OFFSET;
+  int64_t z = std::floor(cell.z) + OFFSET;
 
   return (x << 42) | (y << 21) | z;
 }
