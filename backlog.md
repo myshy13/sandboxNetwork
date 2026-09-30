@@ -12,7 +12,7 @@ polish notes remain.
 
 ## Now
 
-- [ ] Finish `plan.md`: seeded terrain per chunk (`terrain.hpp`) and persisting
+- [x] Finish `plan.md`: seeded terrain per chunk (`terrain.hpp`) and persisting
       only changed chunks (steps 7-8).
 - [ ] Optional: a couple of pre-built structures / cover so early playtests
       aren't on an empty plain.

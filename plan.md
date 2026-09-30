@@ -22,6 +22,7 @@ Each rule below should have a test in `Server/test_fluid.cpp` (flow) or be visib
 weaker as the number grows. Past the max, water is removed. The server owns every level; clients only draw them.
 
 **Flow, one pass every `FLOW_INTERVAL` (only cells in `activeCells` are looked at):**
+
 1. *Fall:* water with an empty cell below it (and y >= 0) fills that cell, at its own level but never 0.
    Falling copies strength down; it never creates a source.
 2. *Feed:* a non-source cell's level becomes the strongest level a neighbour gives it: side water at level n gives
@@ -45,6 +46,7 @@ water under a surface is already settled.
 `RemoveObject`, all reliable and only to players holding that chunk. Clients apply world events in arrival order.
 
 **Rendering (client):**
+
 - A water surface sits lower the weaker it is (a source sits just under a full block). Water with water above
   it is drawn full height, so a falling column reads as one stream.
 - A water face touching the same body (above, below, or a side neighbour at the same height or higher) is not

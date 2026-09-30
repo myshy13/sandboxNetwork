@@ -7,7 +7,7 @@
 #include <raymath.h>
 #include <string>
 
-constexpr float waterMoveCooldownTime = 0.5f;
+constexpr float waterMoveCooldownTime = 0.3f;
 
 class Player : public Entity {
 private:
