@@ -2,6 +2,7 @@
 
 #include "raylib.h"
 #include "sharedEnv.hpp"
+#include <cmath>
 constexpr Vector3 blockSize = SHARED_BLOCK_SIZE;
 constexpr float BLOCK_SIZE = blockSize.x; // cubic, see sharedEnv.hpp
 
