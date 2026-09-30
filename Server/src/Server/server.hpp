@@ -33,7 +33,8 @@ struct Player {
   float yaw{0.0f};
   int health{env::PLAYER_MAX_HEALTH};
   std::optional<std::string> displayName;
-  float shotBudget{env::SHOT_BURST}; // refills one shot per SHOT_INTERVAL, up to SHOT_BURST
+  float shotBudget{
+      env::SHOT_BURST}; // refills one shot per SHOT_INTERVAL, up to SHOT_BURST
 };
 
 struct ClientView {
@@ -100,7 +101,8 @@ class Server {
 
   void sendTo(int playerId, const std::string &bytes, bool reliable);
   void broadcast(const std::string &bytes, bool reliable);
-  // Sends to every player who currently holds chunk `key` (see ClientView::loaded).
+  // Sends to every player who currently holds chunk `key` (see
+  // ClientView::loaded).
   void broadcastToChunk(int64_t key, const std::string &bytes, bool reliable);
 
   // ==== transport plumbing ==== //
@@ -112,7 +114,8 @@ class Server {
   // swap-and-pop). markDirty is false for generated/loaded baseline content,
   // which isn't an edit and shouldn't cause an unchanged chunk to be rewritten
   // to disk.
-  void addBlock(const Object &block, bool markDirty = true, bool activate = true);
+  void addBlock(const Object &block, bool markDirty = true,
+                bool activate = true);
   void removeBlock(int index);
   // Sets a water cell's flow level and notifies every player holding its chunk.
   // No-op off a water cell.
@@ -128,7 +131,8 @@ class Server {
   // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
   void updateView(const Player &p);
 
-  // Blocks sharing a grid cell; returns how many are duplicates. 0 is a healthy world.
+  // Blocks sharing a grid cell; returns how many are duplicates. 0 is a healthy
+  // world.
   int checkOverlaps() const;
 
   // ==== World generation ==== //

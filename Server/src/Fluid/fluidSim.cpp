@@ -69,10 +69,11 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
       const Object &neighbour = world.objects[n->second];
       if (neighbour.getType() != BlockType::Water)
         return;
-      // A side neighbour only feeds if it's currently stronger than this cell - otherwise two
-      // equal-strength neighbours could prop each other up forever instead of ever draining
-      // (this is what let a whole pond hang at max level and vanish in one pass, all at once,
-      // once its source was removed). Water above always feeds: it's genuinely upstream.
+      // A side neighbour only feeds if it's currently stronger than this cell -
+      // otherwise two equal-strength neighbours could prop each other up
+      // forever instead of ever draining (this is what let a whole pond hang at
+      // max level and vanish in one pass, all at once, once its source was
+      // removed). Water above always feeds: it's genuinely upstream.
       if (!above && neighbour.getLevel() >= level)
         return;
       const int feeds = above ? std::max<int>(neighbour.getLevel(), 1)
@@ -88,13 +89,14 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
     checkFeeder({0, 0, BLOCK_SIZE}, false);  // +z
     checkFeeder({0, 0, -BLOCK_SIZE}, false); // -z
 
-    // Two side sources make this a source too, but only resting on solid ground or
-    // another source - otherwise a gap between two sources over a drop would grow
-    // a source hanging in mid-air instead of staying a waterfall.
+    // Two side sources make this a source too, but only resting on solid ground
+    // or another source - otherwise a gap between two sources over a drop would
+    // grow a source hanging in mid-air instead of staying a waterfall.
     auto belowIt = world.occupiedCells.find(belowKey);
-    const bool supported = belowIt != world.occupiedCells.end() &&
-                           (world.objects[belowIt->second].getType() != BlockType::Water ||
-                            world.objects[belowIt->second].getLevel() == SOURCE);
+    const bool supported =
+        belowIt != world.occupiedCells.end() &&
+        (world.objects[belowIt->second].getType() != BlockType::Water ||
+         world.objects[belowIt->second].getLevel() == SOURCE);
     if (fedCount >= 2 && supported) {
       world.setWaterLevel(pos, SOURCE);
       wakeNeighbours();

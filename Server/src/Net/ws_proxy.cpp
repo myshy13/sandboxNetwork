@@ -40,8 +40,8 @@ WsProxy::WsProxy(int port) {
         switch (msg->type) {
         case ix::WebSocketMessageType::Open: {
           WsEvent event;
-          event.kind       = WsEvent::Kind::Connect;
-          event.socketId   = id;
+          event.kind = WsEvent::Kind::Connect;
+          event.socketId = id;
           event.connection = std::make_unique<WsConnection>(*this, id);
 
           std::lock_guard<std::mutex> lock(mutex);
@@ -57,9 +57,9 @@ WsProxy::WsProxy(int port) {
           }
 
           WsEvent event;
-          event.kind     = WsEvent::Kind::Message;
+          event.kind = WsEvent::Kind::Message;
           event.socketId = id;
-          event.data     = msg->str;
+          event.data = msg->str;
 
           std::lock_guard<std::mutex> lock(mutex);
           pending.push_back(std::move(event));
@@ -69,7 +69,7 @@ WsProxy::WsProxy(int port) {
         case ix::WebSocketMessageType::Close:
         case ix::WebSocketMessageType::Error: {
           WsEvent event;
-          event.kind     = WsEvent::Kind::Disconnect;
+          event.kind = WsEvent::Kind::Disconnect;
           event.socketId = id;
 
           std::lock_guard<std::mutex> lock(mutex);

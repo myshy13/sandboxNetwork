@@ -17,7 +17,8 @@ void sigIntHandler(int signal_num) {
 }
 
 int main(int argc, char **argv) {
-  // The same seed (and WORLD_SIZE) gives the same terrain; defaults to the time.
+  // The same seed (and WORLD_SIZE) gives the same terrain; defaults to the
+  // time.
   unsigned seed = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count();
@@ -59,12 +60,13 @@ int main(int argc, char **argv) {
   auto meta = readMetaFile(metaFilePath(savePath));
   if (meta.has_value() && (meta->saveFormatVersion != env::saveFormatVersion ||
                            meta->terrainVersion != env::terrainVersion)) {
-    std::fprintf(stderr,
-                 "%s was saved by an older server (save format %u, terrain %u; "
-                 "this server writes %u, %u).\nMove it aside or use --save-path "
-                 "to start a new world.\n",
-                 savePath.c_str(), meta->saveFormatVersion, meta->terrainVersion,
-                 env::saveFormatVersion, env::terrainVersion);
+    std::fprintf(
+        stderr,
+        "%s was saved by an older server (save format %u, terrain %u; "
+        "this server writes %u, %u).\nMove it aside or use --save-path "
+        "to start a new world.\n",
+        savePath.c_str(), meta->saveFormatVersion, meta->terrainVersion,
+        env::saveFormatVersion, env::terrainVersion);
     return EXIT_FAILURE;
   }
 
@@ -72,7 +74,8 @@ int main(int argc, char **argv) {
   std::printf("logging to server.log\n");
   std::freopen("server.log", "a", stdout);
   std::freopen("server.log", "a", stderr);
-  std::setvbuf(stdout, nullptr, _IOLBF, 0); // a file is fully buffered by default
+  std::setvbuf(stdout, nullptr, _IOLBF,
+               0); // a file is fully buffered by default
 
   // A saved seed overrides the CLI/current-time one: unedited chunks have to
   // regenerate with the same terrain as the edited chunks already on disk.

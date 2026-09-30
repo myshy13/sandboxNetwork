@@ -5,23 +5,28 @@
 
 Terrain::Terrain(uint32_t seed) : seedValue(seed) {}
 
-// Multiply-add and modulo a prime instead of bit tricks; uint64_t so nothing overflows.
+// Multiply-add and modulo a prime instead of bit tricks; uint64_t so nothing
+// overflows.
 uint32_t Terrain::hash(int x, int z) const {
   constexpr uint64_t PRIME = 4294967291ULL; // largest prime below 2^32
   uint64_t h = seedValue;
-  h = (h * 1103515245ULL + static_cast<uint32_t>(x) * 73856093ULL + 12345ULL) % PRIME;
-  h = (h * 1103515245ULL + static_cast<uint32_t>(z) * 19349663ULL + 12345ULL) % PRIME;
+  h = (h * 1103515245ULL + static_cast<uint32_t>(x) * 73856093ULL + 12345ULL) %
+      PRIME;
+  h = (h * 1103515245ULL + static_cast<uint32_t>(z) * 19349663ULL + 12345ULL) %
+      PRIME;
   h = (h * h + 12345ULL) % PRIME; // squaring breaks the straight-line patterns
   return static_cast<uint32_t>(h);
 }
 
 uint32_t Terrain::lattice(int gx, int gz, uint32_t octave) const {
-  return hash(gx + static_cast<int>(octave) * 1013, gz + static_cast<int>(octave) * 7919);
+  return hash(gx + static_cast<int>(octave) * 1013,
+              gz + static_cast<int>(octave) * 7919);
 }
 
 // x and z are in grid units; returns a smooth value in [0, 1).
 float Terrain::noise(float x, float z, uint32_t octave) const {
-  const int gx = static_cast<int>(floorf(x)); // floorf, not a plain cast: negatives round the wrong way
+  const int gx = static_cast<int>(
+      floorf(x)); // floorf, not a plain cast: negatives round the wrong way
   const int gz = static_cast<int>(floorf(z));
   const float fx = x - gx;
   const float fz = z - gz;
@@ -32,7 +37,8 @@ float Terrain::noise(float x, float z, uint32_t octave) const {
   const float c = lattice(gx, gz + 1, octave) / 4294967296.0f;
   const float d = lattice(gx + 1, gz + 1, octave) / 4294967296.0f;
 
-  const float u = fx * fx * (3 - 2 * fx); // smoothstep: no sharp creases at the grid lines
+  const float u =
+      fx * fx * (3 - 2 * fx); // smoothstep: no sharp creases at the grid lines
   const float v = fz * fz * (3 - 2 * fz);
 
   const float top = a + (b - a) * u;
@@ -52,6 +58,4 @@ int Terrain::heightAt(int cellX, int cellZ) const {
   return std::max(1, static_cast<int>(total) + 1);
 }
 
-uint32_t Terrain::seed() const {
-  return seedValue;
-}
+uint32_t Terrain::seed() const { return seedValue; }

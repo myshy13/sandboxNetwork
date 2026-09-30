@@ -1,5 +1,4 @@
-#ifndef SANDBOXNET_PLAYER
-#define SANDBOXNET_PLAYER
+#pragma once
 
 #include "Game/Entity/entity.hpp"
 #include "World/world.hpp"
@@ -50,5 +49,3 @@ public:
 
   static void DrawPlayer(const Transform &transform, const std::string &name, const Vector3 &localPos);
 };
-
-#endif

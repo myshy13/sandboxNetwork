@@ -1,3 +1,25 @@
-BasedOnStyle: LLVM
-ColumnLimit: 0
-AlignConsecutiveAssignments: true
+---
+Language: Cpp
+BasedOnStyle: Google
+
+# Enforce a specific standard layout if needed
+Standard: Latest
+
+# Google's default line limit is 80 columns. 
+# If your team allows longer lines, modify this value.
+ColumnLimit: 80
+
+# Keep spaces to 2 as mandated by Google C++ Style Guide
+IndentWidth: 2
+ContinuationIndentWidth: 4
+
+# Ensures clear spacing between blocks of code (Requires Clang-Format 14+)
+SeparateDefinitionBlocks: Always
+
+# Sort #include directives alphabetically
+SortIncludes: true
+
+# Clean up trailing whitespaces and pad namespaces
+SpacesInContainerLiterals: false
+FixNamespaceComments: true
+...

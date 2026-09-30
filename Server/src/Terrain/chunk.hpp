@@ -81,7 +81,8 @@ inline std::optional<SavedChunk> readChunkFile(std::string path) {
     SavedChunk chunk;
     ar(chunk);
     if (chunk.formatVersion != env::saveFormatVersion) {
-      std::cerr << "ERR: chunk at " << path << " has save format " << chunk.formatVersion << "\n";
+      std::cerr << "ERR: chunk at " << path << " has save format "
+                << chunk.formatVersion << "\n";
       return std::nullopt;
     }
     return chunk;

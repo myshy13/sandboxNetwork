@@ -1,12 +1,13 @@
-#include <raylib.h>
 #include "Protocol/protocol.hpp"
 #include <cassert>
 #include <cstdio>
+#include <raylib.h>
 
 int main() {
   // ==== PlayerUpdate ==== //
   {
-    auto bytes = proto::pack(proto::Type::PlayerUpdate, proto::PlayerUpdate{7, {1.5f, 2.5f, -3.0f}});
+    auto bytes = proto::pack(proto::Type::PlayerUpdate,
+                             proto::PlayerUpdate{7, {1.5f, 2.5f, -3.0f}});
     assert(proto::peekType(bytes) == proto::Type::PlayerUpdate);
     auto msg = proto::unpack<proto::PlayerUpdate>(bytes);
     assert(msg.id == 7);
@@ -48,45 +49,56 @@ int main() {
 
   // ==== ChunkData: negative coordinates, no blocks ==== //
   {
-    auto bytes = proto::pack(proto::Type::ChunkData, proto::ChunkData{-1, -3, {}});
+    auto bytes =
+        proto::pack(proto::Type::ChunkData, proto::ChunkData{-1, -3, {}});
     assert(proto::peekType(bytes) == proto::Type::ChunkData);
     auto msg = proto::unpack<proto::ChunkData>(bytes);
     assert(msg.cx == -1 && msg.cz == -3);
-    assert(msg.blocks.empty()); // an empty chunk is still sent, so the client knows it has loaded
+    assert(msg.blocks.empty()); // an empty chunk is still sent, so the client
+                                // knows it has loaded
   }
 
-  // ==== ChunkData: blocks keep their id, position, scale, colour and durability ==== //
-  // (No damage() here: it calls raylib's ColorBrightness, and this test doesn't link raylib.)
+  // ==== ChunkData: blocks keep their id, position, scale, colour and
+  // durability ==== // (No damage() here: it calls raylib's ColorBrightness,
+  // and this test doesn't link raylib.)
   {
     Object first(5, ObjectTransform{{2.5f, 7.5f, -12.5f}, {5, 5, 5}}, GREEN);
     Object second(6, ObjectTransform{{-2.5f, 2.5f, 7.5f}, {5, 5, 5}}, BROWN);
 
-    auto bytes = proto::pack(proto::Type::ChunkData, proto::ChunkData{4, -2, {first, second}});
+    auto bytes = proto::pack(proto::Type::ChunkData,
+                             proto::ChunkData{4, -2, {first, second}});
     auto msg = proto::unpack<proto::ChunkData>(bytes);
     assert(msg.cx == 4 && msg.cz == -2);
     assert(msg.blocks.size() == 2);
 
     const Object &a = msg.blocks[0];
     assert(a.getId() == 5);
-    assert(a.getTransform().pos.x == 2.5f && a.getTransform().pos.y == 7.5f && a.getTransform().pos.z == -12.5f);
+    assert(a.getTransform().pos.x == 2.5f && a.getTransform().pos.y == 7.5f &&
+           a.getTransform().pos.z == -12.5f);
     assert(a.getTransform().scale.x == 5.0f);
-    assert(a.getColor().r == GREEN.r && a.getColor().g == GREEN.g && a.getColor().b == GREEN.b && a.getColor().a == GREEN.a);
+    assert(a.getColor().r == GREEN.r && a.getColor().g == GREEN.g &&
+           a.getColor().b == GREEN.b && a.getColor().a == GREEN.a);
     assert(a.getDurability() == first.getDurability());
 
     const Object &b = msg.blocks[1];
     assert(b.getId() == 6);
     assert(b.getTransform().pos.x == -2.5f && b.getTransform().pos.z == 7.5f);
-    assert(b.getColor().r == BROWN.r && b.getColor().g == BROWN.g && b.getColor().b == BROWN.b);
+    assert(b.getColor().r == BROWN.r && b.getColor().g == BROWN.g &&
+           b.getColor().b == BROWN.b);
   }
 
-  // ==== ChunkData: a full-size chunk (~1200 blocks, ~40 KB, far over one 1392 byte datagram) ==== //
+  // ==== ChunkData: a full-size chunk (~1200 blocks, ~40 KB, far over one 1392
+  // byte datagram) ==== //
   {
     std::vector<Object> blocks;
     for (int i = 0; i < 1200; i++) {
-      blocks.emplace_back(i, ObjectTransform{{i * 5.0f + 2.5f, 2.5f, 2.5f}, {5, 5, 5}}, WHITE);
+      blocks.emplace_back(
+          i, ObjectTransform{{i * 5.0f + 2.5f, 2.5f, 2.5f}, {5, 5, 5}}, WHITE);
     }
-    auto bytes = proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, blocks});
-    assert(bytes.size() > 1392); // fragmenting is ENet's job, so the message itself just has to round-trip
+    auto bytes =
+        proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, blocks});
+    assert(bytes.size() > 1392); // fragmenting is ENet's job, so the message
+                                 // itself just has to round-trip
     auto msg = proto::unpack<proto::ChunkData>(bytes);
     assert(msg.blocks.size() == 1200);
     assert(msg.blocks[0].getId() == 0);
@@ -96,18 +108,23 @@ int main() {
 
   // ==== ChunkData: water blocks keep their type and flow level ==== //
   {
-    Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}}, BLUE, BlockType::Water);
+    Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}}, BLUE,
+                 BlockType::Water);
     water.setLevel(3);
     Object solid(10, ObjectTransform{{7.5f, 2.5f, 2.5f}, {5, 5, 5}}, BROWN);
 
-    auto msg = proto::unpack<proto::ChunkData>(proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, {water, solid}}));
-    assert(msg.blocks[0].getType() == BlockType::Water && msg.blocks[0].getLevel() == 3);
-    assert(msg.blocks[1].getType() == BlockType::Solid && msg.blocks[1].getLevel() == 0); // default: source/unset
+    auto msg = proto::unpack<proto::ChunkData>(proto::pack(
+        proto::Type::ChunkData, proto::ChunkData{0, 0, {water, solid}}));
+    assert(msg.blocks[0].getType() == BlockType::Water &&
+           msg.blocks[0].getLevel() == 3);
+    assert(msg.blocks[1].getType() == BlockType::Solid &&
+           msg.blocks[1].getLevel() == 0); // default: source/unset
   }
 
   // ==== UpdateWaterLevel ==== //
   {
-    auto bytes = proto::pack(proto::Type::UpdateWaterLevel, proto::UpdateWaterLevel{{-2.5f, 12.5f, 7.5f}, 7});
+    auto bytes = proto::pack(proto::Type::UpdateWaterLevel,
+                             proto::UpdateWaterLevel{{-2.5f, 12.5f, 7.5f}, 7});
     assert(proto::peekType(bytes) == proto::Type::UpdateWaterLevel);
     auto msg = proto::unpack<proto::UpdateWaterLevel>(bytes);
     assert(msg.pos.x == -2.5f && msg.pos.y == 12.5f && msg.pos.z == 7.5f);
@@ -116,7 +133,8 @@ int main() {
 
   // ==== ChunkUnload ==== //
   {
-    auto bytes = proto::pack(proto::Type::ChunkUnload, proto::ChunkUnload{-7, 12});
+    auto bytes =
+        proto::pack(proto::Type::ChunkUnload, proto::ChunkUnload{-7, 12});
     assert(proto::peekType(bytes) == proto::Type::ChunkUnload);
     auto msg = proto::unpack<proto::ChunkUnload>(bytes);
     assert(msg.cx == -7 && msg.cz == 12);
@@ -124,7 +142,8 @@ int main() {
 
   // ==== SetViewRadius ==== //
   {
-    auto bytes = proto::pack(proto::Type::SetViewRadius, proto::SetViewRadius{6});
+    auto bytes =
+        proto::pack(proto::Type::SetViewRadius, proto::SetViewRadius{6});
     assert(proto::peekType(bytes) == proto::Type::SetViewRadius);
     auto msg = proto::unpack<proto::SetViewRadius>(bytes);
     assert(msg.radius == 6);
