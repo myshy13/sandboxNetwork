@@ -44,6 +44,7 @@ struct ClientView {
 
 class Server {
   const std::string savePath;
+  const int maxPlayers = env::DEFAULT_MAX_PLAYERS;
   const int saveTime;
   int port{env::PORT};
   ENetHost *host;
@@ -147,7 +148,8 @@ public:
   // wsPort of 0 leaves the browser proxy switched off.
   explicit Server(int wsPort = 0, const std::string savePath = "save",
                   const int saveTime = 30, uint32_t seed = 0,
-                  int nextObjectId = 1);
+                  int nextObjectId = 1,
+                  int MAX_PLAYERS = env::DEFAULT_MAX_PLAYERS);
   ~Server();
 
   // ==== static consts ==== //

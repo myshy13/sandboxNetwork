@@ -12,6 +12,7 @@
 #include <cfloat>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -63,8 +64,8 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId)
-    : savePath(std::move(savePath)), saveTime(saveTime),
+               int nextObjectId, int maxPlayers)
+    : savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
       nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
@@ -352,8 +353,8 @@ void Server::generateChunk(int cx, int cz) {
   auto chunkOfCell = [](int cell) {
     return cell >= 0 ? cell / 16 : (cell - 15) / 16;
   };
-  for (int cellX = cx * 16 - CANOPY_MARGIN; cellX < cx * 16 + 16 + CANOPY_MARGIN;
-       cellX++) {
+  for (int cellX = cx * 16 - CANOPY_MARGIN;
+       cellX < cx * 16 + 16 + CANOPY_MARGIN; cellX++) {
     for (int cellZ = cz * 16 - CANOPY_MARGIN;
          cellZ < cz * 16 + 16 + CANOPY_MARGIN; cellZ++) {
       int height = terrain.heightAt(cellX, cellZ);
@@ -369,13 +370,14 @@ void Server::generateChunk(int cx, int cz) {
             chunkOfCell(cellZ + block.dz) != cz)
           continue; // belongs to a neighboring chunk, which places it itself
 
-        Object b(nextObjectId,
-                 ObjectTransform{Vector3Add(base, {(float)block.dx * BLOCK_SIZE,
-                                                   (float)block.dy * BLOCK_SIZE,
-                                                   (float)block.dz * BLOCK_SIZE}),
-                                 blockSize},
-                 block.color);
-        if (rand() % 2 == 0) {
+        Object b(
+            nextObjectId,
+            ObjectTransform{Vector3Add(base, {(float)block.dx * BLOCK_SIZE,
+                                              (float)block.dy * BLOCK_SIZE,
+                                              (float)block.dz * BLOCK_SIZE}),
+                            blockSize},
+            block.color);
+        for (int i = terrain.hash(cellX, cellZ * block.dy) % 3; i > 0; i--) {
           b.damage();
         }
         addBlock(b, false); // generated, not a new edit
@@ -461,6 +463,12 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   players.push_back(newPlayer);
   views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives
                                    // before the first tick has a view to set
+
+  if ((int)players.size() > maxPlayers) {
+    sendTo(id,
+           proto::pack(proto::Type::kick, proto::kick{id, "Too many players"}),
+           true);
+  }
 
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);

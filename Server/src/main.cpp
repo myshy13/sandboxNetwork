@@ -1,5 +1,6 @@
 #include "Server/server.hpp"
 #include "Terrain/chunk.hpp"
+#include "env.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -25,6 +26,7 @@ int main(int argc, char **argv) {
   int wsPort = 0;
   std::string savePath = "save";
   int saveTime = 30;
+  int maxPlayers = env::DEFAULT_MAX_PLAYERS;
 
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "--ws-port") == 0 && i + 1 < argc) {
@@ -35,6 +37,8 @@ int main(int argc, char **argv) {
       saveTime = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
       seed = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 10));
+    } else if (std::strcmp(argv[i], "--max-players") == 0 && i + 1 < argc) {
+      maxPlayers = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 10));
     } else if (std::strcmp(argv[i], "--help") == 0) {
       std::printf("usage: %s [--ws-port <port>] [--save-path <path>] "
                   "[--save-time <seconds>] [--seed <n>]\n\n"
@@ -46,7 +50,9 @@ int main(int argc, char **argv) {
                   "  --save-time <seconds>  specify the time interval between "
                   "world saves.\n"
                   "  --seed <n>  seed the terrain generator (default: the "
-                  "current time).\n",
+                  "current time).\n"
+                  "  --max-players <players> specifies a limit to the player "
+                  "count.\n",
                   argv[0]);
       return 0;
     } else {
@@ -87,7 +93,7 @@ int main(int argc, char **argv) {
 
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
-  Server server(wsPort, savePath, saveTime, seed, nextObjectId);
+  Server server(wsPort, savePath, saveTime, seed, nextObjectId, maxPlayers);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {

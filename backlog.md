@@ -1,102 +1,102 @@
 # Backlog
 
-Working notes for where the game goes next. Finished sections were removed
-(world saving, block colours, rendering/collision perf, starting world, chunk
-streaming; see git history and `plan.md`). Only open work and a few open
-polish notes remain.
-
-> **Note:** [/] means skipped or unnecessary
-> **Note:** [-] means removed after it was unnecessary
+Working notes for where the game goes next. Only open work remains; finished
+and skipped items were cleared (see git history and `plan.md`).
 
 ---
 
 ## Now
 
-- [x] Finish `plan.md`: seeded terrain per chunk (`terrain.hpp`) and persisting
-      only changed chunks (steps 7-8).
-- [ ] Optional: a couple of pre-built structures / cover so early playtests
-      aren't on an empty plain.
 - [ ] Block removal as a dedicated action (see Building).
+- [ ] Pre-built structures / cover: trees exist (`structures.hpp`), add a
+      second structure (hut, ruin) so playtests have cover as well as scenery.
+- [ ] Update `.claude/rules/*` for trees and water if not already covered.
 
 ## Maintenance
 
 - [ ] Fix the narrowing warnings MSVC reported in the server (`int` -> `float`
       at `server.hpp:72`, `server.cpp` chunk/terrain code, `unsigned` seed in
       `main.cpp`) with explicit casts so `-Wall -Wextra` stays clean.
-- [ ] Duplicated-by-hand constants (`STREAM_CHUNK_SIZE` vs `CHUNK_SIZE`,
-      `MAX_RENDER_DISTANCE` vs `MAX_VIEW_RADIUS`, `MAX_HEALTH` vs
-      `PLAYER_MAX_HEALTH`): move into `sharedEnv.hpp` like `SHARED_PLAYER_SCALE`
-      and update the "must stay in sync" section of `arch.md`.
+- [ ] Remaining duplicated-by-hand constants (`STREAM_CHUNK_SIZE` vs
+      `CHUNK_SIZE`, `MAX_RENDER_DISTANCE` vs `MAX_VIEW_RADIUS`): move into
+      `sharedEnv.hpp` like `SHARED_PLAYER_HEALTH`, update `arch.md`.
+- [ ] `static constexpr TREE_SHAPE` in a header gives every includer its own
+      copy: make it `inline constexpr` (formatting rule).
 - [ ] Server: hard-close the connection after sending `kick` on a protocol
       version mismatch instead of letting it linger.
-- [ ] Run the two test suites (`Shared/Protocol`, `Server`) in CI before the
-      builds, so a broken protocol can't be released.
-- [ ] Seed the CI build cache from `main` (tag runs can only restore caches
-      from the default branch), so releases aren't always cold builds.
-- [ ] Windows build was removed. Parked: bring it back only if someone needs
-      it (needs `NOGDI NOUSER NOMINMAX` on the server target, and the
-      server `min`/`max` clashes checked on the client too).
-- [ ] Keep `.claude/rules/*` and `README.md` current after each feature
-      (build/run commands, folder layout, new protocol messages).
-- [ ] Bump `GAME_VERSION` and tag `vX.Y.Z` per release so the GitHub Release
-      job publishes the Linux/macOS builds.
+- [ ] CI: run the two test suites (`Shared/Protocol`, `Server`) before the
+      builds in `build.yml` (`test.yml` exists, make releases depend on it).
+- [ ] Seed the CI build cache from `main` so tag releases aren't cold builds.
+- [ ] Windows build parked: needs `NOGDI NOUSER NOMINMAX` on the server target.
+- [ ] Bump `GAME_VERSION` and tag `vX.Y.Z` per release.
 
 ## Building & world
 
-- [x] right-click block placement
-- [x] block-vs-player placement collision check
-- [x] block durability (server-side hit damage + client colour feedback)
-- [ ] block removal (dedicated action, not just shooting it: a "break" key
-      or left-click with a tool selected)
+- [ ] block removal (dedicated "break" key or tool, not just shooting it)
 - [ ] undo last placed block (client asks server to remove your most recent)
-- [ ] block types beyond the plain cube (ramp, half-slab): needs a `kind`
-      enum on `Object` and matching draw + hitbox
-- [/] larger builds: 2x2x2 or drag a line of blocks **(other half, no)**
-- [/] snap-to-grid ghost block **Reason:** it will look ugly and hide the view
-- [/] clamp `PlaceObject` colour to the palette **Reason:** cosmetic only
-- [ ] sound effects
+- [ ] block types beyond the cube (ramp, half-slab): `kind` enum on `Object`,
+      matching draw + hitbox
+- [ ] terrain variety: biomes (sand/snow colours), caves, or hills from a
+      second noise layer
+- [ ] tree variety: random height / canopy size per tree from the seed
+- [ ] tree interaction: leaves breakable, trunk gives cover (check bullets
+      stop on tree blocks like any other block)
+- [ ] water: bucket / place-water block so players can shape flow
+- [ ] water: swimming (slower move, buoyancy) and a screen tint underwater
+- [ ] water: cap or test worst-case flow cost per tick on big open drops
+- [ ] sound effects (shoot, hit, splash)
+
+## Structures
+
+Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
+
+- [ ] hut: 5x5 walls with a door gap and window, flat roof (cover + shelter)
+- [ ] watchtower: 3x3 tall shaft with a platform and rail (sniper perch)
+- [ ] ruined wall: broken line of stacked blocks (cheap cover, no interior)
+- [ ] boulder cluster: a few stone-coloured blobs, harmless scatter cover
+- [ ] bridge: plank span for gaps/water, needs a river or ravine to matter
+- [ ] ruins / arena: ring of low walls with gaps, a natural fight spot
+- [ ] well or pond: water source block in a stone ring (feeds `FluidSim`)
+- [ ] bunker: half-buried box with one entrance (needs terrain-height carve)
+- [ ] pine / dead tree: variants of `TREE_SHAPE` for biome variety
+- [ ] spawn camp: small fenced pad so new players start with cover
+- [ ] placement rules: min spacing, flat-ground check, never overlap water or
+      chunk borders unless the table is clipped per chunk
 
 ## Lighting & rendering
 
-- [x] per-fragment lighting, `setViewPos` each frame, two directional lights
-- [ ] a true warm point light if local falloff is wanted
-- [ ] day/night: rotate the directional light over time, server broadcasts
-      the time-of-day so everyone matches
-- [ ] simple shadows (a dark blob decal under each player first; shadow
-      mapping is a big lift)
+- [ ] water look: transparency / animated surface instead of a flat colour
+- [ ] day/night: rotate the directional light, server broadcasts time-of-day
+- [ ] blob shadow under each player (shadow mapping is a big lift)
 - [ ] skybox / gradient background instead of near-black clear
+- [ ] fog at the render-distance edge so chunk pop-in is hidden
 
 ## Combat & players
 
-- [x] names above players *(needs improvement: scale, occlusion, distance fade)*
-- [x] hold to shoot *(tune the rate)*
-- [x] hit-marker crosshair, stickman player model
-- [ ] an actual gun model in first person + muzzle flash
-- [x] fix the kills menu
+- [ ] names above players: scale, occlusion, distance fade
+- [ ] hold-to-shoot: tune the rate
+- [ ] gun model in first person + muzzle flash
 - [ ] respawn timer + spawn-point selection instead of instant respawn
 - [ ] health regen or pickups
 - [ ] hit direction indicator (which way did that shot come from)
 - [x] kill feed (top-right, "A killed B") **Revision:** In the chat, not top right. displayed as red
+- [ ] fall damage / drowning
 
 ## Netcode
 
-- [x] version handshake (`proto::PROTOCOL_VERSION`), remote-player interpolation
-- [x] interest management: per-client chunk views, edits only to holders
 - [ ] client-side prediction + reconciliation for the local player
-- [ ] lag compensation on the server for hit detection (rewind targets to the
-      shooter's view time)
-- [ ] send rate / tick rate as a shared constant, not a magic `0.1667` on
-      the client
+- [ ] lag compensation for hit detection (rewind targets to shooter's time)
+- [ ] send rate / tick rate as a shared constant, not a magic `0.1667`
 - [ ] basic anti-cheat: server rejects impossible position deltas
-- [ ] bullets crossing into unloaded chunks: decide (die vs generate on demand)
-- [ ] measure bandwidth per player at the default render distance
+- [ ] bullets crossing into unloaded chunks: die or generate on demand
+- [ ] measure bandwidth per player at the default render distance, including
+      water level updates while a flow is spreading
+- [ ] chunk save format versioning (terrain/tree changes vs old saves)
 
 ## Infra & ops
 
-- [ ] deploy the server to an always-on host (Oracle free-tier Arm box or GCP
-      e2-micro) under systemd with `Restart=always`
-- [ ] a `--max-players` cap with a polite "server full" reject
-- [ ] health/status console command (player count, uptime, chunk count)
-- [ ] web client: verify the WS proxy path works against the deployed server
-      over `wss://`
-- [x] server logs to `server.log`
+- [ ] deploy the server to an always-on host under systemd, `Restart=always`
+- [ ] `--max-players` cap with a polite "server full" reject
+- [ ] status console command (player count, uptime, chunk count)
+- [ ] web client: verify the WS proxy path against the deployed server over
+      `wss://`
