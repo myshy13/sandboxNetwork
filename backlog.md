@@ -72,7 +72,7 @@ polish notes remain.
 - [x] hold to shoot *(tune the rate)*
 - [x] hit-marker crosshair, stickman player model
 - [ ] an actual gun model in first person + muzzle flash
-- [ ] fix the kills menu
+- [x] fix the kills menu
 - [ ] respawn timer + spawn-point selection instead of instant respawn
 - [ ] health regen or pickups
 - [ ] hit direction indicator (which way did that shot come from)
