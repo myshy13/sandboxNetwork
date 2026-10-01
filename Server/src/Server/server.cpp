@@ -3,6 +3,7 @@
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
 #include "Terrain/chunk.hpp"
+#include "Terrain/structures.hpp"
 #include "enet/enet.h"
 #include "env.hpp"
 #include "raylib.h"
@@ -16,6 +17,7 @@
 #include <cstdlib>
 #include <exception>
 #include <future>
+#include <hfs/hfs_format.h>
 #include <optional>
 #include <raymath.h>
 #include <string>
@@ -281,7 +283,7 @@ void Server::generateChunk(int cx, int cz) {
   for (int cellX = cx * 16; cellX < cx * 16 + 16; cellX++) {
     for (int cellZ = cz * 16; cellZ < cz * 16 + 16; cellZ++) {
       int height = terrain.heightAt(cellX, cellZ);
-      if (height >= 6) {
+      if (height >= env::WATER_HEIGHT) {
         float blockX = cellX * blockSize.x + (blockSize.x / 2);
         float blockY = height * blockSize.y + (blockSize.y / 2);
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
@@ -307,10 +309,11 @@ void Server::generateChunk(int cx, int cz) {
           addBlock(below, false); // generated, not a new edit
           nextObjectId++;
         }
+
       } else {
         // water
         float blockX = cellX * blockSize.x + (blockSize.x / 2);
-        float blockY = 7 * blockSize.y + blockSize.y / 2;
+        float blockY = (env::WATER_HEIGHT + 1) * blockSize.y + blockSize.y / 2;
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
         for (int i = height + 1; i > 0; i--) {
@@ -336,6 +339,46 @@ void Server::generateChunk(int cx, int cz) {
           o.damage();
         }
         addBlock(o, false); // generated, not a new edit
+        nextObjectId++;
+      }
+    }
+  }
+
+  // Trees: a separate pass over a margin around this chunk, since a trunk
+  // near an edge can have canopy blocks landing in the neighboring chunk -
+  // every chunk recomputes the whole tree from the trunk's column and keeps
+  // only the blocks that land inside itself.
+  constexpr int CANOPY_MARGIN = 2;
+  auto chunkOfCell = [](int cell) {
+    return cell >= 0 ? cell / 16 : (cell - 15) / 16;
+  };
+  for (int cellX = cx * 16 - CANOPY_MARGIN; cellX < cx * 16 + 16 + CANOPY_MARGIN;
+       cellX++) {
+    for (int cellZ = cz * 16 - CANOPY_MARGIN;
+         cellZ < cz * 16 + 16 + CANOPY_MARGIN; cellZ++) {
+      int height = terrain.heightAt(cellX, cellZ);
+      if (height < env::WATER_HEIGHT || !terrain.hasTree(cellX, cellZ))
+        continue;
+
+      float blockX = cellX * blockSize.x + (blockSize.x / 2);
+      float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
+      Vector3 base = {blockX, height * blockSize.y + (blockSize.y / 2), blockZ};
+
+      for (auto &block : TREE_SHAPE) {
+        if (chunkOfCell(cellX + block.dx) != cx ||
+            chunkOfCell(cellZ + block.dz) != cz)
+          continue; // belongs to a neighboring chunk, which places it itself
+
+        Object b(nextObjectId,
+                 ObjectTransform{Vector3Add(base, {(float)block.dx * BLOCK_SIZE,
+                                                   (float)block.dy * BLOCK_SIZE,
+                                                   (float)block.dz * BLOCK_SIZE}),
+                                 blockSize},
+                 block.color);
+        if (rand() % 2 == 0) {
+          b.damage();
+        }
+        addBlock(b, false); // generated, not a new edit
         nextObjectId++;
       }
     }

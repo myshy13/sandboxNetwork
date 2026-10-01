@@ -44,5 +44,6 @@ constexpr uint32_t terrainVersion =
     3; // deeper water, only its top layer is a source
 
 constexpr float FLOW_INTERVAL = 0.2f;
+constexpr float WATER_HEIGHT = 6;
 
 } // namespace env

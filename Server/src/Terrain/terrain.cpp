@@ -59,3 +59,25 @@ int Terrain::heightAt(int cellX, int cellZ) const {
 }
 
 uint32_t Terrain::seed() const { return seedValue; }
+
+bool Terrain::hasTree(int cellX, int cellZ) const {
+  constexpr float FOREST_WAVELENGTH = 64.0f; // cells per forest/clearing region
+  constexpr float FOREST_THRESHOLD = 0.55f; // fraction of the map that's forest
+  constexpr int SPACING =
+      4; // min cells between trunks, > canopy radius so they can't overlap
+  constexpr uint32_t FOREST_OCTAVE =
+      100; // distinct from heightAt's 0-2 so the two noises don't correlate
+
+  if (noise(cellX / FOREST_WAVELENGTH, cellZ / FOREST_WAVELENGTH,
+            FOREST_OCTAVE) < FOREST_THRESHOLD)
+    return false;
+
+  const uint32_t here = hash(cellX, cellZ);
+  for (int dx = -SPACING; dx <= SPACING; dx++)
+    for (int dz = -SPACING; dz <= SPACING; dz++)
+      if ((dx != 0 || dz != 0) && hash(cellX + dx, cellZ + dz) >= here)
+        return false; // a nearby column wins the tie, so only the local max
+                      // becomes a tree
+
+  return true;
+};

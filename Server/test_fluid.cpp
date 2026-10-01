@@ -1,5 +1,6 @@
 #include "Fluid/fluidSim.hpp"
 #include "Server/blockHelpers.hpp"
+#include "Terrain/structures.hpp"
 #include "env.hpp"
 #include "raymath.h"
 #include <cmath>

@@ -10,6 +10,7 @@ public:
   uint32_t hash(int x, int z)
       const; // per-cell randomness (block damage now, tree placement later)
   uint32_t seed() const; // so the save can store it
+  bool hasTree(int cellX, int cellZ) const;
 
 private:
   uint32_t seedValue{};
