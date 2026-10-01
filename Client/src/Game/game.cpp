@@ -1,43 +1,39 @@
 #include "Game/game.hpp"
-#include "AssetManager/manager.hpp"
-#include "Client/client.hpp"
-#include "GameState/gameState.hpp"
-#include "env.hpp"
+
+#include <raylib.h>
+#include <raymath.h>
+#include <rlgl.h>
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <raylib.h>
-#include <raymath.h>
-#include <rlgl.h>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
+
+#include "AssetManager/manager.hpp"
+#include "Client/client.hpp"
+#include "GameState/gameState.hpp"
+#include "env.hpp"
 #ifdef CHEATS
 #include <sstream>
 #endif
 
 // ==== setup / teardown ==== //
-Game::Game(const AssetManager &a) : assets(a) {
+Game::Game(const AssetManager& a) : assets(a) {
   // ==== lighting ==== //
-  lighting.addDirectional(
-      {50.0f, 100.0f, 40.0f},
-      {0.0f, 0.0f, 0.0f},
-      {255, 245, 225, 255});
-  lighting.addDirectional(
-      {-50.0f, 100.0f, -40.0f},
-      {0.0f, 0.0f, 0.0f},
-      {255, 245, 225, 255});
-  lighting.addDirectional(
-      {-50.0f, -100.0f, -40.0f},
-      {0.0f, 0.0f, 0.0f},
-      {255, 245, 225, 255});
+  lighting.addDirectional({50.0f, 100.0f, 40.0f}, {0.0f, 0.0f, 0.0f},
+                          {255, 245, 225, 255});
+  lighting.addDirectional({-50.0f, 100.0f, -40.0f}, {0.0f, 0.0f, 0.0f},
+                          {255, 245, 225, 255});
+  lighting.addDirectional({-50.0f, -100.0f, -40.0f}, {0.0f, 0.0f, 0.0f},
+                          {255, 245, 225, 255});
 
   // TODO: Sunrise and sunset
 }
 
-Game::~Game() {
-  client.disconnect();
-}
+Game::~Game() { client.disconnect(); }
 
 // ==== one frame ==== //
 void Game::frame() {
@@ -45,7 +41,7 @@ void Game::frame() {
   // stall would otherwise report a huge dt and tunnel the player through the
   // floor (gravity integrated over the whole stall in one uncollided step).
   constexpr float MAX_DT = 1.0f / 30.0f;
-  float dt               = std::min(GetFrameTime(), MAX_DT);
+  float dt = std::min(GetFrameTime(), MAX_DT);
 
   applyNetworkUpdates();
   handlePause();
@@ -61,7 +57,7 @@ void Game::frame() {
   drawHealthBar();
   drawChat();
   drawScoreboard();
-  drawDebug(); // before the overlays, so the pause menu covers it
+  drawDebug();  // before the overlays, so the pause menu covers it
   drawOverlays(dt);
   EndDrawing();
 }
@@ -72,52 +68,55 @@ void Game::applyNetworkUpdates() {
     client.poll();
     if (auto pos = client.takeRespawn()) {
       player.setPosition(*pos);
-      client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
+      client.sendPlayerPosition(player.getTransform(), player.getPitch(),
+                                player.getYaw());
       player.UpdateCamera(camera);
     }
-    // In arrival order: the server already sends a place-over-water as Remove then Add.
-    for (WorldEvent &e : client.takeWorldEvents()) {
+    // In arrival order: the server already sends a place-over-water as Remove
+    // then Add.
+    for (WorldEvent& e : client.takeWorldEvents()) {
       switch (e.kind) {
-      case WorldEvent::Kind::LoadChunk:
-        world.addChunk(e.cx, e.cz, e.blocks);
-        break;
-      case WorldEvent::Kind::UnloadChunk:
-        world.unloadChunk(e.cx, e.cz);
-        break;
-      case WorldEvent::Kind::Add:
-        world.addObject(e.object);
-        break;
-      case WorldEvent::Kind::Remove:
-        world.removeObject(e.pos);
-        break;
-      case WorldEvent::Kind::Damage:
-        world.damageObject(e.pos);
-        break;
-      case WorldEvent::Kind::WaterLevel:
-        world.setWaterLevel(e.pos, e.level);
-        break;
+        case WorldEvent::Kind::LoadChunk:
+          world.addChunk(e.cx, e.cz, e.blocks);
+          break;
+        case WorldEvent::Kind::UnloadChunk:
+          world.unloadChunk(e.cx, e.cz);
+          break;
+        case WorldEvent::Kind::Add:
+          world.addObject(e.object);
+          break;
+        case WorldEvent::Kind::Remove:
+          world.removeObject(e.pos);
+          break;
+        case WorldEvent::Kind::Damage:
+          world.damageObject(e.pos);
+          break;
+        case WorldEvent::Kind::WaterLevel:
+          world.setWaterLevel(e.pos, e.level);
+          break;
       }
     }
     syncViewRadius();
   } else if (client.connect()) {
-    world.clear(); // the server re-streams every block on join
+    world.clear();  // the server re-streams every block on join
     sentViewRadius = -1;
   }
 }
 
-// Render distance is in world units; the server counts chunks, and clamps what it accepts.
+// Render distance is in world units; the server counts chunks, and clamps what
+// it accepts.
 void Game::syncViewRadius() {
-  const int chunks = (int)std::ceil(GameState::shared().getRenderDistance() / World::STREAM_CHUNK_SIZE);
-  if (chunks == sentViewRadius)
-    return;
+  const int chunks = (int)std::ceil(GameState::shared().getRenderDistance() /
+                                    World::STREAM_CHUNK_SIZE);
+  if (chunks == sentViewRadius) return;
   if (client.sendViewRadius(chunks)) {
-    sentViewRadius = chunks; // otherwise the handshake isn't done yet; try again next frame
+    sentViewRadius =
+        chunks;  // otherwise the handshake isn't done yet; try again next frame
   }
 }
 
 void Game::handlePause() {
-  if (!IsKeyPressed(KEY_ESCAPE))
-    return;
+  if (!IsKeyPressed(KEY_ESCAPE)) return;
 
   if (!inChat) {
     paused = !paused;
@@ -178,8 +177,8 @@ void Game::handleChatInput() {
     inChat = true;
     paused = false;
   } else if (IsKeyPressed(KEY_SLASH)) {
-    inChat    = true;
-    paused    = false;
+    inChat = true;
+    paused = false;
     chatInput = "/";
   }
 #endif
@@ -187,17 +186,15 @@ void Game::handleChatInput() {
 
 bool Game::chunkUnderPlayerLoaded() const {
   const Vector3 pos = player.getTransform().translation;
-  const int cx      = World::streamChunkCoord(pos.x);
-  const int cz      = World::streamChunkCoord(pos.z);
+  const int cx = World::streamChunkCoord(pos.x);
+  const int cz = World::streamChunkCoord(pos.z);
   return world.isChunkLoaded(cx, cz);
 }
 
 void Game::updatePlayer(float dt) {
-  if (paused)
-    return;
+  if (paused) return;
 
-  if (!chunkUnderPlayerLoaded())
-    return;
+  if (!chunkUnderPlayerLoaded()) return;
 
   // Chat freezes input, not the world: the player keeps falling/sliding
   // while you type, and other clients keep seeing you move.
@@ -214,14 +211,14 @@ void Game::updatePlayer(float dt) {
 void Game::sendPosition(float dt) {
   playerPosCooldown -= dt;
   if (playerPosCooldown <= 0) {
-    client.sendPlayerPosition(player.getTransform(), player.getPitch(), player.getYaw());
+    client.sendPlayerPosition(player.getTransform(), player.getPitch(),
+                              player.getYaw());
     playerPosCooldown = Client::POS_UPDATE_INTERVAL;
   }
 }
 
 void Game::handleActions(float dt) {
-  if (paused || inChat || !chunkUnderPlayerLoaded())
-    return;
+  if (paused || inChat || !chunkUnderPlayerLoaded()) return;
 
   // Crosshair actions aim straight down the look direction - not
   // GetScreenToWorldRay(centre, camera) or camera.target - camera.position:
@@ -273,59 +270,64 @@ void Game::drawScene(float dt) {
   // miss one and it renders however far from the origin the camera really is.
   Camera3D relCamera = camera;
   relCamera.position = {0, 0, 0};
-  // Not camera.target - camera.position: camera.target was already rounded to head's
-  // precision when UpdateCamera built it (see there), so subtracting afterward can't
-  // recover what that add discarded. getLookForward() never touches the huge position,
-  // so it's exact at any distance from the origin.
+  // Not camera.target - camera.position: camera.target was already rounded to
+  // head's precision when UpdateCamera built it (see there), so subtracting
+  // afterward can't recover what that add discarded. getLookForward() never
+  // touches the huge position, so it's exact at any distance from the origin.
   relCamera.target = player.getLookForward();
 
   BeginMode3D(relCamera);
   lighting.begin();
   Vector3 originViewPos = {0, 0, 0};
-  lighting.setViewPos(originViewPos); // camera-relative, like everything else in this scene
+  lighting.setViewPos(
+      originViewPos);  // camera-relative, like everything else in this scene
   client.updateBullets(dt);
   client.updatePlayers();
-  Object *targeted = nullptr;
+  Object* targeted = nullptr;
   {
     Vector2 centre = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-    // Built from relCamera (exact direction) then shifted back to world space for the
-    // hit-test, which still runs against world-space block positions - only the ray's
-    // origin needs the shift, its direction is already exact.
-    Ray pickRay      = GetScreenToWorldRay(centre, relCamera);
+    // Built from relCamera (exact direction) then shifted back to world space
+    // for the hit-test, which still runs against world-space block positions -
+    // only the ray's origin needs the shift, its direction is already exact.
+    Ray pickRay = GetScreenToWorldRay(centre, relCamera);
     pickRay.position = Vector3Add(pickRay.position, camera.position);
 #ifdef DEBUG
     double t1 = GetTime();
 #endif
-    targeted = renderer.drawObjects(world.getObjects(), world, pickRay, lighting, camera);
+    targeted = renderer.drawObjects(world.getObjects(), world, pickRay,
+                                    lighting, camera);
 #ifdef DEBUG
     drawObjectsMs = (GetTime() - t1) * 1000.0;
 #endif
   }
   lighting.end();
 
-  // Everything below is drawn without the lighting shader: it multiplies every vertex by a
-  // per-instance matrix that only the block renderer supplies, so anything else would collapse to 0,0,0.
+  // Everything below is drawn without the lighting shader: it multiplies every
+  // vertex by a per-instance matrix that only the block renderer supplies, so
+  // anything else would collapse to 0,0,0.
   if (targeted != nullptr) {
     ObjectTransform t = targeted->getTransform();
     DrawCubeWiresV(Vector3Subtract(t.pos, camera.position), t.scale, BLACK);
   }
   // ==== draw online players ====
-  for (const auto &p : client.getPlayers()) {
+  for (const auto& p : client.getPlayers()) {
     Transform transform;
-    transform.rotation    = QuaternionFromEuler(0, p.yaw, 0);
-    transform.scale       = env::PLAYER_SCALE;
+    transform.rotation = QuaternionFromEuler(0, p.yaw, 0);
+    transform.scale = env::PLAYER_SCALE;
     transform.translation = Vector3Subtract(p.pos, camera.position);
-    Vector3 localPos      = Vector3Subtract(player.getTransform().translation, camera.position);
+    Vector3 localPos =
+        Vector3Subtract(player.getTransform().translation, camera.position);
     if (p.name.has_value()) {
       player.DrawPlayer(transform, p.name.value(), localPos);
     } else {
       player.DrawPlayer(transform, "Player " + std::to_string(p.id), localPos);
     }
   }
-  for (auto &b : client.getBullets()) {
+  for (auto& b : client.getBullets()) {
     Vector3 pos = Vector3Subtract(b.pos, camera.position);
     DrawSphere(pos, 0.35f, Color{89, 255, 241, 255});
-    DrawCylinderEx(pos, Vector3Subtract(pos, Vector3Scale(b.vel, 0.02f)), 0.35f, 0, 16, Color{89, 255, 241, 255});
+    DrawCylinderEx(pos, Vector3Subtract(pos, Vector3Scale(b.vel, 0.02f)), 0.35f,
+                   0, 16, Color{89, 255, 241, 255});
   }
   drawCollisionDebug();
   drawChunkBorders();
@@ -333,10 +335,12 @@ void Game::drawScene(float dt) {
   EndMode3D();
 
   if (world.isWater(camera.position))
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(SKYBLUE, 0.35f));
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                  Fade(SKYBLUE, 0.35f));
 }
 
-// F5: red wireframes on every cell the collision grid treats as solid near you, green for your hitbox.
+// F5: red wireframes on every cell the collision grid treats as solid near you,
+// green for your hitbox.
 void Game::drawCollisionDebug() {
 #ifdef DEBUG
   if (IsKeyPressed(KEY_F5)) {
@@ -346,8 +350,8 @@ void Game::drawCollisionDebug() {
     return;
   }
 
-  constexpr float CELL = 5.0f; // same as env::BLOCKSIZE in world.cpp
-  const Vector3 feet   = player.getTransform().translation;
+  constexpr float CELL = 5.0f;  // same as env::BLOCKSIZE in world.cpp
+  const Vector3 feet = player.getTransform().translation;
   for (int dx = -3; dx <= 3; dx++) {
     for (int dy = -2; dy <= 3; dy++) {
       for (int dz = -3; dz <= 3; dz++) {
@@ -355,17 +359,21 @@ void Game::drawCollisionDebug() {
                      (floorf(feet.y / CELL) + dy + 0.5f) * CELL,
                      (floorf(feet.z / CELL) + dz + 0.5f) * CELL};
         if (world.isOccupied(c)) {
-          DrawCubeWiresV(Vector3Subtract(c, camera.position), {CELL, CELL, CELL}, RED);
+          DrawCubeWiresV(Vector3Subtract(c, camera.position),
+                         {CELL, CELL, CELL}, RED);
         }
       }
     }
   }
   const Vector3 size = player.getTransform().scale;
-  DrawCubeWiresV(Vector3Subtract(Vector3Add(feet, {0, size.y * 0.5f, 0}), camera.position), size, GREEN);
+  DrawCubeWiresV(
+      Vector3Subtract(Vector3Add(feet, {0, size.y * 0.5f, 0}), camera.position),
+      size, GREEN);
 #endif
 }
 
-// F4: draws the server's streaming chunk grid around you, with your own chunk in yellow.
+// F4: draws the server's streaming chunk grid around you, with your own chunk
+// in yellow.
 void Game::drawChunkBorders() {
 #ifdef DEBUG
   if (IsKeyPressed(KEY_F4)) {
@@ -376,30 +384,34 @@ void Game::drawChunkBorders() {
   }
 
   constexpr int RADIUS = 2;      // chunks drawn on each side of yours
-  constexpr float TOP  = 200.0f; // how tall the border lines are
+  constexpr float TOP = 200.0f;  // how tall the border lines are
   constexpr float SIZE = World::STREAM_CHUNK_SIZE;
-  const Vector3 pos    = player.getTransform().translation;
-  const int cx         = World::streamChunkCoord(pos.x);
-  const int cz         = World::streamChunkCoord(pos.z);
+  const Vector3 pos = player.getTransform().translation;
+  const int cx = World::streamChunkCoord(pos.x);
+  const int cz = World::streamChunkCoord(pos.z);
 
-  // These lines are drawn inside the camera-relative BeginMode3D (see drawScene), so every
-  // point needs the same - camera.position offset, or the grid renders far from the blocks.
+  // These lines are drawn inside the camera-relative BeginMode3D (see
+  // drawScene), so every point needs the same - camera.position offset, or the
+  // grid renders far from the blocks.
   const Vector3 cam = camera.position;
 
-  // Grid corner (i, j) is the corner with the smallest x and z of chunk (i, j); yours has four.
+  // Grid corner (i, j) is the corner with the smallest x and z of chunk (i, j);
+  // yours has four.
   for (int i = cx - RADIUS; i <= cx + RADIUS + 1; i++) {
     for (int j = cz - RADIUS; j <= cz + RADIUS + 1; j++) {
       const bool ownCorner = i >= cx && i <= cx + 1 && j >= cz && j <= cz + 1;
-      Vector3 bottom       = Vector3Subtract({i * SIZE, 0.0f, j * SIZE}, cam);
-      Vector3 top          = Vector3Subtract({i * SIZE, TOP, j * SIZE}, cam);
+      Vector3 bottom = Vector3Subtract({i * SIZE, 0.0f, j * SIZE}, cam);
+      Vector3 top = Vector3Subtract({i * SIZE, TOP, j * SIZE}, cam);
       DrawLine3D(bottom, top, ownCorner ? YELLOW : SKYBLUE);
     }
   }
 
-  // Your chunk's outline at your feet, so you can see where the edge is at ground level.
+  // Your chunk's outline at your feet, so you can see where the edge is at
+  // ground level.
   const Vector3 c00 = Vector3Subtract({cx * SIZE, pos.y, cz * SIZE}, cam);
   const Vector3 c10 = Vector3Subtract({(cx + 1) * SIZE, pos.y, cz * SIZE}, cam);
-  const Vector3 c11 = Vector3Subtract({(cx + 1) * SIZE, pos.y, (cz + 1) * SIZE}, cam);
+  const Vector3 c11 =
+      Vector3Subtract({(cx + 1) * SIZE, pos.y, (cz + 1) * SIZE}, cam);
   const Vector3 c01 = Vector3Subtract({cx * SIZE, pos.y, (cz + 1) * SIZE}, cam);
   DrawLine3D(c00, c10, YELLOW);
   DrawLine3D(c10, c11, YELLOW);
@@ -409,29 +421,36 @@ void Game::drawChunkBorders() {
 }
 
 void Game::drawHealthBar() {
-  Texture2D heart = assets.get(Tex::Heart);
+  const Texture2D& heart = assets.get(Tex::Heart);
   for (int i = 0; i < env::MAX_HEALTH; i++) {
-    Rectangle outRec = {static_cast<float>(16 + i * 19), static_cast<float>(GetScreenHeight() - 32), 16, 16};
-    DrawTexturePro(heart, {0, 0, static_cast<float>(heart.width), static_cast<float>(heart.height)}, outRec, {0, 0}, 0, i < client.getHealth() ? WHITE : DARKGRAY);
+    Rectangle outRec = {static_cast<float>(16 + i * 19),
+                        static_cast<float>(GetScreenHeight() - 32), 16, 16};
+    DrawTexturePro(heart,
+                   {0, 0, static_cast<float>(heart.width),
+                    static_cast<float>(heart.height)},
+                   outRec, {0, 0}, 0,
+                   i < client.getHealth() ? WHITE : DARKGRAY);
   }
 }
 
 void Game::drawChat() {
 #ifdef CHAT
-  constexpr int VISIBLE_CHAT_MESSAGES    = 8;
-  constexpr double CHAT_MESSAGE_LIFETIME = 10.0; // seconds
-  constexpr int LINE_HEIGHT              = 22;
-  constexpr int FONT_SIZE                = 18;
-  const auto &chat                       = client.getChat();
+  constexpr int VISIBLE_CHAT_MESSAGES = 8;
+  constexpr double CHAT_MESSAGE_LIFETIME = 10.0;  // seconds
+  constexpr int LINE_HEIGHT = 22;
+  constexpr int FONT_SIZE = 18;
+  const auto& chat = client.getChat();
 
-  // Walk newest-first and stop once messages age out, so visible ends up oldest-first-capped-at-8.
+  // Walk newest-first and stop once messages age out, so visible ends up
+  // oldest-first-capped-at-8.
   std::vector<int> visible;
-  for (int i = (int)chat.size() - 1; i >= 0 && (int)visible.size() < VISIBLE_CHAT_MESSAGES; i--) {
+  for (int i = (int)chat.size() - 1;
+       i >= 0 && (int)visible.size() < VISIBLE_CHAT_MESSAGES; i--) {
     if (inChat) {
       visible.push_back(i);
     } else {
       if (GetTime() - chat[i].receivedAt > CHAT_MESSAGE_LIFETIME) {
-        break; // older entries are older still, nothing left to show
+        break;  // older entries are older still, nothing left to show
       }
       visible.push_back(i);
     }
@@ -442,14 +461,20 @@ void Game::drawChat() {
   if (inChat) {
     inputHeight = LINE_HEIGHT + 6;
   }
-  int y = GetScreenHeight() - 20 - inputHeight - LINE_HEIGHT * (int)visible.size();
-  for (auto it = visible.rbegin(); it != visible.rend(); ++it) { // reverse again to draw oldest-to-newest top-to-bottom
-    const ChatEntry &entry = chat[*it];
-    bool isSystemMessage   = entry.id == -1; // server-generated messages (joins/leaves/etc) use id -1
+  int y =
+      GetScreenHeight() - 20 - inputHeight - LINE_HEIGHT * (int)visible.size();
+  for (auto it = visible.rbegin(); it != visible.rend();
+       ++it) {  // reverse again to draw oldest-to-newest top-to-bottom
+    const ChatEntry& entry = chat[*it];
+    bool isSystemMessage =
+        entry.id ==
+        -1;  // server-generated messages (joins/leaves/etc) use id -1
     std::string senderName = "Player " + std::to_string(entry.id);
     if (entry.id == client.getPlayerId()) {
-      senderName = client.getName().value_or(senderName); // fall back to "Player N" if we haven't set a name
-    } else if (OnlinePlayer *p = client.findPlayer(entry.id); p && p->name.has_value()) {
+      senderName = client.getName().value_or(
+          senderName);  // fall back to "Player N" if we haven't set a name
+    } else if (OnlinePlayer* p = client.findPlayer(entry.id);
+               p && p->name.has_value()) {
       senderName = p->name.value();
     }
     std::string line = entry.text;
@@ -458,21 +483,27 @@ void Game::drawChat() {
     }
     Color textColor = WHITE;
     if (isSystemMessage) {
-      textColor = Color{200, 74, 64, 255}; // red so system messages stand out from chat
+      textColor = Color{200, 74, 64,
+                        255};  // red so system messages stand out from chat
     }
-    DrawRectangle(16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT, {0, 0, 0, 120}); // background behind the text for readability
+    DrawRectangle(
+        16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT,
+        {0, 0, 0, 120});  // background behind the text for readability
     DrawText(line.c_str(), 20, y, FONT_SIZE, textColor);
-    y += LINE_HEIGHT * ((int)std::count(line.begin(), line.end(), '\n') + 1); // multi-line messages push the next line down further
+    y += LINE_HEIGHT *
+         ((int)std::count(line.begin(), line.end(), '\n') +
+          1);  // multi-line messages push the next line down further
   }
 
   if (inChat) {
-    const char *cursor = "";
+    const char* cursor = "";
     if ((int)(GetTime() * 2) % 2 == 0) {
-      cursor = "_"; // blink at 1Hz
+      cursor = "_";  // blink at 1Hz
     }
     std::string prompt = "> " + chatInput + cursor;
-    int boxY           = GetScreenHeight() - 20 - LINE_HEIGHT;
-    DrawRectangle(16, boxY - 2, GetScreenWidth() - 32, LINE_HEIGHT + 4, {0, 0, 0, 160});
+    int boxY = GetScreenHeight() - 20 - LINE_HEIGHT;
+    DrawRectangle(16, boxY - 2, GetScreenWidth() - 32, LINE_HEIGHT + 4,
+                  {0, 0, 0, 160});
     DrawText(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
   }
 #endif
@@ -480,47 +511,43 @@ void Game::drawChat() {
 
 // Hold Tab for the scoreboard, sorted by kills.
 void Game::drawScoreboard() {
-  if (!IsKeyDown(KEY_TAB))
-    return;
+  if (!IsKeyDown(KEY_TAB)) return;
 
   constexpr int ROW_HEIGHT = 28;
-  constexpr int FONT_SIZE  = 20;
-  const int rowWidth       = (int)(GetScreenWidth() * 0.6f);
-  const int x              = GetScreenWidth() / 2 - rowWidth / 2;
+  constexpr int FONT_SIZE = 20;
+  const int rowWidth = (int)(GetScreenWidth() * 0.6f);
+  const int x = GetScreenWidth() / 2 - rowWidth / 2;
 
   DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 120});
 
-  std::vector<std::pair<int, int>> rows(client.getKills().begin(), client.getKills().end());
-  std::sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
-
   int y = 80;
-  DrawRectangle(x, y, rowWidth, ROW_HEIGHT * ((int)rows.size() + 1), {0, 0, 0, 160});
+  DrawRectangle(x, y, rowWidth,
+                ROW_HEIGHT * ((int)client.getKills().size() + 1),
+                {0, 0, 0, 160});
   DrawText("Kills", x + 10, y + 4, FONT_SIZE, {200, 200, 200, 255});
   y += ROW_HEIGHT;
-  for (const auto &[id, kills] : rows) {
-    std::string name = "Player " + std::to_string(id);
-    if (id == client.getPlayerId()) {
-      if (const auto &n = client.getName(); n.has_value()) {
-        name = n.value();
-      }
-    } else if (OnlinePlayer *p = client.findPlayer(id); p && p->name.has_value()) {
-      name = p->name.value();
+  for (const auto& [id, kills] : client.getKills()) {
+    std::optional<std::string> name = client.idToName(id);
+    if (!name.has_value()) {
+      name = "Player " + std::to_string(id);
     }
-    DrawText(name.c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
+    DrawText(name->c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
     std::string k = std::to_string(kills);
-    DrawText(k.c_str(), x + rowWidth - 10 - MeasureText(k.c_str(), FONT_SIZE), y + 4, FONT_SIZE, WHITE);
+    DrawText(k.c_str(), x + rowWidth - 10 - MeasureText(k.c_str(), FONT_SIZE),
+             y + 4, FONT_SIZE, WHITE);
     y += ROW_HEIGHT;
   }
 }
 
 // Pause / damage flashes, the connection status line and the crosshair.
 void Game::drawOverlays(float dt) {
-  GameState &gameState = GameState::shared();
+  GameState& gameState = GameState::shared();
 
   if (paused) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
 
-    DrawText("Paused", GetScreenWidth() / 2 - MeasureText("Paused", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
+    DrawText("Paused", GetScreenWidth() / 2 - MeasureText("Paused", 50) / 2,
+             GetScreenHeight() / 2 - 25, 50, WHITE);
 
     Rectangle exitButton = {10, 10, 60, 60};
     if (CheckCollisionPointRec(GetMousePosition(), exitButton)) {
@@ -543,15 +570,20 @@ void Game::drawOverlays(float dt) {
     gameState.greenFlashTimer -= dt;
   }
   if (!client.isConnected()) {
-    // Client::connect() retries on its own, so there's no separate "failed" state to show.
-    const char *msg = client.getKickReason() ? client.getKickReason()->c_str() : "Connecting...";
-    Color col       = client.getKickReason() ? RED : WHITE;
+    // Client::connect() retries on its own, so there's no separate "failed"
+    // state to show.
+    const char* msg = client.getKickReason() ? client.getKickReason()->c_str()
+                                             : "Connecting...";
+    Color col = client.getKickReason() ? RED : WHITE;
     DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
   } else if (!paused && !chunkUnderPlayerLoaded()) {
-    DrawText("Loading...", GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2, GetScreenHeight() / 2 - 25, 50, WHITE);
+    DrawText("Loading...",
+             GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2,
+             GetScreenHeight() / 2 - 25, 50, WHITE);
   } else if (!paused) {
     // ==== draw crosshair ==== //
-    Vector2 centre = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
+    Vector2 centre = {(float)GetScreenWidth() / 2,
+                      (float)GetScreenHeight() / 2};
     DrawCircleV(centre, (float)GetScreenHeight() / 480, WHITE);
   }
 }
@@ -568,15 +600,18 @@ void Game::drawDebug() {
   }
 #endif
   if (IsKeyPressed(KEY_R)) {
-    client.disconnect(); // applyNetworkUpdates starts a fresh session next frame
+    client
+        .disconnect();  // applyNetworkUpdates starts a fresh session next frame
   }
   if (IsKeyPressed(KEY_F7)) {
     nearPlaneStep = (nearPlaneStep + 1) % 5;
-    // Far only has to clear the furthest block drawn, so it tracks render distance.
-    rlSetClipPlanes(NEAR_PLANES[nearPlaneStep], GameState::shared().getRenderDistance() + 100.0);
+    // Far only has to clear the furthest block drawn, so it tracks render
+    // distance.
+    rlSetClipPlanes(NEAR_PLANES[nearPlaneStep],
+                    GameState::shared().getRenderDistance() + 100.0);
   }
 
-  constexpr int ROWSIZE  = 30;
+  constexpr int ROWSIZE = 30;
   constexpr int FONTSIZE = 20;
 
   if (showDebug) {
@@ -584,7 +619,7 @@ void Game::drawDebug() {
 
     // NOTE: The +1 with black text is for readability (same as a drop shadow)
 
-    const char *fps = TextFormat("FPS: %d", GetFPS());
+    const char* fps = TextFormat("FPS: %d", GetFPS());
     DrawText(fps, 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(fps, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
@@ -595,49 +630,64 @@ void Game::drawDebug() {
     DrawText("Player pos:", 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 10, rowPos, FONTSIZE, LIME);
+    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 11,
+             rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("X: %i", (int)(pos.x / env::BLOCKSIZE.x)), 10, rowPos,
+             FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 10, rowPos, FONTSIZE, LIME);
+    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 11,
+             rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Y: %i", (int)(pos.y / env::BLOCKSIZE.y)), 10, rowPos,
+             FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 10, rowPos, FONTSIZE, LIME);
+    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 11,
+             rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Z: %i", (int)(pos.z / env::BLOCKSIZE.z)), 10, rowPos,
+             FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    const char *chunkText = TextFormat("Chunk: %d, %d (F4 borders)", World::streamChunkCoord(pos.x), World::streamChunkCoord(pos.z));
+    const char* chunkText =
+        TextFormat("Chunk: %d, %d (F4 borders)", World::streamChunkCoord(pos.x),
+                   World::streamChunkCoord(pos.z));
     DrawText(chunkText, 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(chunkText, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    const char *nearText = TextFormat("F7 near: %.2f", NEAR_PLANES[nearPlaneStep]);
+    const char* nearText =
+        TextFormat("F7 near: %.2f", NEAR_PLANES[nearPlaneStep]);
     DrawText(nearText, 11, rowPos + 1, FONTSIZE, BLACK);
     DrawText(nearText, 10, rowPos, FONTSIZE, LIME);
     rowPos += ROWSIZE;
 
-    rowPos += ROWSIZE / 2; // small gap before the next section
+    rowPos += ROWSIZE / 2;  // small gap before the next section
 
     DrawText("World:", 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos,
+             FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Faces drawn: %zu", renderer.getLastDrawnCount()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("Faces drawn: %zu", renderer.getLastDrawnCount()), 10,
+             rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Player update: %.2f ms", playerUpdateMs), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("Player update: %.2f ms", playerUpdateMs), 10, rowPos,
+             FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("drawObjects: %.2f ms", drawObjectsMs), 10, rowPos,
+             FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("cull/build: %.2f ms", renderer.getLastCullMs()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("cull/build: %.2f ms", renderer.getLastCullMs()), 10,
+             rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos, FONTSIZE, RED);
+    DrawText(TextFormat("draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos,
+             FONTSIZE, RED);
     rowPos += ROWSIZE;
 
     rowPos += ROWSIZE / 2;
@@ -646,20 +696,28 @@ void Game::drawDebug() {
     DrawText("Network:", 10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"), 10, rowPos, FONTSIZE, YELLOW);
+    DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"),
+             11, rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Connected: %s", client.isConnected() ? "yes" : "no"),
+             10, rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 10, rowPos, FONTSIZE, YELLOW);
+    DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 11, rowPos + 1,
+             FONTSIZE, BLACK);
+    DrawText(TextFormat("Player ID: %d", client.getPlayerId()), 10, rowPos,
+             FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 10, rowPos, FONTSIZE, YELLOW);
+    DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 11,
+             rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Online players: %zu", client.getPlayers().size()), 10,
+             rowPos, FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
 
-    DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 11, rowPos + 1, FONTSIZE, BLACK);
-    DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos, FONTSIZE, YELLOW);
+    DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 11,
+             rowPos + 1, FONTSIZE, BLACK);
+    DrawText(TextFormat("Bullets: %zu", client.getBullets().size()), 10, rowPos,
+             FONTSIZE, YELLOW);
     rowPos += ROWSIZE;
   }
 #endif

@@ -119,6 +119,15 @@ public:
     }
     return nullptr;
   }
+
+  std::optional<std::string> idToName(int id) {
+    for (auto& p : players) {
+      if (p.id == id) {
+        return p.name;
+      }
+    }
+    return std::nullopt;
+  }
   // Connecting is asynchronous, so the game starts before this goes true.
   bool isConnected() const {
     return transport && transport->isConnected();
