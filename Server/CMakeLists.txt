@@ -32,6 +32,8 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(raylib)
+# raylib's own source isn't ours to fix: silence its warnings.
+target_compile_options(raylib PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/w> $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 FetchContent_Declare(
     enet

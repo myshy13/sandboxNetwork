@@ -42,6 +42,8 @@ if(BUILD_WEB)
 endif()
 
 FetchContent_MakeAvailable(raylib)
+# raylib's own source isn't ours to fix: silence its warnings.
+target_compile_options(raylib PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/w> $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 # ---------------------------------------------------------------------------
 # ENet (reliable UDP, fetched at configure time, built from source)
