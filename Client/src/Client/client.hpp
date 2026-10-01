@@ -87,6 +87,7 @@ private:
 public:
   void sendPlayerPosition(const Transform &transform, float pitch, float yaw);
   void poll();
+  bool aimingAtPlayer(Ray facing);
   void createBullet(Vector3 origin, Vector3 dir);
   void sendChatMessage(const std::string &msg);
   void setName(const std::string &msg);

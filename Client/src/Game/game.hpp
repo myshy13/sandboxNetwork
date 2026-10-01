@@ -1,26 +1,32 @@
 #pragma once
 
+#include <raylib.h>
+
+#include <string>
+
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
-#include <raylib.h>
-#include <string>
 
 class Game {
-public:
-  Game(const AssetManager &a);
+ public:
+  Game(const AssetManager& a);
   ~Game();
-  Game(const Game &)            = delete;
-  Game &operator=(const Game &) = delete;
+  Game(const Game&) = delete;
+  Game& operator=(const Game&) = delete;
 
   void frame();
 
-private:
-  const AssetManager &assets;
-  Camera3D camera{{10.0f, 10.0f, 10.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 70.0f, CAMERA_PERSPECTIVE};
+ private:
+  const AssetManager& assets;
+  Camera3D camera{{10.0f, 10.0f, 10.0f},
+                  {0.0f, 0.0f, 0.0f},
+                  {0.0f, 1.0f, 0.0f},
+                  70.0f,
+                  CAMERA_PERSPECTIVE};
   Client client;
   Lighting lighting;
   Player player;
@@ -32,17 +38,20 @@ private:
   bool inChat = false;
   std::string chatInput;
   float playerPosCooldown = Client::POS_UPDATE_INTERVAL;
-  float bulletCooldown    = 0.0f;
-  int sentViewRadius      = -1; // chunks the server was last told; -1 = nothing sent this session
-  float placeCooldown     = 0.0f;
+  float bulletCooldown = 0.0f;
+  int sentViewRadius =
+      -1;  // chunks the server was last told; -1 = nothing sent this session
+  float placeCooldown = 0.0f;
 #ifdef DEBUG
-  bool showDebug        = false;
-  bool showChunkBorders = false; // F4
-  bool showCollisionDebug = false; // F5
-  int nearPlaneStep                      = 0;     // F7: cycles NEAR_PLANES, for depth precision
+  bool showDebug = false;
+  bool showChunkBorders = false;    // F4
+  bool showCollisionDebug = false;  // F5
+  int nearPlaneStep = 0;  // F7: cycles NEAR_PLANES, for depth precision
   static constexpr double NEAR_PLANES[5] = {0.01, 0.5, 1.0, 2.0, 4.0};
-  double playerUpdateMs = 0.0; // Player::Update, incl. the per-block collision scan
-  double drawObjectsMs  = 0.0; // Renderer::drawObjects, incl. frustum cull + instancing
+  double playerUpdateMs =
+      0.0;  // Player::Update, incl. the per-block collision scan
+  double drawObjectsMs =
+      0.0;  // Renderer::drawObjects, incl. frustum cull + instancing
 #endif
 
   // ==== update ==== //

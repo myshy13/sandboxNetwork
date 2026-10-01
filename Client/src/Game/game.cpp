@@ -584,7 +584,17 @@ void Game::drawOverlays(float dt) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2,
                       (float)GetScreenHeight() / 2};
-    DrawCircleV(centre, (float)GetScreenHeight() / 480, WHITE);
+    Ray facing = {};
+
+    facing.position = camera.position;
+    facing.direction =
+        Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+    DrawCircleV(centre, (float)GetScreenHeight() / 480,
+                client.aimingAtPlayer(facing) ? Color{255, 200, 200, 200}
+                                              : Color{255, 255, 255, 255});
+    DrawCircleLinesV(centre, (float)GetScreenHeight() / 200,
+                     client.aimingAtPlayer(facing) ? Color{255, 50, 50, 100}
+                                                   : Color{255, 255, 255, 100});
   }
 }
 
