@@ -193,11 +193,18 @@ add_dependencies(${PROJECT_NAME} copy_assets)
 if(BUILD_WEB)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        "-O3"
+    )
+
     target_link_options(${PROJECT_NAME} PRIVATE
+        "-O3"
         "-sUSE_GLFW=3"
         "-sWASM=1"
         "-sASYNCIFY"
         "-sALLOW_MEMORY_GROWTH=1"
+        "-sMIN_WEBGL_VERSION=2"
+        "-sMAX_WEBGL_VERSION=2"
         "-sEXPORTED_FUNCTIONS=['_main','_resize']"
         "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']"
         "-lwebsocket.js"

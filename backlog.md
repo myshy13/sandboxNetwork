@@ -76,7 +76,7 @@ polish notes remain.
 - [ ] respawn timer + spawn-point selection instead of instant respawn
 - [ ] health regen or pickups
 - [ ] hit direction indicator (which way did that shot come from)
-- [ ] kill feed (top-right, "A killed B")
+- [x] kill feed (top-right, "A killed B") **Revision:** In the chat, not top right. displayed as red
 
 ## Netcode
 
