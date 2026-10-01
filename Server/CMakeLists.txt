@@ -71,6 +71,8 @@ FetchContent_Declare(
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(ixwebsocket)
+# ixwebsocket's own source isn't ours to fix: silence its warnings.
+target_compile_options(ixwebsocket PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/w> $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 # ---------------------------------------------------------------------------
 # Source files
@@ -88,6 +90,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${enet_SOURCE_DIR}/include"
     "${cereal_SOURCE_DIR}/include"
 )
+
+# raylib's headers (raymath.h) warn under -Wextra; treat them as system headers like the Client does.
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${raylib_SOURCE_DIR}/src")
 
 find_package(Threads REQUIRED) # std::async for the background world save
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket Threads::Threads)

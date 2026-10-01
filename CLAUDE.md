@@ -9,7 +9,9 @@ CRITICAL: Before writing any code, you must read, merge, and strictly follow the
 See [README.md](README.md) for build/run commands.
 
 Do not delete the build folder (even if you created it) unless it is temporary.
-Don't build after you create code, if it fails to build, I will tell you.
+Don't build after you create ordinary code, if it fails to build, I will tell you.
+Do build when the build is the point: debugging a build/compiler/linker problem, changing CMake or
+build flags, or chasing warnings. Use a temp build dir outside the repo, never the existing build folder.
 
 > **Note:** If the claude rules are outdated, update them before you do anything else.
 

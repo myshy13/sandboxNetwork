@@ -93,6 +93,10 @@ endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
+# rlights.h is raylib's example header (not ours to fix); only lighting.cpp includes it.
+set_source_files_properties("${CMAKE_SOURCE_DIR}/src/Shaders/lighting.cpp" PROPERTIES
+    COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-missing-field-initializers>")
+
 # Native macOS: bundle into a .app. Emscripten sets its own .html suffix
 # below, so keep this off for the web build.
 if(APPLE AND NOT BUILD_WEB)
