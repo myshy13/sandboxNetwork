@@ -41,6 +41,8 @@ Do not do any code unless you have concrete evidence that they already would kno
   amount that you contributed is over ~50% of the code in that 1 commit.
 - After making 3 or more commits in a session that haven't been pushed
   yet, push the current branch to its remote.
+- Never use git worktrees (no EnterWorktree, no `isolation: "worktree"`). Edit in the main checkout, on the current
+  branch, after checking `git status`. If a tool forces a worktree, stop and tell the creator instead.
 - Before writing any code, you should check with the creator, but you should also check the git status for uncommited code.
 - Remind the user of things before it is too late, for example, if they are in a branch and they made changes that shouldn't be in that branch. Or they made too many changes and forgot to commit.
 
