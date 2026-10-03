@@ -34,7 +34,20 @@ Game::Game(const AssetManager& a) : assets(a), renderer(a) {
   // TODO: Sunrise and sunset
 }
 
-Game::~Game() { client.disconnect(); }
+Game::~Game() {
+  client.disconnect();
+  UnloadRenderTexture(target);
+}
+
+RenderTexture Game::makeTarget() {
+  RenderTexture t = LoadRenderTexture(
+      static_cast<int>(GetScreenWidth() * RENDER_SCALE),
+      static_cast<int>(GetScreenHeight() * RENDER_SCALE));
+  // Bilinear, so scaling down averages neighbouring pixels (the default,
+  // nearest, would just drop them and shimmer).
+  SetTextureFilter(t.texture, TEXTURE_FILTER_BILINEAR);
+  return t;
+}
 
 // ==== one frame ==== //
 void Game::frame() {
@@ -51,12 +64,32 @@ void Game::frame() {
   sendPosition(dt);
   handleActions(dt);
 
-  BeginDrawing();
+  // Zoom narrows the field of view instead of cropping the texture, so the
+  // scene is re-rendered at full resolution rather than enlarged pixels. The
+  // frustum culling and the camera-relative view both read camera.fovy too.
+  const float wantedFov = (!inChat && IsKeyDown(KEY_C)) ? ZOOM_FOV : BASE_FOV;
+  camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
+
+  BeginTextureMode(target);
   drawScene(dt);
+  EndTextureMode();
+
+  BeginDrawing();
+  // Negative height: render textures are stored upside down.
+  const Rectangle source = {0, 0, static_cast<float>(target.texture.width),
+                            -static_cast<float>(target.texture.height)};
+  DrawTexturePro(target.texture, source,
+                 {0, 0, static_cast<float>(GetScreenWidth()),
+                  static_cast<float>(GetScreenHeight())},
+                 {0, 0}, 0, WHITE);
+
+  // The UI goes straight to the screen, so zooming or resizing the scene
+  // texture never scales it. Debug before the overlays so the pause menu
+  // covers it.
   drawHealthBar();
   drawChat();
   drawScoreboard();
-  drawDebug();  // before the overlays, so the pause menu covers it
+  drawDebug();
   drawOverlays(dt);
   EndDrawing();
 }
@@ -217,6 +250,10 @@ void Game::sendPosition(float dt) {
 }
 
 void Game::handleActions(float dt) {
+  if (IsWindowResized()) {
+    UnloadRenderTexture(target);
+    target = makeTarget();
+  }
   {
     int key = GetKeyPressed();
     if (key >= KEY_ONE && key < KEY_ONE + blockTypesSize) {
@@ -341,8 +378,9 @@ void Game::drawScene(float dt) {
 
   EndMode3D();
 
+  // Sized to the render texture, not the window: they differ by RENDER_SCALE.
   if (world.isWater(camera.position))
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+    DrawRectangle(0, 0, target.texture.width, target.texture.height,
                   Fade(SKYBLUE, 0.35f));
 }
 

@@ -30,17 +30,27 @@ class Game {
   static constexpr int blockTypesSize = std::size(blockTypes);
   int activeBlockType = 0;
 
+  // Vertical field of view in degrees; holding C narrows it to zoom.
+  static constexpr float BASE_FOV = 70.0f;
+  static constexpr float ZOOM_FOV = 25.0f;
+
   const AssetManager& assets;
   Camera3D camera{{10.0f, 10.0f, 10.0f},
                   {0.0f, 0.0f, 0.0f},
                   {0.0f, 1.0f, 0.0f},
-                  70.0f,
+                  BASE_FOV,
                   CAMERA_PERSPECTIVE};
   Client client;
   Lighting lighting;
   Player player;
   World world;
   Renderer renderer;
+
+  // The scene renders into a texture RENDER_SCALE times the window size, then
+  // is scaled down to the window (supersampling: smoother edges, more cost).
+  static constexpr float RENDER_SCALE = 2.0f;
+  static RenderTexture makeTarget();
+  RenderTexture target = makeTarget();
 
   // ==== per-frame state ==== //
   bool paused = false;
