@@ -106,7 +106,7 @@ bool World::placeBlock(Ray aim, Client& client, const Vector3& playerPos,
   // cell is the block's centre (see objectBox / snapToCell), not a corner.
   BoundingBox block = objectBox(ObjectTransform{cell, env::BLOCKSIZE});
 
-  if (!CheckCollisionBoxes(player, block)) {
+  if (!::isSolid(type) || !CheckCollisionBoxes(player, block)) {
     Object o = Object{ObjectTransform{cell, env::BLOCKSIZE}, type};
     client.placeObject(o);
 
