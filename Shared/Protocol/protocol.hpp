@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 7; // Added level to water
+constexpr int PROTOCOL_VERSION = 9; // Object no longer sends its colour
 
 enum class Type : uint8_t {
   // player

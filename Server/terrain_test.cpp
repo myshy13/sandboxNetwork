@@ -77,5 +77,35 @@ int main() {
 
   assert(terrain1.seed() + 1 == terrain3.seed());
 
+  // 3D hash: deterministic, seeded, and every axis changes the result
+  assert(terrain1.hash(3, 4, 5) == terrain2.hash(3, 4, 5));
+  assert(terrain1.hash(3, 4, 5) != terrain3.hash(3, 4, 5));
+  assert(terrain1.hash(3, 4, 5) != terrain1.hash(4, 4, 5));
+  assert(terrain1.hash(3, 4, 5) != terrain1.hash(3, 5, 5));
+  assert(terrain1.hash(3, 4, 5) != terrain1.hash(3, 4, 6));
+  assert(terrain1.hash(-3, -4, -5) == terrain2.hash(-3, -4, -5)); // negatives
+
+  // Layers must not repeat each other: a column's damage rolls (y = 0..9) are
+  // different sequences in neighbouring columns, and roughly even over 0..2.
+  {
+    int same = 0, total = 0;
+    int bucket[3] = {};
+    for (int x = -20; x < 20; x++) {
+      for (int z = -20; z < 20; z++) {
+        for (int y = 0; y < 10; y++) {
+          bucket[terrain1.hash(x, y, z) % 3]++;
+          // a layer above/beside should only match by chance (about 1 in 3)
+          same += (terrain1.hash(x, y, z) % 3) == (terrain1.hash(x + 1, y, z) % 3);
+          same += (terrain1.hash(x, y, z) % 3) == (terrain1.hash(x, y + 1, z) % 3);
+          total += 2;
+        }
+      }
+    }
+    for (int b : bucket) {
+      assert(b > 16000 * 0.30 && b < 16000 * 0.37); // 16000 rolls, ~1/3 each
+    }
+    assert(same > total * 0.30 && same < total * 0.37);
+  }
+
   printf("terrain tests passed\n");
 }

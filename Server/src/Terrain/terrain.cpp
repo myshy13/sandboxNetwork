@@ -18,6 +18,20 @@ uint32_t Terrain::hash(int x, int z) const {
   return static_cast<uint32_t>(h);
 }
 
+// One mixing round per axis, each with its own prime, then the squaring step.
+uint32_t Terrain::hash(int x, int y, int z) const {
+  constexpr uint64_t PRIME = 4294967291ULL;
+  uint64_t h = seedValue;
+  h = (h * 1103515245ULL + static_cast<uint32_t>(x) * 73856093ULL + 12345ULL) %
+      PRIME;
+  h = (h * 1103515245ULL + static_cast<uint32_t>(y) * 83492791ULL + 12345ULL) %
+      PRIME;
+  h = (h * 1103515245ULL + static_cast<uint32_t>(z) * 19349663ULL + 12345ULL) %
+      PRIME;
+  h = (h * h + 12345ULL) % PRIME;
+  return static_cast<uint32_t>(h);
+}
+
 uint32_t Terrain::lattice(int gx, int gz, uint32_t octave) const {
   return hash(gx + static_cast<int>(octave) * 1013,
               gz + static_cast<int>(octave) * 7919);
