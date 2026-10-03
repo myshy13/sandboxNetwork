@@ -91,11 +91,12 @@ int main() {
   // ==== Object colour: from the type, a quarter darker per damage ==== //
   {
     Object fresh(1, ObjectTransform{{0, 0, 0}, {5, 5, 5}}, BlockType::Grass);
+    const Color base = blockColor(BlockType::Grass); // whatever the table says
     Color c = fresh.getColor();
-    assert(c.r == GREEN.r && c.g == GREEN.g && c.b == GREEN.b);
+    assert(c.r == base.r && c.g == base.g && c.b == base.b && c.a == base.a);
     fresh.damage();
-    assert(fresh.getColor().g == GREEN.g * 3 / 4);
-    assert(fresh.getColor().a == GREEN.a); // damage never changes opacity
+    assert(fresh.getColor().g == base.g * 3 / 4);
+    assert(fresh.getColor().a == base.a); // damage never changes opacity
     // a received block's colour matches the sender's without being sent
     auto msg = proto::unpack<proto::ChunkData>(proto::pack(
         proto::Type::ChunkData, proto::ChunkData{0, 0, {fresh}}));
@@ -146,7 +147,8 @@ int main() {
     assert(!isSolid(BlockType::Water) && isPlaceable(BlockType::Water));
     assert(isFluid(BlockType::Water) && !isFluid(BlockType::Dirt));
     assert(!isFluid(BlockType::Count));
-    assert(blockColor(BlockType::Water).a < 255); // water is translucent
+    assert(BLOCK_INFO[static_cast<size_t>(BlockType::Water)].transulcent);
+    assert(!BLOCK_INFO[static_cast<size_t>(BlockType::Dirt)].transulcent);
     assert(!isValid(BlockType::Count) && !isPlaceable(BlockType::Count));
     assert(!isSolid(static_cast<BlockType>(200))); // a hostile client's byte
   }
