@@ -9,19 +9,20 @@
 #include <iostream>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
+#include "AssetManager/blockTex.hpp"
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
+#include "World/world.hpp"
 #include "env.hpp"
 #ifdef CHEATS
 #include <sstream>
 #endif
 
 // ==== setup / teardown ==== //
-Game::Game(const AssetManager& a) : assets(a) {
+Game::Game(const AssetManager& a) : assets(a), renderer(a) {
   // ==== lighting ==== //
   lighting.addDirectional({50.0f, 100.0f, 40.0f}, {0.0f, 0.0f, 0.0f},
                           {255, 245, 225, 255});
@@ -49,11 +50,9 @@ void Game::frame() {
   updatePlayer(dt);
   sendPosition(dt);
   handleActions(dt);
-  world.update();
 
   BeginDrawing();
   drawScene(dt);
-  world.drawHud();
   drawHealthBar();
   drawChat();
   drawScoreboard();
@@ -218,6 +217,12 @@ void Game::sendPosition(float dt) {
 }
 
 void Game::handleActions(float dt) {
+  {
+    int key = GetKeyPressed();
+    if (key >= KEY_ONE && key < KEY_ONE + blockTypesSize) {
+      activeBlockType = key - KEY_ONE;
+    }
+  }
   if (paused || inChat || !chunkUnderPlayerLoaded()) return;
 
   // Crosshair actions aim straight down the look direction - not
@@ -247,13 +252,15 @@ void Game::handleActions(float dt) {
   constexpr float placeCooldownTime = 0.2f;
 #endif
   if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-    if (world.placeBlock(aim, client, player.getTransform().translation)) {
+    if (world.placeBlock(aim, client, player.getTransform().translation,
+                         blockTypes[activeBlockType])) {
       placeCooldown = placeCooldownTime;
     }
   } else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
     placeCooldown -= dt;
     if (placeCooldown <= 0) {
-      if (world.placeBlock(aim, client, player.getTransform().translation)) {
+      if (world.placeBlock(aim, client, player.getTransform().translation,
+                           blockTypes[activeBlockType])) {
         placeCooldown = placeCooldownTime;
       }
     }
@@ -542,6 +549,28 @@ void Game::drawScoreboard() {
 // Pause / damage flashes, the connection status line and the crosshair.
 void Game::drawOverlays(float dt) {
   GameState& gameState = GameState::shared();
+
+  {
+    constexpr float BOXSIZE = 50.0f;  // square
+    constexpr float BORDER = 5.0f;
+    const float left = GetScreenWidth() - BOXSIZE * blockTypesSize;
+    const float top = GetScreenHeight() - BOXSIZE;
+    for (int i = 0; i < blockTypesSize; i++) {
+      const float x = left + i * BOXSIZE;
+      DrawRectangle(x, top, BOXSIZE, BOXSIZE,
+                    activeBlockType == i ? WHITE : GRAY);
+      const Rectangle inner = {x + BORDER, top + BORDER, BOXSIZE - 2 * BORDER,
+                               BOXSIZE - 2 * BORDER};
+      // The block's colour, with its texture drawn over it once it has one.
+      DrawRectangleRec(inner, blockColor(blockTypes[i]));
+      if (std::optional<Tex> tex = blockTex(blockTypes[i], BlockFace::Side)) {
+        const Texture2D& texture = assets.get(*tex);
+        DrawTexturePro(texture,
+                       {0, 0, (float)texture.width, (float)texture.height},
+                       inner, {0, 0}, 0, WHITE);
+      }
+    }
+  }
 
   if (paused) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});

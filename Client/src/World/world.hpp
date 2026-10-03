@@ -9,19 +9,14 @@
 #include <utility>
 #include <vector>
 
-#define MAX_COLOURS 6
-
 class World {
-private:
-  const Color colors[MAX_COLOURS] = {WHITE, BROWN, GREEN, DARKGRAY, RED, BLUE};
-  int activeColor                 = 0;
+ private:
   std::vector<Object> objects{};
 
-public:
-  void drawHud();
-  bool placeBlock(Ray aim, Client &client, const Vector3 &playerPos);
-  void addObject(const Object &object);
-  void update();
+ public:
+  bool placeBlock(Ray aim, Client& client, const Vector3& playerPos,
+                  BlockType type);
+  void addObject(const Object& object);
   void removeObject(Vector3 pos);
   // indexes each object as it's added, no full rebuild.
   void addObjects(const std::vector<Object> &newObjects);
@@ -48,7 +43,9 @@ public:
   int waterLevel(Vector3 pos) const;
   // True if box overlaps a placed block. Only tests the handful of grid
   // cells box spans, not every object - see occupiedCells.
-  bool boxCollides(BoundingBox box, BlockType type = BlockType::Solid) const;
+  // `matches` picks which block types count (default: solid ones).
+  using BlockPredicate = bool (*)(BlockType);
+  bool boxCollides(BoundingBox box, BlockPredicate matches = ::isSolid) const;
 
   static constexpr float CHUNK_SIZE = 15.0f; // world units per chunk (3 blocks)
 
