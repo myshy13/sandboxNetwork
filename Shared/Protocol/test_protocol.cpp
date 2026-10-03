@@ -147,8 +147,8 @@ int main() {
     assert(!isSolid(BlockType::Water) && isPlaceable(BlockType::Water));
     assert(isFluid(BlockType::Water) && !isFluid(BlockType::Dirt));
     assert(!isFluid(BlockType::Count));
-    assert(BLOCK_INFO[static_cast<size_t>(BlockType::Water)].transulcent);
-    assert(!BLOCK_INFO[static_cast<size_t>(BlockType::Dirt)].transulcent);
+    assert(BLOCK_INFO[static_cast<size_t>(BlockType::Water)].translucent);
+    assert(!BLOCK_INFO[static_cast<size_t>(BlockType::Dirt)].translucent);
     assert(!isValid(BlockType::Count) && !isPlaceable(BlockType::Count));
     assert(!isSolid(static_cast<BlockType>(200))); // a hostile client's byte
   }

@@ -233,9 +233,11 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
       }
 
       bool water = o.getType() == BlockType::Water;
-      const Color& c =
-          o.getColor();  // water's opacity lives in its BLOCK_INFO colour
+      const Color c = o.getColor();  // type colour, darkened by damage
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
+      // Every face of a block is either translucent or not, so pick the array
+      // once here rather than per face.
+      auto& batches = isTranslucent(o.getType()) ? translucent : opaque;
       uint8_t mask = cell.faceMasks[n];
       const WaterShape& shape = cell.waterShapes[n];
       const float floorY = t.pos.y - t.scale.y * 0.5f;
@@ -265,19 +267,12 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
         at = Vector3Subtract(at, camera.position);
         m = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
 
-        Batch* pBatch = nullptr;
-        size_t faceTex;
-        {
-          std::optional<Tex> faceTexOptional =
-              blockTex(o.getType(), indexToFace(f));
-          faceTex = static_cast<size_t>(faceTexOptional.value_or(Tex::Count));
-        }
-        bool isTranslucent =
-            BLOCK_INFO[static_cast<size_t>(o.getType())].transulcent;
-        pBatch = &(isTranslucent ? translucent[faceTex] : opaque[faceTex]);
+        // Index of the face's texture; Tex::Count (the last slot) = untextured.
+        const size_t faceTex = static_cast<size_t>(
+            blockTex(o.getType(), indexToFace(f)).value_or(Tex::Count));
 
-        pBatch->colors.push_back(colour);
-        pBatch->mats.push_back(m);
+        batches[faceTex].colors.push_back(colour);
+        batches[faceTex].mats.push_back(m);
       }
     }
   }

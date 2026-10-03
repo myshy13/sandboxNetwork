@@ -18,7 +18,7 @@ struct BlockInfo {
   bool placeable;   // a client may ask the server to place it
   bool fluid;       // placing over it replaces it, and players swim in it
   Color color;      // the block's look until it has a texture; alpha is opacity
-  bool transulcent; // the player can see through it
+  bool translucent; // the player can see through it
 };
 
 // One row per BlockType, in enum order: a new block is a new enum value + a
@@ -43,6 +43,9 @@ inline bool isPlaceable(BlockType t) {
 }
 inline bool isFluid(BlockType t) {
   return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].fluid;
+}
+inline bool isTranslucent(BlockType t) {
+  return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].translucent;
 }
 // Magenta marks an invalid type so it's obvious rather than invisible.
 inline Color blockColor(BlockType t) {
