@@ -39,7 +39,7 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
     return world.boxCollides(b);
   };
   auto hitsWater = [&](BoundingBox b) {
-    return world.boxCollides(b, BlockType::Water);
+    return world.boxCollides(b, isFluid);
   };
   // The player's body box, bottom at the feet (translation), scale tall.
   auto blocked = [&](Vector3 feet) -> bool {

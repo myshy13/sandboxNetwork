@@ -1,24 +1,32 @@
 #pragma once
 
+#include <raylib.h>
+
 #include <array>
 #include <cstddef>
-#include <raylib.h>
 
 enum class Tex {
   Heart,
-  Count // keep last: sizes the array and the path table
+  Grass,
+  Dirt,
+  Water,
+  Leaves,
+  Wood,
+  Grass_Side,
+  Count  // keep last: sizes the array and the path table
 };
 
-// Owns every loaded asset. Needs an open window, and must be destroyed before CloseWindow().
+// Owns every loaded asset. Needs an open window, and must be destroyed before
+// CloseWindow().
 class AssetManager {
-public:
+ public:
   AssetManager();
   ~AssetManager();
-  AssetManager(const AssetManager &)            = delete;
-  AssetManager &operator=(const AssetManager &) = delete;
+  AssetManager(const AssetManager&) = delete;
+  AssetManager& operator=(const AssetManager&) = delete;
 
-  const Texture2D &get(Tex name) const;
+  const Texture2D& get(Tex name) const;
 
-private:
+ private:
   std::array<Texture2D, static_cast<size_t>(Tex::Count)> textures{};
 };

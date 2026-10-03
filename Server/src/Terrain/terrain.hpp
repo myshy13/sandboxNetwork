@@ -9,6 +9,9 @@ public:
                int cellZ) const; // ground height in cells, at least 1
   uint32_t hash(int x, int z)
       const; // per-cell randomness (block damage now, tree placement later)
+  // Same idea with a real vertical axis: use it for per-block randomness so
+  // layers don't borrow another column's hash (which shows up as patterns).
+  uint32_t hash(int x, int y, int z) const;
   uint32_t seed() const; // so the save can store it
   bool hasTree(int cellX, int cellZ) const;
 

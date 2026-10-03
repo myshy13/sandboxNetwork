@@ -2,10 +2,12 @@
 
 #include <raylib.h>
 
+#include <iterator>
 #include <string>
 
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
+#include "Models/Object.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
@@ -21,6 +23,13 @@ class Game {
   void frame();
 
  private:
+  // Hotbar slots, selected with the number keys.
+  static constexpr BlockType blockTypes[] = {BlockType::Dirt, BlockType::Grass,
+                                             BlockType::Leaves, BlockType::Wood,
+                                             BlockType::Water};
+  static constexpr int blockTypesSize = std::size(blockTypes);
+  int activeBlockType = 0;
+
   const AssetManager& assets;
   Camera3D camera{{10.0f, 10.0f, 10.0f},
                   {0.0f, 0.0f, 0.0f},

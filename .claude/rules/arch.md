@@ -31,6 +31,15 @@ Shared/
     protocol.cpp   pack/unpack, compiled directly into both Client and Server
 ```
 
+## Block types
+
+`BlockType` and `BLOCK_INFO` (`Shared/Models/Object.hpp`) are the one place a block's behaviour is defined: solid,
+placeable, fluid and base colour. A new block is an enum value plus a row (one row per value, in enum order: a
+misplaced row compiles but swaps two blocks' properties). An `Object` stores no colour: `getColor()` is the type's
+colour, darkened a quarter per point of damage, so server and client agree without sending it. The client's
+type-to-texture table is `BLOCK_TEX` in `Client/src/AssetManager/blockTex.hpp`. Changing what is sent or saved for an
+`Object` bumps `PROTOCOL_VERSION` and `env::saveFormatVersion`.
+
 ## State ownership
 
 - **Server** is authoritative for: player position/pitch/yaw (as received,

@@ -277,10 +277,6 @@ Vector3 Server::randomSpawn() const {
 }
 
 void Server::generateChunk(int cx, int cz) {
-  // A large odd offset so a below-layer's damage roll doesn't reuse another
-  // real column's hash by coincidence.
-  constexpr int DAMAGE_OFFSET = 999983;
-
   for (int cellX = cx * 16; cellX < cx * 16 + 16; cellX++) {
     for (int cellZ = cz * 16; cellZ < cz * 16 + 16; cellZ++) {
       int height = terrain.heightAt(cellX, cellZ);
@@ -290,8 +286,9 @@ void Server::generateChunk(int cx, int cz) {
         float blockZ = cellZ * blockSize.z + (blockSize.z / 2);
 
         Object top(nextObjectId,
-                   ObjectTransform{{blockX, blockY, blockZ}, blockSize}, GREEN);
-        int topDamage = terrain.hash(cellX, cellZ) % 3;
+                   ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+                   BlockType::Grass);
+        int topDamage = terrain.hash(cellX, height, cellZ) % 3;
         for (int i = 0; i < topDamage; i++) {
           top.damage();
         }
@@ -302,8 +299,8 @@ void Server::generateChunk(int cx, int cz) {
           blockY -= blockSize.y;
           Object below(nextObjectId,
                        ObjectTransform{{blockX, blockY, blockZ}, blockSize},
-                       BROWN);
-          int belowDamage = terrain.hash(cellX + i * DAMAGE_OFFSET, cellZ) % 3;
+                       BlockType::Dirt);
+          int belowDamage = terrain.hash(cellX, i, cellZ) % 3;
           for (int d = 0; d < belowDamage; d++) {
             below.damage();
           }
@@ -320,7 +317,7 @@ void Server::generateChunk(int cx, int cz) {
         for (int i = height + 1; i > 0; i--) {
           blockY -= blockSize.y;
           Object o(nextObjectId,
-                   ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BLUE,
+                   ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                    BlockType::Water);
           // Only the topmost layer is a live source; the rest are already at
           // rest against the floor and each other, so they don't need FluidSim
@@ -334,8 +331,9 @@ void Server::generateChunk(int cx, int cz) {
         }
         blockY -= blockSize.y;
         Object o(nextObjectId,
-                 ObjectTransform{{blockX, blockY, blockZ}, blockSize}, BROWN);
-        int damage = terrain.hash(cellX + height - 1, cellZ) % 2;
+                 ObjectTransform{{blockX, blockY, blockZ}, blockSize},
+                 BlockType::Dirt);
+        int damage = terrain.hash(cellX, height, cellZ) % 2;
         for (int d = 0; d < damage; d++) {
           o.damage();
         }
@@ -376,8 +374,13 @@ void Server::generateChunk(int cx, int cz) {
                                               (float)block.dy * BLOCK_SIZE,
                                               (float)block.dz * BLOCK_SIZE}),
                             blockSize},
-            block.color);
-        for (int i = terrain.hash(cellX, cellZ * block.dy) % 3; i > 0; i--) {
+            block.type);
+        // Each tree block rolls from its own cell, so a whole layer doesn't
+        // share one damage value.
+        for (int i = terrain.hash(cellX + block.dx, height + block.dy,
+                                  cellZ + block.dz) %
+                     3;
+             i > 0; i--) {
           b.damage();
         }
         addBlock(b, false); // generated, not a new edit
@@ -566,10 +569,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
       const BlockType type = msg.object.getType();
       const Player *player = findPlayer(playerId);
       if (player == nullptr || !isValidPosition(sentPos) ||
-          (type != BlockType::Solid && type != BlockType::Water)) {
+          !isPlaceable(type)) {
         break;
       }
-      // Only the type and colour are the client's choice: snap to the grid, no
+      // Only the type is the client's choice: snap to the grid, no
       // further than the player can reach.
       const Vector3 pos = {(floorf(sentPos.x / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
                            (floorf(sentPos.y / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
@@ -585,8 +588,8 @@ void Server::handleReceive(int playerId, const std::string &data) {
       }
       if (auto occupant = occupiedCells.find(blockKey(pos));
           occupant != occupiedCells.end()) {
-        if (objects[occupant->second].getType() != BlockType::Water) {
-          break; // one block per cell, and only water can be placed over
+        if (!isFluid(objects[occupant->second].getType())) {
+          break; // one block per cell, and only a fluid can be placed over
         }
         broadcastToChunk(
             chunk,
@@ -597,7 +600,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
       // A fresh block: default durability, source level, block size and a
       // server-owned id.
       const Object placed(nextObjectId++, ObjectTransform{pos, blockSize},
-                          msg.object.getColor(), type);
+                          type);
       addBlock(placed);
       broadcastToChunk(
           chunk, proto::pack(proto::Type::NewObject, proto::NewObject{placed}),
@@ -757,8 +760,7 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
     if (!generatedChunks.contains(chunkKeyAt(pos)))
       return; // generateChunk would later build over it (or it'd save as a
               // terrain-less chunk)
-    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BLUE,
-             BlockType::Water);
+    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BlockType::Water);
     o.setLevel(level);
     addBlock(o);
     broadcastToChunk(chunkKeyAt(pos),

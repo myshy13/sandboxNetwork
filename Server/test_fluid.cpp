@@ -35,8 +35,7 @@ public:
 
   void add(int x, int y, int z, BlockType type, uint8_t level = 0,
            bool activate = true) {
-    Object o(nextId++, ObjectTransform{centre(x, y, z), blockSize},
-             type == BlockType::Water ? BLUE : BROWN, type);
+    Object o(nextId++, ObjectTransform{centre(x, y, z), blockSize}, type);
     o.setLevel(level);
     addObject(o, activate);
   }
@@ -45,7 +44,7 @@ public:
   void floor(int radius, int y) {
     for (int x = -radius; x <= radius; x++)
       for (int z = -radius; z <= radius; z++)
-        add(x, y, z, BlockType::Solid);
+        add(x, y, z, BlockType::Dirt);
   }
 
   const Object *at(int x, int y, int z) const {
@@ -103,8 +102,7 @@ private:
   void setWaterLevel(Vector3 pos, int level) {
     auto it = occupied.find(blockKey(pos));
     if (it == occupied.end()) {
-      Object o(nextId++, ObjectTransform{pos, blockSize}, BLUE,
-               BlockType::Water);
+      Object o(nextId++, ObjectTransform{pos, blockSize}, BlockType::Water);
       o.setLevel((uint8_t)level);
       addObject(o, true);
       return;
@@ -220,11 +218,11 @@ void testSolidBlocksFlow() {
   w.floor(20, 0);
   for (int z = -MAX_LEVEL - 2; z <= MAX_LEVEL + 2;
        z++) // long enough that going around costs more than MAX_LEVEL
-    w.add(1, 1, z, BlockType::Solid);
+    w.add(1, 1, z, BlockType::Dirt);
   w.add(0, 1, 0, BlockType::Water);
   w.step(30);
 
-  check(w.at(1, 1, 0) && w.at(1, 1, 0)->getType() == BlockType::Solid,
+  check(w.at(1, 1, 0) && w.at(1, 1, 0)->getType() == BlockType::Dirt,
         "water never replaces a solid block");
   check(!w.waterAt(2, 1, 0),
         "water can't flow through a wall (the way around is past MAX_LEVEL)");
@@ -257,7 +255,7 @@ void testFallenWaterIsNotASource() {
 void testWaterfallFallsStraight() {
   TestWorld w;
   w.floor(10, 0);
-  w.add(0, 8, 0, BlockType::Solid); // one-block ledge high above the floor
+  w.add(0, 8, 0, BlockType::Dirt); // one-block ledge high above the floor
   w.add(0, 9, 0,
         BlockType::Water); // source on it: its flow runs off every edge
   w.step(40);

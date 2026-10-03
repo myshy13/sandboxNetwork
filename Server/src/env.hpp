@@ -41,9 +41,9 @@ constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
 constexpr int DEFAULT_VIEW_RADIUS = 4; // default
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 
-constexpr uint32_t saveFormatVersion = 2; // Object gained `level`
+constexpr uint32_t saveFormatVersion = 4; // Object no longer saves its colour
 constexpr uint32_t terrainVersion =
-    3; // deeper water, only its top layer is a source
+    5; // block damage now rolls from a 3D hash
 
 constexpr float FLOW_INTERVAL = 0.2f;
 constexpr float WATER_HEIGHT = 6;

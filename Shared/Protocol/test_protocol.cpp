@@ -58,12 +58,14 @@ int main() {
                                 // knows it has loaded
   }
 
-  // ==== ChunkData: blocks keep their id, position, scale, colour and
-  // durability ==== // (No damage() here: it calls raylib's ColorBrightness,
-  // and this test doesn't link raylib.)
+  // ==== ChunkData: blocks keep their id, position, scale, type and
+  // durability ==== //
   {
-    Object first(5, ObjectTransform{{2.5f, 7.5f, -12.5f}, {5, 5, 5}}, GREEN);
-    Object second(6, ObjectTransform{{-2.5f, 2.5f, 7.5f}, {5, 5, 5}}, BROWN);
+    Object first(5, ObjectTransform{{2.5f, 7.5f, -12.5f}, {5, 5, 5}},
+                 BlockType::Grass);
+    Object second(6, ObjectTransform{{-2.5f, 2.5f, 7.5f}, {5, 5, 5}},
+                  BlockType::Dirt);
+    second.damage();
 
     auto bytes = proto::pack(proto::Type::ChunkData,
                              proto::ChunkData{4, -2, {first, second}});
@@ -76,15 +78,29 @@ int main() {
     assert(a.getTransform().pos.x == 2.5f && a.getTransform().pos.y == 7.5f &&
            a.getTransform().pos.z == -12.5f);
     assert(a.getTransform().scale.x == 5.0f);
-    assert(a.getColor().r == GREEN.r && a.getColor().g == GREEN.g &&
-           a.getColor().b == GREEN.b && a.getColor().a == GREEN.a);
+    assert(a.getType() == BlockType::Grass);
     assert(a.getDurability() == first.getDurability());
 
     const Object &b = msg.blocks[1];
     assert(b.getId() == 6);
     assert(b.getTransform().pos.x == -2.5f && b.getTransform().pos.z == 7.5f);
-    assert(b.getColor().r == BROWN.r && b.getColor().g == BROWN.g &&
-           b.getColor().b == BROWN.b);
+    assert(b.getType() == BlockType::Dirt);
+    assert(b.getDurability() == MAX_DURABILITY - 1); // damage survives the wire
+  }
+
+  // ==== Object colour: from the type, a quarter darker per damage ==== //
+  {
+    Object fresh(1, ObjectTransform{{0, 0, 0}, {5, 5, 5}}, BlockType::Grass);
+    const Color base = blockColor(BlockType::Grass); // whatever the table says
+    Color c = fresh.getColor();
+    assert(c.r == base.r && c.g == base.g && c.b == base.b && c.a == base.a);
+    fresh.damage();
+    assert(fresh.getColor().g == base.g * 3 / 4);
+    assert(fresh.getColor().a == base.a); // damage never changes opacity
+    // a received block's colour matches the sender's without being sent
+    auto msg = proto::unpack<proto::ChunkData>(proto::pack(
+        proto::Type::ChunkData, proto::ChunkData{0, 0, {fresh}}));
+    assert(msg.blocks[0].getColor().g == fresh.getColor().g);
   }
 
   // ==== ChunkData: a full-size chunk (~1200 blocks, ~40 KB, far over one 1392
@@ -93,7 +109,8 @@ int main() {
     std::vector<Object> blocks;
     for (int i = 0; i < 1200; i++) {
       blocks.emplace_back(
-          i, ObjectTransform{{i * 5.0f + 2.5f, 2.5f, 2.5f}, {5, 5, 5}}, WHITE);
+          i, ObjectTransform{{i * 5.0f + 2.5f, 2.5f, 2.5f}, {5, 5, 5}},
+          BlockType::Dirt);
     }
     auto bytes =
         proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, blocks});
@@ -108,17 +125,32 @@ int main() {
 
   // ==== ChunkData: water blocks keep their type and flow level ==== //
   {
-    Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}}, BLUE,
+    Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}},
                  BlockType::Water);
     water.setLevel(3);
-    Object solid(10, ObjectTransform{{7.5f, 2.5f, 2.5f}, {5, 5, 5}}, BROWN);
+    Object solid(10, ObjectTransform{{7.5f, 2.5f, 2.5f}, {5, 5, 5}},
+                 BlockType::Dirt);
 
     auto msg = proto::unpack<proto::ChunkData>(proto::pack(
         proto::Type::ChunkData, proto::ChunkData{0, 0, {water, solid}}));
     assert(msg.blocks[0].getType() == BlockType::Water &&
            msg.blocks[0].getLevel() == 3);
-    assert(msg.blocks[1].getType() == BlockType::Solid &&
+    assert(msg.blocks[1].getType() == BlockType::Dirt &&
            msg.blocks[1].getLevel() == 0); // default: source/unset
+  }
+
+  // ==== BLOCK_INFO: properties come from the table, bad wire values fail ====
+  // //
+  {
+    assert(isSolid(BlockType::Grass) && isSolid(BlockType::Dirt));
+    assert(isSolid(BlockType::Leaves) && isSolid(BlockType::Wood));
+    assert(!isSolid(BlockType::Water) && isPlaceable(BlockType::Water));
+    assert(isFluid(BlockType::Water) && !isFluid(BlockType::Dirt));
+    assert(!isFluid(BlockType::Count));
+    assert(BLOCK_INFO[static_cast<size_t>(BlockType::Water)].transulcent);
+    assert(!BLOCK_INFO[static_cast<size_t>(BlockType::Dirt)].transulcent);
+    assert(!isValid(BlockType::Count) && !isPlaceable(BlockType::Count));
+    assert(!isSolid(static_cast<BlockType>(200))); // a hostile client's byte
   }
 
   // ==== UpdateWaterLevel ==== //
