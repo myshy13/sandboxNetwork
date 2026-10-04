@@ -64,9 +64,9 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers)
+               int nextObjectId, int maxPlayers, float time)
     : savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
-      nextObjectId(nextObjectId), terrain(seed) {
+      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -143,7 +143,7 @@ void Server::saveWorld() {
   dirtyChunks.clear(); // clear right after the copy, not after the write
 
   SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
-                nextObjectId};
+                timeOfDay, nextObjectId};
   writeMetaFile(metaFilePath(savePath), meta);
 
   for (auto &[key, chunk] : snapshot) {
@@ -183,7 +183,7 @@ void Server::saveWorldAsync() {
   dirtyChunks.clear(); // clear right after the copy, not after the write
 
   SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
-                nextObjectId};
+                timeOfDay, nextObjectId};
   writeMetaFile(metaFilePath(savePath), meta);
 
   saving = std::async(
@@ -476,8 +476,12 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
-  // Names are only broadcast when set, so a newcomer needs everyone's current
-  // one.
+  sendTo(id,
+         proto::pack(proto::Type::SetTime,
+                     proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS}),
+         true);
+  // Names are only broadcast when set, so a newcomer needs everyone's
+  // current one.
   for (const Player &p : players) {
     if (p.displayName.has_value()) {
       sendTo(id,
@@ -863,6 +867,9 @@ int Server::findBlockHit(Vector3 from, Vector3 to) const {
 }
 
 void Server::tick(float dt) {
+  timeOfDay += dt / env::DAY_LENGTH_SECONDS;
+  if (timeOfDay >= 1)
+    timeOfDay -= 1;
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;

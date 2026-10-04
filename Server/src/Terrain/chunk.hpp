@@ -38,9 +38,10 @@ struct SaveMeta {
   uint32_t saveFormatVersion;
   uint32_t terrainVersion;
   uint32_t seed;
+  float timeOfDay;
   int nextObjectId;
   template <class A> void serialize(A &ar) {
-    ar(saveFormatVersion, terrainVersion, seed, nextObjectId);
+    ar(saveFormatVersion, terrainVersion, seed, timeOfDay, nextObjectId);
   }
 };
 
