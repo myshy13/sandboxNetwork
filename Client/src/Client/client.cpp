@@ -276,6 +276,11 @@ void Client::handleMessage(const std::string& data) {
       pendingWorldEvents.push_back(std::move(e));
       break;
     }
+    case proto::Type::SetTime: {
+      auto msg = proto::unpack<proto::SetTime>(data);
+      timeDrain = msg.timeOfDay;
+      dayLengthDrain = msg.dayLengthSecs;
+    }
     default:
       break;
   }

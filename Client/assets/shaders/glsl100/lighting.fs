@@ -11,6 +11,7 @@ varying vec3 fragNormal;
 // Input uniform values
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
+uniform float reflectivity;
 
 // NOTE: Add here your custom variables
 
@@ -70,7 +71,7 @@ void main()
 
             float specCo = 0.0;
             if (NdotL > 0.0) specCo = pow(max(0.0, dot(viewD, reflect(-(light), normal))), 48.0); // exponent = tightness of the highlight
-            specular += specCo*0.15; // overall sheen strength - lower = more matte
+            specular += specCo*0.15*reflectivity; // overall sheen strength - lower = more matte
         }
     }
 

@@ -10,6 +10,9 @@ in vec3 fragNormal;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 
+// reflection 0.0 matte, 1.0 strong reflection
+uniform float reflectivity;
+
 // Output fragment color
 #ifdef GL_ES
 #define finalColor gl_FragColor
@@ -40,51 +43,52 @@ float rand(vec2 co) {
     return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-void main()
-{
-    // Texel color fetching from texture sampler
-    vec4 texelColor = texture(texture0, fragTexCoord);
-    texelColor.rgb = pow(texelColor.rgb, vec3(1.6));
-    vec3 lightDot = vec3(0.0);
-    vec3 normal = normalize(fragNormal);
-    vec3 viewD = normalize(viewPos - fragPosition);
-    vec3 specular = vec3(0.0);
+void main() {
+  // Texel color fetching from texture sampler
+  vec4 texelColor = texture(texture0, fragTexCoord);
+  texelColor.rgb = pow(texelColor.rgb, vec3(1.6));
+  vec3 lightDot = vec3(0.0);
+  vec3 normal = normalize(fragNormal);
+  vec3 viewD = normalize(viewPos - fragPosition);
+  vec3 specular = vec3(0.0);
 
-    vec4 tint = colDiffuse * fragColor;
+  vec4 tint = colDiffuse * fragColor;
 
-    // NOTE: Implement here your fragment shader code
+  // NOTE: Implement here your fragment shader code
 
-    for (int i = 0; i < MAX_LIGHTS; i++)
+  for (int i = 0; i < MAX_LIGHTS; i++)
+  {
+    if (lights[i].enabled == 1)
     {
-        if (lights[i].enabled == 1)
-        {
-            vec3 light = vec3(0.0);
+      vec3 light = vec3(0.0);
 
-            if (lights[i].type == LIGHT_DIRECTIONAL)
-            {
-                light = -normalize(lights[i].target - lights[i].position);
-            }
+      if (lights[i].type == LIGHT_DIRECTIONAL)
+      {
+        light = -normalize(lights[i].target - lights[i].position);
+      }
 
-            if (lights[i].type == LIGHT_POINT)
-            {
-                light = normalize(lights[i].position - fragPosition);
-            }
+      if (lights[i].type == LIGHT_POINT)
+      {
+        light = normalize(lights[i].position - fragPosition);
+      }
 
-            float NdotL = max(dot(normal, light), 0.0);
-            lightDot += lights[i].color.rgb*NdotL;
+      float NdotL = max(dot(normal, light), 0.0);
+      lightDot += lights[i].color.rgb*NdotL;
 
-            float specCo = 0.0;
-            if (NdotL > 0.0) specCo = pow(max(0.0, dot(viewD, reflect(-(light), normal))), 48.0); // exponent = tightness of the highlight
-            specular += specCo*0.15; // overall sheen strength - lower = more matte
-        }
+      float specCo = 0.0;
+      if (NdotL > 0.0) {
+        specCo = pow(max(0.0, dot(viewD, reflect(-(light), normal))), 48.0); // exponent = tightness of the highlight
+        specular += specCo*0.15*reflectivity; // overall sheen strength - lower = more matte
+      }
     }
+  }
 
-    finalColor = (texelColor*(tint*vec4(lightDot, 1.0))) + vec4(specular, 0.0);
-    finalColor += texelColor*(ambient/10.0)*tint;
+  finalColor = (texelColor*(tint*vec4(lightDot, 1.0))) + vec4(specular, 0.0);
+  finalColor += texelColor*(ambient/2)*tint;
 
-    // Gamma correction
-    finalColor = pow(finalColor, vec4(1.0/2.2));
+  // Gamma correction
+  finalColor = pow(finalColor, vec4(1.0/2.2));
 
-    // Noise keyed to world position so the grain sticks to surfaces; 0.04 = strength
-    finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.04;
+  // Noise keyed to world position so the grain sticks to surfaces; 0.04 = strength
+  finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.04;
 }

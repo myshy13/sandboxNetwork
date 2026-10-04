@@ -116,6 +116,13 @@ bool World::placeBlock(Ray aim, Client& client, const Vector3& playerPos,
   }
 }
 
+void World::update(float dt) {
+  timeOfDay += dt / dayLengthSecs;
+  if (timeOfDay >= 1) {
+    timeOfDay -= 1;
+  }
+}
+
 // ==== chunks ==== //
 static int64_t chunkKey(Vector3 pos) {
   int cx = (int)floorf(pos.x / World::CHUNK_SIZE);

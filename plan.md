@@ -14,9 +14,9 @@ shadow rays must read the same direction or lit and shaded sides will disagree.
 
 ## Before the time steps (so the look is right first)
 
-- [ ] Gamma: convert the texture's rgb to linear right after sampling it in `assets/shaders/glsl330/lighting.fs` and
+- [x] Gamma: convert the texture's rgb to linear right after sampling it in `assets/shaders/glsl330/lighting.fs` and
       `glsl100/lighting.fs` (`pow` by 2.2, alpha untouched). The final `pow(1/2.2)` already exists; this is its other half
-- [ ] One sun: keep a single `addDirectional` in `Game::Game` instead of three (two overhead lights stack to ~1.7x on top
+- [x] One sun: keep a single `addDirectional` in `Game::Game` instead of three (two overhead lights stack to ~1.7x on top
       faces and clip). Raise ambient (the `ambient / 10.0` in the shader) so shaded faces stay visible but dark
 
 ## Time-of-day lighting (step 4 above, in detail)

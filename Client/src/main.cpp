@@ -1,3 +1,4 @@
+#define Pi -1
 #include <raylib.h>
 
 #include <iostream>
