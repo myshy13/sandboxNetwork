@@ -45,12 +45,13 @@ constexpr uint32_t saveFormatVersion = 5; // Added timeOfDay to SaveMeta
 constexpr uint32_t terrainVersion = 5; // block damage now rolls from a 3D hash
 
 constexpr float FLOW_INTERVAL = 0.2f;
-constexpr float WATER_HEIGHT = 0;
+constexpr float WATER_HEIGHT = 6;
 
 // temporary disabled for debug
 // constexpr float DAY_LENGTH_SECONDS =
 // 60.0f * 20.0f;                          // 20 minutes // 1200 seconds
 constexpr float DAY_LENGTH_SECONDS = 30.0f; // 60 seconds, for debugging
 constexpr float DAY_DEFAULT_TIME = 0.1f;
+constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 
 } // namespace env

@@ -870,6 +870,13 @@ void Server::tick(float dt) {
   timeOfDay += dt / env::DAY_LENGTH_SECONDS;
   if (timeOfDay >= 1)
     timeOfDay -= 1;
+  timeBroadcastCountdown -= dt;
+  if (timeBroadcastCountdown <= 0) {
+    timeBroadcastCountdown = env::TIME_BROADCAST_INTERVAL;
+    broadcast(proto::pack(proto::Type::SetTime,
+                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS}),
+              true);
+  }
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;

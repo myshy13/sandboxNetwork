@@ -20,6 +20,17 @@ int main() {
   assert(chunkKey(-1, 0) != chunkKey(0, -1));
   assert(chunkKey(-1, -1) != chunkKey(0, 0));
 
+  // ==== the meta file keeps timeOfDay and the fields around it ==== //
+  const std::string metaPath = "/tmp/meta_test/meta.bin";
+  SaveMeta saved{env::saveFormatVersion, env::terrainVersion, 42u, 0.25f, 7};
+  const bool wrote = writeMetaFile(metaPath, saved);
+  assert(wrote);
+  auto loaded = readMetaFile(metaPath);
+  assert(loaded.has_value());
+  assert(loaded->timeOfDay == 0.25f);
+  assert(loaded->seed == 42u && loaded->nextObjectId == 7);
+  std::filesystem::remove_all("/tmp/meta_test");
+
   std::printf("chunk tests passed\n");
   return 0;
 }
