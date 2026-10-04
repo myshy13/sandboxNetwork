@@ -6,6 +6,9 @@ CRITICAL: Before writing any code, you must read, merge, and strictly follow the
 - Use `.claude/rules/tech.md` for tool stack constraints and syntax rules.
 - Use `.claude/rules/arch.md` for folder layouts and state management constraints.
 
+At the start of a session, read `context.md` (repo root) for where the last session stopped. If it doesn't exist,
+create it from `plan.md`, `git status` and `git log`, then carry on. Update it before the creator leaves.
+
 See [README.md](README.md) for build/run commands.
 
 Do not delete the build folder (even if you created it) unless it is temporary.
