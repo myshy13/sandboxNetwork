@@ -21,11 +21,11 @@ shadow rays must read the same direction or lit and shaded sides will disagree.
 
 ## Time-of-day lighting (step 4 above, in detail)
 
-- [ ] `Lighting` gets an update call that moves the sun's direction and colour each frame from the synced time, since the
-      lights are only created once today
-- [ ] One function turns time into a sun direction; both the shader light and the shadow rays call it
+- [x] `Lighting` gets an update call that moves the sun's direction and colour each frame from the synced time, since the
+      lights are only created once today **Revision:** Every 0.1 seconds, not every frame
+- [x] One function turns time into a sun direction; both the shader light and the shadow rays call it **After:** `Lighting.cpp` Owns the function
 
-## Shadows (client only, cosmetic)
+## Shadows (client only, cosmetic) (not done yet)
 
 Per block, not per face: one "how sunlit" value per visible block. Nothing here touches the server, the protocol or
 `Object` (arch.md: the client only simulates cosmetics).
