@@ -197,7 +197,7 @@ class Client {
 
   std::optional<float> takeDayLengthSecs() {
     return std::exchange(dayLengthDrain, std::nullopt);
-  };
+  }
 
   void updateBullets(float dt) {
     for (Bullet& b : bullets) {

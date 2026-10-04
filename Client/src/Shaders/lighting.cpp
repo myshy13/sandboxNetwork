@@ -82,9 +82,7 @@ int Lighting::addPoint(Vector3 pos, Vector3 tar, Color color) {
 }
 
 bool Lighting::updateLight(int index, Vector3 pos, Vector3 tar, Color color) {
-  if (index < 0 || index >= lightCount) {
-    return false;
-  }
+  if (index < 0 || index >= lightCount) return false;
 
   lights[index].position = pos;
   lights[index].target = tar;
@@ -126,16 +124,16 @@ DirectionalLight Lighting::timeToLight(float time) const {
 
   if (time < 0.0f) time += 1.0f;
 
-  // 0.8 = midday.
+  // 0.5 = midday.
   //
   // One complete rotation per day.
-  // 0.8 -> highest point
-  // 0.3 -> lowest point
+  // 0.5 -> highest point (sunrise 0.25, sunset 0.75)
+  // 0.0 -> lowest point
   //
   // Using sin/cos means the position is continuous across
   // the 1.0 -> 0.0 boundary.
 
-  const float angle = (time - 0.8f) * 2.0f * PI;
+  const float angle = (time - 0.25f) * 2.0f * PI;
   const float radius = 100.0f;
 
   DirectionalLight light{};
@@ -171,63 +169,13 @@ Color Lighting::skyColor(float time) const {
   time = std::fmod(time, 1.0f);
   if (time < 0.0f) time += 1.0f;
 
-  // Midnight
-  if (time < 0.15f) {
-    return Color{8, 15, 35, 255};
-  }
+  constexpr Color NIGHT{8, 15, 35, 255};
+  constexpr Color DAY{100, 180, 255, 255};
 
-  // Sunrise: 0.15 -> 0.30
-  if (time < 0.30f) {
-    float t = (time - 0.15f) / 0.15f;
-
-    // Dark blue -> light blue.
-    unsigned char r = static_cast<unsigned char>(25 + 75 * t);
-    unsigned char g = static_cast<unsigned char>(40 + 130 * t);
-    unsigned char b = static_cast<unsigned char>(80 + 170 * t);
-
-    return Color{r, g, b, 255};
-  }
-
-  // Daytime: 0.30 -> 0.70
-  if (time < 0.70f) {
-    return Color{100, 180, 255, 255};
-  }
-
-  // Afternoon -> midday brightness
-  if (time < 0.80f) {
-    float t = (time - 0.70f) / 0.10f;
-
-    unsigned char r = static_cast<unsigned char>(100 - 10 * t);
-    unsigned char g = static_cast<unsigned char>(180 + 5 * t);
-    unsigned char b = static_cast<unsigned char>(255);
-
-    return Color{r, g, b, 255};
-  }
-
-  // 0.80 = brightest point / midday
-  if (time < 0.90f) {
-    float t = (time - 0.80f) / 0.10f;
-
-    // Blue sky gradually darkens.
-    unsigned char r = static_cast<unsigned char>(90 - 45 * t);
-    unsigned char g = static_cast<unsigned char>(185 - 80 * t);
-    unsigned char b = static_cast<unsigned char>(255 - 80 * t);
-
-    return Color{r, g, b, 255};
-  }
-
-  // Evening -> night.
-  if (time < 0.97f) {
-    float t = (time - 0.90f) / 0.07f;
-
-    // Stay blue; don't introduce purple/red.
-    unsigned char r = static_cast<unsigned char>(45 - 35 * t);
-    unsigned char g = static_cast<unsigned char>(105 - 90 * t);
-    unsigned char b = static_cast<unsigned char>(175 - 140 * t);
-
-    return Color{r, g, b, 255};
-  }
-
-  // Night.
-  return Color{8, 15, 35, 255};
+  // 0.5 = midday: dawn 0.15 -> 0.30 and dusk 0.70 -> 0.85 mirror around it.
+  if (time < 0.15f) return NIGHT;
+  if (time < 0.30f) return ColorLerp(NIGHT, DAY, (time - 0.15f) / 0.15f);
+  if (time < 0.70f) return DAY;
+  if (time < 0.85f) return ColorLerp(DAY, NIGHT, (time - 0.70f) / 0.15f);
+  return NIGHT;
 }

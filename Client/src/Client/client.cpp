@@ -280,6 +280,7 @@ void Client::handleMessage(const std::string& data) {
       auto msg = proto::unpack<proto::SetTime>(data);
       timeDrain = msg.timeOfDay;
       dayLengthDrain = msg.dayLengthSecs;
+      break;
     }
     default:
       break;

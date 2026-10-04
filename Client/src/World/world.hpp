@@ -32,8 +32,8 @@ class World {
 
   void update(float dt);
 
-  // ==== streaming chunks (what the server sends; see STREAM_CHUNK_SIZE) ====
-  // // Adds a chunk's blocks and records it as loaded, even when it has none.
+  // ==== streaming chunks ==== //
+  // Adds a chunk's blocks and records it as loaded, even when it has none.
   void addChunk(int cx, int cz, const std::vector<Object>& blocks);
   // Removes every block in the chunk. Safe if the chunk was never loaded.
   void unloadChunk(int cx, int cz);

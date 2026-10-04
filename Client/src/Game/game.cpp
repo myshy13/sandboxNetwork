@@ -263,20 +263,24 @@ void Game::sendPosition(float dt) {
 }
 
 void Game::updateLighting(float dt) {
+  // The clock is infinite until the handshake sends the day length.
+  if (!std::isfinite(world.getTime())) return;
   lightUpdateCooldown -= dt;
   if (lightUpdateCooldown < 0) {
     lightUpdateCooldown += lightUpdateCooldownTime;
     auto newLight = lighting.timeToLight(world.getTime());
+    // Four lights stack, so each gets a quarter (alpha is ignored by the shader).
+    const Color sun = ColorBrightness(newLight.color, -0.75f);
     lighting.updateLight(sunLights[0], Vector3Add(newLight.pos, {0, 0, 0}),
-                         newLight.tar, ColorAlpha(newLight.color, 1.0f / 4));
+                         newLight.tar, sun);
     lighting.updateLight(sunLights[1], Vector3Add(newLight.pos, {10, 0, 0}),
-                         newLight.tar, ColorAlpha(newLight.color, 1.0f / 4));
+                         newLight.tar, sun);
     lighting.updateLight(sunLights[2], Vector3Add(newLight.pos, {-10, -10, 10}),
-                         newLight.tar, ColorAlpha(newLight.color, 1.0f / 4));
+                         newLight.tar, sun);
     lighting.updateLight(sunLights[3], Vector3Add(newLight.pos, {0, 10, -10}),
-                         newLight.tar, ColorAlpha(newLight.color, 1.0f / 4));
+                         newLight.tar, sun);
   }
-};
+}
 
 void Game::handleActions(float dt) {
   if (IsWindowResized()) {
@@ -335,6 +339,11 @@ void Game::handleActions(float dt) {
 
 // ==== draw ==== //
 void Game::drawScene(float dt) {
+  // Black while the handshake is still loading (the clock isn't set yet).
+  if (!std::isfinite(world.getTime())) {
+    ClearBackground(BLACK);
+    return;
+  }
   Color bg = lighting.skyColor(world.getTime());
   // ClearBackground({5, 5, 5, 255});
   ClearBackground(bg);

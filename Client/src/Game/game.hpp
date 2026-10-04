@@ -48,7 +48,7 @@ class Game {
   World world;
   Renderer renderer;
 
-  int sunLights[4];
+  int sunLights[4] = {-1, -1, -1, -1};
   float lightUpdateCooldown{lightUpdateCooldownTime};
 
   // The scene renders into a texture RENDER_SCALE times the window size, then
