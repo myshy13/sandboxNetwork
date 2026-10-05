@@ -11,7 +11,15 @@ struct ObjectTransform {
 
 // Count is a sentinel, never a real block: it sizes BLOCK_INFO and
 // bounds-checks.
-enum class BlockType : uint8_t { Grass, Dirt, Water, Leaves, Wood, Count };
+enum class BlockType : uint8_t {
+  Grass,
+  Dirt,
+  Water,
+  Leaves,
+  Wood,
+  Planks,
+  Count
+};
 
 struct BlockInfo {
   bool solid;       // players collide with it
@@ -29,7 +37,9 @@ inline constexpr BlockInfo BLOCK_INFO[] = {
     {false, true, true, WHITE, true},  // Water
     {true, true, false, WHITE, false}, // Leaves
     {true, true, false, WHITE, false}, // Wood
+    {true, true, false, WHITE, false}, // Planks
 };
+
 static_assert(std::size(BLOCK_INFO) == static_cast<size_t>(BlockType::Count),
               "BLOCK_INFO needs exactly one row per BlockType");
 
