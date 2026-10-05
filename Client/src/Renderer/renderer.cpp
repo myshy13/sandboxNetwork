@@ -358,9 +358,11 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   // get default raylib values
   double defaultNear = rlGetCullDistanceNear();
   double defaultFar = rlGetCullDistanceFar();
-  // No point mapping farther than the world is drawn.
-  const float radius = std::min(
-      SHADOW_RADIUS, static_cast<float>(GameState::shared().getRenderDistance()));
+  // The settings screen sets how far shadows reach; no point mapping farther
+  // than the world is drawn.
+  const float radius =
+      static_cast<float>(std::min(GameState::shared().getShadowRadius(),
+                                  GameState::shared().getRenderDistance()));
   float D = 2 * radius;
 
   // ==== snap the map's centre to whole texels ==== //

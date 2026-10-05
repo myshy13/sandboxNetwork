@@ -14,8 +14,14 @@ private:
   int renderDistance{500};
   bool interpolation{true};
   bool shadows{SHADOWS_DEFAULT != 0};  // set per platform in CMakeLists.txt
+  int shadowRadius{DEFAULT_SHADOW_RADIUS};
 
  public:
+  // How far around the player the sun's shadow map reaches (world units).
+  static constexpr int MIN_SHADOW_RADIUS     = 50;
+  static constexpr int MAX_SHADOW_RADIUS     = 400;
+  static constexpr int DEFAULT_SHADOW_RADIUS = 200;
+
   static constexpr int MIN_RENDER_DISTANCE = 200;
   // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
   static constexpr int MAX_RENDER_DISTANCE = 640;
@@ -57,6 +63,10 @@ private:
   bool getInterpolation() const { return interpolation; }
 
   bool getShadows() const { return shadows; }
+
+  void setShadowRadius(int radius) { shadowRadius = radius; }
+
+  int getShadowRadius() const { return shadowRadius; }
 
  private:
   GameState() = default;

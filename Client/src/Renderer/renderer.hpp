@@ -86,10 +86,6 @@ class Renderer {
   std::array<Batch, BATCH_COUNT> opaque;
   std::array<Batch, BATCH_COUNT> translucent;
 
-  // How far around the player the shadow map reaches (world units). Smaller
-  // than the render distance: a sharper map, and far fewer faces in the pass.
-  static constexpr float SHADOW_RADIUS = 200.0f;
-
   // 4 slots, not 2: opaque and water each draw separately now (see
   // drawObjects), so a frame uses 2 slots and needs a frame of headroom behind
   // it.
