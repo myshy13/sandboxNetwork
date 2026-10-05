@@ -6,7 +6,7 @@
 constexpr int DEPTH_COMPONENT_24BIT = 19;
 
 inline RenderTexture2D LoadShadowmapRenderTexture(int width, int height) {
-  RenderTexture2D target = {0};
+  RenderTexture2D target = {};
 
   target.id = rlLoadFramebuffer();  // Load an empty framebuffer
   target.texture.width = width;

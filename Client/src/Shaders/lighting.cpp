@@ -171,7 +171,9 @@ DirectionalLight Lighting::timeToLight(float time) const {
   // Sun is above the horizon when sin(angle) > 0.
   const float height = std::max(0.0f, std::sin(angle));
 
-  const float intensity = height;
+  // Full strength above ~11 degrees, fading in only at the horizon. The shader's
+  // N.L already dims a low sun, so scaling by height too would count it twice.
+  const float intensity = std::clamp(height / 0.2f, 0.0f, 1.0f);
 
   light.color = {
       static_cast<unsigned char>(255.0f * intensity),

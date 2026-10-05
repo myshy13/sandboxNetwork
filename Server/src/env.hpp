@@ -47,9 +47,14 @@ constexpr uint32_t terrainVersion = 5; // block damage now rolls from a 3D hash
 constexpr float FLOW_INTERVAL = 0.2f;
 constexpr float WATER_HEIGHT = 6;
 
+// #define DEBUG // easy toggle here
+#ifdef DEBUG
+constexpr float DAY_LENGTH_SECONDS = 10.0f; // for debugging shadows
+#else
 constexpr float DAY_LENGTH_SECONDS =
     60.0f * 20.0f; // 20 minutes // 1200 seconds
-// constexpr float DAY_LENGTH_SECONDS = 10.0f; // for debugging shadows
+#endif
+#undef DEBUG
 constexpr float DAY_DEFAULT_TIME = 0.5f;
 constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 

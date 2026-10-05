@@ -100,3 +100,5 @@ Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
 - [ ] status console command (player count, uptime, chunk count)
 - [ ] web client: verify the WS proxy path against the deployed server over
       `wss://`
+- [ ] iOS client: look into `ghera/raylib-ios` (unchecked: what it supports, whether ENet/UDP works on iOS or it needs
+      the WebSocket transport, touch controls for the camera, WASD and shooting, and the shadow/render cost on a phone)

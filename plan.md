@@ -45,8 +45,10 @@ Left:
 
 - [ ] Cache the map: redraw only when the texel-snapped centre moves, the sun has moved a few degrees, or a chunk went
       dirty (the pass costs ~6 ms every frame today)
-- [ ] Snap the camera centre to whole texels, or shadow edges crawl as you walk
-- [ ] A shadow radius of its own (~200 units) instead of the render distance: sharper map, ~6x fewer faces
+- [x] Snap the camera centre to whole texels, or shadow edges crawl as you walk (the snap grid turns with the sun, so it
+      still hops about once a second; see bug #3)
+- [x] A shadow radius of its own (`Renderer::SHADOW_RADIUS`, 200 units, capped by the render distance): sharper map, ~6x
+      fewer faces; the shaders fade the shadow out over the map's outer tenth
 - [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
 - [ ] Slope-scaled bias instead of the constant 0.0005; tune by eye (stripes = too small, floating shadows = too big)
 - [ ] Night: skip the pass while the sun is below the horizon

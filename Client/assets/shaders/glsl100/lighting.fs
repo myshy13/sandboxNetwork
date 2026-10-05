@@ -80,6 +80,10 @@ void main()
 
         // Beyond the map (or the sun camera's far plane) there is no data: treat as lit.
         if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0 || p.z > 1.0) lit = 1.0;
+
+        // Fade the shadow out over the map's outer tenth, so it doesn't end in a line.
+        float edge = max(abs(p.x - 0.5), abs(p.y - 0.5)) * 2.0;  // 0 centre, 1 edge
+        lit = mix(lit, 1.0, smoothstep(0.9, 1.0, edge));
     }
 
     // NOTE: Implement here your fragment shader code
