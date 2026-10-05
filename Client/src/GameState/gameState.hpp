@@ -52,6 +52,8 @@ private:
   }
   void toggleInterpolation() { interpolation = !interpolation; }
 
+  void toggleShadows() { shadows = !shadows; }
+
   bool getInterpolation() const { return interpolation; }
 
   bool getShadows() const { return shadows; }

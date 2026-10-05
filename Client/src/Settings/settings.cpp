@@ -1,8 +1,12 @@
 #include "settings.hpp"
-#include "GameState/gameState.hpp"
-#include <algorithm>
+
 #include <raylib.h>
+
+#include <algorithm>
 #include <string>
+
+#include "GameState/gameState.hpp"
+
 template <typename T>
 T map(T x, T in_min, T in_max, T out_min, T out_max) {
   return out_min + (x - in_min) * (out_max - out_min) / (in_max - in_min);
@@ -25,48 +29,87 @@ void Settings::frame() {
   // ==== render distance slider ==== //
   // slider base
   const int currentRenderDistanceValue = gameState.getRenderDistance();
-  const int screenDistance5th          = GetScreenWidth() / 5;
-  int sliderX                          = map(currentRenderDistanceValue, GameState::MIN_RENDER_DISTANCE, GameState::MAX_RENDER_DISTANCE, screenDistance5th, screenDistance5th * 4);
+  const int screenDistance5th = GetScreenWidth() / 5;
+  int sliderX = map(currentRenderDistanceValue, GameState::MIN_RENDER_DISTANCE,
+                    GameState::MAX_RENDER_DISTANCE, screenDistance5th,
+                    screenDistance5th * 4);
   if (changingRenderDistance) {
-    sliderX = std::clamp(GetMouseX(), screenDistance5th, screenDistance5th * 4); // pixels
-    gameState.setRenderDistance(map(sliderX, screenDistance5th, screenDistance5th * 4, GameState::MIN_RENDER_DISTANCE, GameState::MAX_RENDER_DISTANCE));
+    sliderX = std::clamp(GetMouseX(), screenDistance5th,
+                         screenDistance5th * 4);  // pixels
+    gameState.setRenderDistance(
+        map(sliderX, screenDistance5th, screenDistance5th * 4,
+            GameState::MIN_RENDER_DISTANCE, GameState::MAX_RENDER_DISTANCE));
   }
   Rectangle sliderRec = {static_cast<float>(sliderX - 10), 190, 20, 40};
   if (changingRenderDistance && IsMouseButtonUp(MOUSE_BUTTON_LEFT)) {
     changingRenderDistance = false;
-  } else if (!changingRenderDistance && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-             CheckCollisionPointRec(GetMousePosition(), {static_cast<float>(screenDistance5th), 190, static_cast<float>(screenDistance5th * 3), 40})) {
-    // Anywhere along the bar grabs it (and jumps the knob there), not anywhere across the whole row.
+  } else if (!changingRenderDistance &&
+             IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+             CheckCollisionPointRec(
+                 GetMousePosition(),
+                 {static_cast<float>(screenDistance5th), 190,
+                  static_cast<float>(screenDistance5th * 3), 40})) {
+    // Anywhere along the bar grabs it (and jumps the knob there), not anywhere
+    // across the whole row.
     changingRenderDistance = true;
   }
-  DrawText(std::string("Render distance:" + std::to_string(gameState.getRenderDistance() / 5)).c_str(), screenDistance5th, 150, 30, WHITE); // divided by 5 to match the block size
+  DrawText(std::string("Render distance:" +
+                       std::to_string(gameState.getRenderDistance() / 5))
+               .c_str(),
+           screenDistance5th, 150, 30,
+           WHITE);  // divided by 5 to match the block size
   DrawRectangle(screenDistance5th, 200, screenDistance5th * 3, 20, GRAY);
   DrawRectangleRec(sliderRec, WHITE);
 
-  // ==== vsync toggle ==== //
-  // raylib owns the flag, so ask it instead of mirroring the state in GameState
-  const Rectangle vsyncRec = {static_cast<float>(screenDistance5th * 4) - 100, 280, 100, 50};
-  const bool vsyncHovered  = CheckCollisionPointRec(GetMousePosition(), vsyncRec);
-  if (vsyncHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-    if (IsWindowState(FLAG_VSYNC_HINT)) {
-      ClearWindowState(FLAG_VSYNC_HINT);
-    } else {
-      SetWindowState(FLAG_VSYNC_HINT);
+  {  // ==== vsync toggle ==== //
+    // raylib owns the flag, so ask it instead of mirroring the state in
+    // GameState
+    const Rectangle vsyncRec = {static_cast<float>(screenDistance5th * 4) - 100,
+                                280, 100, 50};
+    const bool vsyncHovered =
+        CheckCollisionPointRec(GetMousePosition(), vsyncRec);
+    if (vsyncHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      if (IsWindowState(FLAG_VSYNC_HINT)) {
+        ClearWindowState(FLAG_VSYNC_HINT);
+      } else {
+        SetWindowState(FLAG_VSYNC_HINT);
+      }
     }
+    DrawRectangleRec(vsyncRec, vsyncHovered ? LIGHTGRAY : GRAY);
+    DrawText("VSync:", screenDistance5th, 295, 30, WHITE);
+    DrawText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off",
+             screenDistance5th * 4 - vsyncRec.width * 0.7, 295, 30, WHITE);
   }
-  DrawRectangleRec(vsyncRec, vsyncHovered ? LIGHTGRAY : GRAY);
-  DrawText("VSync:", screenDistance5th, 295, 30, WHITE);
-  DrawText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off", screenDistance5th * 4 - vsyncRec.width * 0.7, 295, 30, WHITE);
 
-  // ==== interpolation toggle ==== //
-  const Rectangle interpolationRec = {static_cast<float>(screenDistance5th * 4) - 100, 350, 100, 50};
-  const bool interpolationHovered  = CheckCollisionPointRec(GetMousePosition(), interpolationRec);
-  if (interpolationHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-    gameState.toggleInterpolation();
+  {  // ==== interpolation toggle ==== //
+    const Rectangle interpolationRec = {
+        static_cast<float>(screenDistance5th * 4) - 100, 350, 100, 50};
+    const bool interpolationHovered =
+        CheckCollisionPointRec(GetMousePosition(), interpolationRec);
+    if (interpolationHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      gameState.toggleInterpolation();
+    }
+    DrawRectangleRec(interpolationRec, interpolationHovered ? LIGHTGRAY : GRAY);
+    DrawText("Interpolation:", screenDistance5th, 365, 30, WHITE);
+    DrawText(gameState.getInterpolation() ? "On" : "Off",
+             screenDistance5th * 4 - interpolationRec.width * 0.7, 365, 30,
+             WHITE);
   }
-  DrawRectangleRec(interpolationRec, interpolationHovered ? LIGHTGRAY : GRAY);
-  DrawText("Interpolation:", screenDistance5th, 365, 30, WHITE);
-  DrawText(gameState.getInterpolation() ? "On" : "Off", screenDistance5th * 4 - interpolationRec.width * 0.7, 365, 30, WHITE);
+
+  {
+    // ==== interpolation toggle ==== //
+    const Rectangle shadowsRec = {
+        static_cast<float>(screenDistance5th * 4) - 100, 420, 100, 50};
+    const bool shadowsHovered =
+        CheckCollisionPointRec(GetMousePosition(), shadowsRec);
+    if (shadowsHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      gameState.toggleShadows();
+    }
+    DrawRectangleRec(shadowsRec, shadowsHovered ? LIGHTGRAY : GRAY);
+    DrawText("Shadows:", screenDistance5th, 425, 30, WHITE);
+    DrawText(gameState.getShadows() ? "On" : "Off",
+             screenDistance5th * 4 - shadowsRec.width * 0.7, 427, 30, WHITE);
+  }
 
   EndDrawing();
 }
