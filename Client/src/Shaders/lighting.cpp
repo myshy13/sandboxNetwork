@@ -35,6 +35,10 @@ Lighting::Lighting() {
   viewPosLoc = GetShaderLocation(shader, "viewPos");
   reflectivityLoc = GetShaderLocation(shader, "reflectivity");
   ambientLoc = GetShaderLocation(shader, "ambient");
+  lightVPLoc = GetShaderLocation(shader, "lightVP");
+  shadowMapLoc = GetShaderLocation(shader, "shadowMap");
+  shadowResLoc = GetShaderLocation(shader, "shadowMapResolution");
+  useShadowsLoc = GetShaderLocation(shader, "useShadows");
 
   // Ambient light.
   float defaultAmbient[4] = {
@@ -117,6 +121,24 @@ void Lighting::setViewPos(const Vector3& cameraPos) {
   };
 
   SetShaderValue(shader, viewPosLoc, p, SHADER_UNIFORM_VEC3);
+}
+
+void Lighting::setShadow(const Matrix& lightVP, unsigned int depthTextureId,
+                         int mapSize) {
+  SetShaderValueMatrix(shader, lightVPLoc, lightVP);
+  SetShaderValue(shader, shadowResLoc, &mapSize, SHADER_UNIFORM_INT);
+
+  // The sampler reads a texture slot, so bind the depth texture to ours first.
+  const int slot = SHADOW_SLOT;
+  rlEnableShader(shader.id);
+  rlActiveTextureSlot(slot);
+  rlEnableTexture(depthTextureId);
+  rlSetUniform(shadowMapLoc, &slot, SHADER_UNIFORM_INT, 1);
+}
+
+void Lighting::setShadowsEnabled(bool enabled) {
+  const int value = enabled ? 1 : 0;
+  SetShaderValue(shader, useShadowsLoc, &value, SHADER_UNIFORM_INT);
 }
 
 void Lighting::begin() { BeginShaderMode(shader); }

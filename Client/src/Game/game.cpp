@@ -74,13 +74,21 @@ void Game::frame() {
   const float wantedFov = (!inChat && IsKeyDown(KEY_C)) ? ZOOM_FOV : BASE_FOV;
   camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
 
-  if (std::isfinite(world.getTime())) {
+  // The setting, and a valid clock (it isn't until the handshake finishes).
+  const bool shadowsOn =
+      GameState::shared().getShadows() && std::isfinite(world.getTime());
+  if (shadowsOn) {
     renderer.shadowMap(
         world.getObjects(), camera, lighting,
         Vector3Normalize(lighting.timeToLight(world.getTime()).pos));
   }
+  lighting.setShadowsEnabled(shadowsOn);
 
   BeginTextureMode(target);
+  if (shadowsOn) {
+    lighting.setShadow(renderer.getLightMatrix(), renderer.getShadowDepth().id,
+                       renderer.getShadowDepth().width);
+  }
   drawScene(dt);
   EndTextureMode();
 
@@ -824,7 +832,7 @@ void Game::drawDebug() {
                10, rowPos, FONTSIZE, RED);
       rowPos += ROWSIZE;
 
-      const Texture2D& shadowMap = renderer.getShadowTexture();
+      const Texture2D& shadowMap = renderer.getShadowDepth();
       DrawTexturePro(shadowMap,
                      {0, 0, static_cast<float>(shadowMap.width),
                       -static_cast<float>(shadowMap.height)},

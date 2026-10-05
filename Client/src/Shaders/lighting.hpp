@@ -34,6 +34,13 @@ class Lighting {
 
   void setViewPos(const Vector3& cameraPos);
 
+  // Gives the shader the sun's view-projection matrix and its depth map.
+  void setShadow(const Matrix& lightVP, unsigned int depthTextureId,
+                 int mapSize);
+
+  // Off makes the shader skip the shadow lookup entirely.
+  void setShadowsEnabled(bool enabled);
+
   void begin();
   void end();
 
@@ -57,6 +64,14 @@ class Lighting {
   int transformLoc = -1;
   int reflectivityLoc = -1;
   int ambientLoc = -1;
+  int lightVPLoc = -1;
+  int shadowMapLoc = -1;
+  int shadowResLoc = -1;
+  int useShadowsLoc = -1;
+
+  // Raylib resets texture slots 0-3 after every batch and the block texture
+  // uses 0, so the shadow map lives well above them.
+  static constexpr int SHADOW_SLOT = 10;
 
   std::array<Light, MAX_LIGHTS> lights{};
   int lightCount = 0;

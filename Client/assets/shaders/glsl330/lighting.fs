@@ -13,6 +13,12 @@ uniform vec4 colDiffuse;
 // reflection 0.0 matte, 1.0 strong reflection
 uniform float reflectivity;
 
+// lighting and shadows
+uniform mat4 lightVP;
+uniform sampler2D shadowMap;
+uniform int shadowMapResolution;
+uniform int useShadows;  // 0 = skip the lookup (setting off)
+
 // Output fragment color
 #ifdef GL_ES
 #define finalColor gl_FragColor
@@ -54,7 +60,32 @@ void main() {
 
   vec4 tint = colDiffuse * fragColor;
 
-  // NOTE: Implement here your fragment shader code
+  vec4 p = lightVP * vec4(fragPosition, 1);
+  p.xyz /= p.w;
+  p.xyz = (p.xyz + 1.0)/2.0;
+  vec2 sampleCoords = p.xy;
+  float currentDepth = p.z;
+
+  vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
+  float bias = 0.0005;
+  
+  // 1.0 = fully lit; stays 1.0 when the shadows setting is off.
+  float lit = 1.0;
+  if (useShadows != 0) {
+    int blockedSamples = 0;
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        float sampleDepth = texture(shadowMap, sampleCoords + texelSize*vec2(x,y)).r;
+        if (currentDepth - bias > sampleDepth) {
+          blockedSamples++;
+        }
+      }
+    }
+    lit = 1.0 - float(blockedSamples) / 9.0;
+
+    // Beyond the map (or the sun camera's far plane) there is no data: treat as lit.
+    if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0 || p.z > 1.0) lit = 1.0;
+  }
 
   for (int i = 0; i < MAX_LIGHTS; i++)
   {
@@ -84,6 +115,7 @@ void main() {
   }
 
   finalColor = (texelColor*(tint*vec4(lightDot, 1.0))) + vec4(specular, 0.0);
+  finalColor.rgb *= lit;
   finalColor += texelColor*(ambient/2)*tint;
 
   // Gamma correction

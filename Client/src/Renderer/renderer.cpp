@@ -16,6 +16,7 @@
 #include "AssetManager/manager.hpp"
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
+#include "Raylib/shadowMap.hpp"
 #include "Shaders/lighting.hpp"
 #include "env.hpp"
 
@@ -55,7 +56,8 @@ Renderer::Renderer(const AssetManager& a) : assets(a) {
   cubeMat = tmp.materials[0];
   whiteTex = cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture;
 
-  shadowMapTarget = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+  shadowMapTarget =
+      LoadShadowmapRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 }
 
 Renderer::~Renderer() {
@@ -65,7 +67,7 @@ Renderer::~Renderer() {
   }
   UnloadMesh(faceMesh);
 
-  UnloadRenderTexture(shadowMapTarget);
+  UnloadShadowmapRenderTexture(shadowMapTarget);
 }
 
 void Renderer::ensureBufferCapacity(int slot, size_t count) {
@@ -319,6 +321,10 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   ClearBackground(WHITE);
   rlSetClipPlanes(1, D + radius + 100);
   BeginMode3D(shadowCamera);
+  Matrix lightView = rlGetMatrixModelview();
+  Matrix lightProjection = rlGetMatrixProjection();
+  lightMatrix = MatrixMultiply(lightView, lightProjection);
+
   // draw objects
   std::vector<Matrix> mats;
   std::vector<Vector4> colors;

@@ -48,9 +48,9 @@ class Renderer {
 
   const Texture2D& getShadowTexture() { return shadowMapTarget.texture; }
 
-  const Texture2D& getShadowDepth() {
-    return shadowMapTarget.depth;
-  }  // not used yet
+  const Texture2D& getShadowDepth() { return shadowMapTarget.depth; }
+
+  const Matrix& getLightMatrix() { return lightMatrix; }
 
  private:
   RenderTexture2D shadowMapTarget;
@@ -70,8 +70,11 @@ class Renderer {
   static Matrix faceMatrix(int f, Vector3 at, Vector3 size,
                            const Vector3& cameraPos);
 
-  // One batch per texture, plus a last one (index Tex::Count) for faces with no
-  // texture. Opaque and translucent are separate so translucent can draw last.
+  Matrix lightMatrix;
+
+  // One batch per texture, plus a last one (index Tex::Count) for faces
+  // with no texture. Opaque and translucent are separate so translucent can
+  // draw last.
   static constexpr size_t BATCH_COUNT = static_cast<size_t>(Tex::Count) + 1;
   std::array<Batch, BATCH_COUNT> opaque;
   std::array<Batch, BATCH_COUNT> translucent;
