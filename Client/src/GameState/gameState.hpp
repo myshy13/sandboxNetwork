@@ -13,12 +13,7 @@ private:
   // ==== settings ==== //
   int renderDistance{500};
   bool interpolation{true};
-#ifndef __EMSCRIPTEN__
-  bool shadows{true};
-#else
-  // shadows off by default in web builds
-  bool shadows{false};
-#endif
+  bool shadows{SHADOWS_DEFAULT != 0};  // set per platform in CMakeLists.txt
 
  public:
   static constexpr int MIN_RENDER_DISTANCE = 200;
