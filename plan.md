@@ -25,26 +25,34 @@ shadow rays must read the same direction or lit and shaded sides will disagree.
       lights are only created once today **Revision:** Every 0.1 seconds, not every frame
 - [x] One function turns time into a sun direction; both the shader light and the shadow rays call it **After:** `Lighting.cpp` Owns the function
 
-## Shadows (client only, cosmetic) (not done yet)
+## Shadows (client only, cosmetic)
 
-Per block, not per face: one "how sunlit" value per visible block. Nothing here touches the server, the protocol or
-`Object` (arch.md: the client only simulates cosmetics).
+One sun shadow map, not per block (per-block rays can't reach 1/8-block accuracy and cost far too much on the CPU).
+`Renderer::shadowMap` draws every opaque, exposed face within the render distance from the sun into a 2048x2048 depth
+texture, through an orthographic camera centred on the player. The lighting shaders sample it (3x3 PCF) and scale the
+sun's light; ambient is left alone. Nothing here touches the server, the protocol or `Object`.
 
-- [ ] Per-block visibility: from just outside the block, step toward the sun in about half-cell steps (max ~10 cells) and
-      ask `World::isSolid` at each step; any hit means shadowed. Start outside the block's own cell or every block
-      shadows itself
-- [ ] Store it in `GridCell` next to `faceMasks` (parallel to `indices`), filled when a chunk is rebuilt
-- [ ] Recompute when the sun has moved a few degrees, spread over frames with a per-frame chunk budget (like the
-      server's `CHUNKS_PER_TICK`); fade between the old and new value so blocks don't pop
-- [ ] Apply it when `drawObjects` builds a block's colour: multiply the rgb by a darken factor (~0.5) if shadowed. No
-      shader change for a first version (it also dims ambient; a per-instance sun-only factor is the proper later fix)
-- [ ] Night: sun below the horizon skips the rays and shadows everything
-- [ ] Settings toggle: `GameState` holds the bool, the settings screen writes it. The default comes from a
-      `SHADOWS_DEFAULT` value defined in `CMakeLists.txt` (off in the `EMSCRIPTEN` branch, on native) and read as a
-      plain `constexpr bool`, so there is no `#ifdef` in game code
+Done:
 
-Known limits: hard-edged per-block shadows; a tree in a neighbouring chunk can change a shadow without dirtying this
-chunk (accept, or dirty the neighbours); unloaded chunks count as open air, so shadows can pop in as chunks load; water
-casts none (not solid).
+- [x] Depth target: `Raylib/shadowMap.hpp` (`LoadShadowmapRenderTexture`, after raylib's shadowmap example)
+- [x] The pass: `Renderer::shadowMap`, with `Renderer::faceMatrix` shared with `drawObjects` so the two can't drift
+- [x] The sun's view-projection matrix is captured in the pass and handed over by `Lighting::setShadow` (texture slot 10)
+- [x] Shader lookup in `glsl330` and `glsl100`; pixels outside the map count as lit
+- [x] Settings toggle: `GameState` bool, settings screen button, `SHADOWS_DEFAULT` from `CMakeLists.txt` (off on web).
+      `useShadows` makes the shader skip the lookup and `Game::frame` skips the pass
+
+Left:
+
+- [ ] Cache the map: redraw only when the texel-snapped centre moves, the sun has moved a few degrees, or a chunk went
+      dirty (the pass costs ~6 ms every frame today)
+- [ ] Snap the camera centre to whole texels, or shadow edges crawl as you walk
+- [ ] A shadow radius of its own (~200 units) instead of the render distance: sharper map, ~6x fewer faces
+- [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
+- [ ] Slope-scaled bias instead of the constant 0.0005; tune by eye (stripes = too small, floating shadows = too big)
+- [ ] Night: skip the pass while the sun is below the horizon
+- [ ] Web: check the depth-texture extension and `glsl100` in a browser once
+
+Known limits: a low sun squashes the covered area into a thin ellipse of the map, so shadows blur along the sun's
+direction; unloaded chunks count as open air, so shadows can pop in as chunks load; water casts none.
 
 Later: ambient occlusion (darken corners where blocks meet, same neighbour-lookup idea at chunk rebuild).

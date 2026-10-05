@@ -7,8 +7,13 @@ Client/src/
   Player/      local player movement, camera, drawing
   Game/Entity/ shared drawable/entity helpers
   Game/        Game class: owns every subsystem + per-frame state, frame() = update then draw
-  World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks
-  Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild)
+  World/       client-side blocks: occupied-cell collision lookup, per-chunk index, dirty chunks, and the world clock
+               (timeOfDay 0-1, advanced per frame, reset by each SetTime)
+  Renderer/    chunked frustum culling + instanced block drawing (only dirty chunks rebuild), and the sun's shadow-map
+               pass (Renderer::shadowMap); faceMatrix is the one place a face's instance matrix is built
+  Shaders/     Lighting: owns the lighting shader, its lights and ambient; timeToLight/skyColor turn the clock into the
+               sun and sky; setShadow hands the sun's view-projection matrix + depth map to the shader
+  Raylib/      small helpers around raylib's own API (shadowMap.hpp: depth-only render target)
   Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
   UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler)
   Settings/    settings screen (reached from the menu; writes values into GameState)
@@ -22,12 +27,12 @@ Server/src/
   Terrain/     chunk.hpp = chunk keys + chunk save files (tested), terrain.cpp = seeded terrain (tested)
   Fluid/       FluidSim: server-owned water flow, reaches the world only through FluidWorld (tested)
   Net/         Connection interface + WsProxy (browser WebSocket bridge)
-main.cpp       CLI args (--ws-port), owns the Server instance
+main.cpp       CLI args (--ws-port, --save-path, --save-time, --seed, --time, --freeze-time, --max-players), owns the Server
 
 Shared/
   sharedEnv.hpp  constants both sides must agree on (SHARED_PLAYER_SCALE)
   Protocol/
-    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, ...)
+    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, SetTime, ...)
     protocol.cpp   pack/unpack, compiled directly into both Client and Server
 ```
 
@@ -49,8 +54,21 @@ type-to-texture table is `BLOCK_TEX` in `Client/src/AssetManager/blockTex.hpp`. 
 - **Client** is authoritative for: its own local player's movement/camera
   (`Player` in `Client/src/Player/`), and purely cosmetic simulation of
   remote bullets between server updates (`Client::updateBullets`).
+- **Time of day**: the server owns the clock (`Server::timeOfDay`, a 0-1 fraction of the day, saved in `meta.bin`).
+  It sends `SetTime` (time, day length, frozen flag) on connect and every `env::TIME_BROADCAST_INTERVAL`; in between
+  each client runs its own clock (`World::update`), so the sun is smooth and no per-frame traffic is needed. The day
+  length travels in the message, so there is no client copy to keep in sync.
 - Don't move authoritative game logic (hit detection, bullet lifetime,
   spawning) into the client — it renders and predicts, it doesn't decide.
+
+## Sun and shadows (client only, cosmetic)
+
+`Lighting::timeToLight(time)` is the one function that turns the clock into the sun (midday 0.5, sunrise 0.25, sunset
+0.75); the lights, the sky colour and the shadow camera all derive from it. Shadows are one 2048x2048 depth map drawn from
+the sun by `Renderer::shadowMap` (before `BeginTextureMode(target)`, since passes can't nest), centred on the player in
+the same camera-relative space as everything else. The lighting shaders sample it and scale the sun's light, never the
+ambient. `GameState::getShadows()` turns the pass and the shader lookup off; its default comes from `SHADOWS_DEFAULT`
+in `Client/CMakeLists.txt`. The server never sees any of this.
 
 ## Adding a new networked feature
 

@@ -40,7 +40,10 @@
   it when the page is served over https (e.g. a dev tunnel), since
   browsers block plain `ws://` from an https page as mixed content.
 - `Server/src/env.hpp` mirrors this for the server: `namespace env` of
-  `constexpr` tunables (tick rate, bullet speed/lifetime, save period).
+  `constexpr` tunables (tick rate, bullet speed/lifetime, save period, day length).
+- `SHADOWS_DEFAULT` (1 native, 0 web) is a compile definition set next to the native/web switch in
+  `Client/CMakeLists.txt` and read as a plain value in `GameState`, so no platform `#ifdef` reaches game code.
+- Shaders live in `Client/assets/shaders/glsl330` and `glsl100` (web); a change to one needs the same change in the other.
 
 ## Testing
 
@@ -48,6 +51,7 @@
   (`cd Shared/Protocol && make test`) that needs no client or server
   running. It reuses headers already fetched into `Client/build`, so
   build the native client at least once first.
-- `cd Server && make test` runs the chunk-key (`Server/src/Terrain/chunk.hpp`), terrain and `FluidSim` tests.
+- `cd Server && make test` runs the chunk-key and `SaveMeta` round-trip (`Server/src/Terrain/chunk.hpp`), terrain and
+  `FluidSim` tests.
   They need no ENet and no running server, but reuse cereal/raylib headers from `Client/build`. `FluidSim` is
   tested through a stand-in `FluidWorld` (`Server/test_fluid.cpp`); keep new server logic testable the same way.

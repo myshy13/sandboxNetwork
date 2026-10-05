@@ -16,6 +16,12 @@ authoritative server, one shared binary protocol.
   superseded a frame later); connect/disconnect/create-bullet/hit events
   are reliable.
 
+## Day and night
+
+- A day is `env::DAY_LENGTH_SECONDS` (20 minutes). The server keeps the clock and saves it; clients show a moving sun,
+  a sky colour that follows it, dim blue-grey nights and (optionally) sun shadows from blocks.
+- Shadows are a setting (settings screen), on by default on native and off on web.
+
 ## Clients
 
 - **Native**: connects over ENet/UDP directly to the server.
