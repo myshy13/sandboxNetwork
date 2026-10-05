@@ -49,7 +49,7 @@ constexpr float WATER_HEIGHT = 6;
 
 constexpr float DAY_LENGTH_SECONDS =
     60.0f * 20.0f; // 20 minutes // 1200 seconds
-// constexpr float DAY_LENGTH_SECONDS = 10.0f;
+// constexpr float DAY_LENGTH_SECONDS = 10.0f; // for debugging shadows
 constexpr float DAY_DEFAULT_TIME = 0.5f;
 constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 

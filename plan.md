@@ -56,3 +56,6 @@ Known limits: a low sun squashes the covered area into a thin ellipse of the map
 direction; unloaded chunks count as open air, so shadows can pop in as chunks load; water casts none.
 
 Later: ambient occlusion (darken corners where blocks meet, same neighbour-lookup idea at chunk rebuild).
+
+Maybe later: cascaded shadow maps (2-3 maps of growing size around the player; the shader picks the smallest that
+contains the pixel). Not wanted yet; do it only after the single map is snapped, cached and has its own radius.
