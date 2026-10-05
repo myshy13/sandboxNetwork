@@ -64,9 +64,10 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers, float time)
-    : savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
-      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed) {
+               int nextObjectId, int maxPlayers, float time, bool freezeTime)
+    : freezeTime(freezeTime), savePath(std::move(savePath)),
+      maxPlayers(maxPlayers), saveTime(saveTime), timeOfDay(time),
+      nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -477,8 +478,9 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
   sendTo(id,
-         proto::pack(proto::Type::SetTime,
-                     proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS}),
+         proto::pack(
+             proto::Type::SetTime,
+             proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS, freezeTime}),
          true);
   // Names are only broadcast when set, so a newcomer needs everyone's
   // current one.
@@ -867,14 +869,17 @@ int Server::findBlockHit(Vector3 from, Vector3 to) const {
 }
 
 void Server::tick(float dt) {
-  timeOfDay += dt / env::DAY_LENGTH_SECONDS;
-  if (timeOfDay >= 1)
-    timeOfDay -= 1;
+  if (!freezeTime) {
+    timeOfDay += dt / env::DAY_LENGTH_SECONDS;
+    if (timeOfDay >= 1)
+      timeOfDay -= 1;
+  }
   timeBroadcastCountdown -= dt;
   if (timeBroadcastCountdown <= 0) {
     timeBroadcastCountdown = env::TIME_BROADCAST_INTERVAL;
     broadcast(proto::pack(proto::Type::SetTime,
-                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS}),
+                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS,
+                                         freezeTime}),
               true);
   }
   saveCountdown -= dt;

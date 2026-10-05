@@ -278,8 +278,11 @@ void Client::handleMessage(const std::string& data) {
     }
     case proto::Type::SetTime: {
       auto msg = proto::unpack<proto::SetTime>(data);
-      timeDrain = msg.timeOfDay;
-      dayLengthDrain = msg.dayLengthSecs;
+      TimeSetting timeSettings;
+      timeSettings.freezeTime = msg.freezeTime;
+      timeSettings.timeOfDay = msg.timeOfDay;
+      timeSettings.dayLengthSecs = msg.dayLengthSecs;
+      timeSettingsDrain = timeSettings;
       break;
     }
     default:

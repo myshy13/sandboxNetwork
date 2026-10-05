@@ -43,6 +43,7 @@ struct ClientView {
 };
 
 class Server {
+  bool freezeTime{false};
   const std::string savePath;
   const int maxPlayers = env::DEFAULT_MAX_PLAYERS;
   const int saveTime;
@@ -152,7 +153,8 @@ public:
                   const int saveTime = 30, uint32_t seed = 0,
                   int nextObjectId = 1,
                   int MAX_PLAYERS = env::DEFAULT_MAX_PLAYERS,
-                  float timeOfDay = env::DAY_DEFAULT_TIME);
+                  float timeOfDay = env::DAY_DEFAULT_TIME,
+                  bool freezeTime = false);
   ~Server();
 
   // ==== static consts ==== //

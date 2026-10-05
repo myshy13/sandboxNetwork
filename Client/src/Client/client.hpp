@@ -22,6 +22,12 @@
 #error cp src/env.example.hpp src/env.hpp
 #endif
 
+struct TimeSetting {
+  float timeOfDay{0.0f};
+  float dayLengthSecs{1.0f};  // nonzero: World divides by it
+  bool freezeTime{false};
+};
+
 struct OnlinePlayer {
   int id{-1};
   Vector3 pos{0, 0, 0};
@@ -84,8 +90,7 @@ class Client {
 
   // ==== drain variables ==== //
   std::vector<WorldEvent> pendingWorldEvents{};
-  std::optional<float> timeDrain;
-  std::optional<float> dayLengthDrain;
+  std::optional<TimeSetting> timeSettingsDrain;
 
   bool handshakeSent{false};
   double connectStartedAt{0.0};
@@ -191,12 +196,8 @@ class Client {
     return std::exchange(pendingWorldEvents, {});
   }
 
-  std::optional<float> takeTime() {
-    return std::exchange(timeDrain, std::nullopt);
-  }
-
-  std::optional<float> takeDayLengthSecs() {
-    return std::exchange(dayLengthDrain, std::nullopt);
+  std::optional<TimeSetting> takeTimeSetting() {
+    return std::exchange(timeSettingsDrain, std::nullopt);
   }
 
   void updateBullets(float dt) {

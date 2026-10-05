@@ -117,9 +117,11 @@ bool World::placeBlock(Ray aim, Client& client, const Vector3& playerPos,
 }
 
 void World::update(float dt) {
-  timeOfDay += dt / dayLengthSecs;
-  if (timeOfDay >= 1) {
-    timeOfDay -= 1;
+  if (!freezeTime) {
+    timeOfDay += dt / dayLengthSecs;
+    if (timeOfDay >= 1) {
+      timeOfDay -= 1;
+    }
   }
 }
 

@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
   int saveTime = 30;
   int maxPlayers = env::DEFAULT_MAX_PLAYERS;
   float time = env::DAY_DEFAULT_TIME;
+  bool freezeTime{false};
 
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "--ws-port") == 0 && i + 1 < argc) {
@@ -42,22 +43,26 @@ int main(int argc, char **argv) {
       time = static_cast<float>(std::strtof(argv[++i], nullptr));
     } else if (std::strcmp(argv[i], "--max-players") == 0 && i + 1 < argc) {
       maxPlayers = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 10));
+    } else if (std::strcmp(argv[i], "--freeze-time") == 0) {
+      freezeTime = true;
     } else if (std::strcmp(argv[i], "--help") == 0) {
-      std::printf("usage: %s [--ws-port <port>] [--save-path <path>] "
-                  "[--save-time <seconds>] [--seed <n>]\n\n"
-                  "  --ws-port <port>  also accept browser clients over "
-                  "WebSocket on <port>.\n"
-                  "                    Needed for the Emscripten build, which "
-                  "cannot use raw UDP.\n"
-                  "  --save-path <path>  specify the path to save game data.\n"
-                  "  --save-time <seconds>  specify the time interval between "
-                  "world saves.\n"
-                  "  --seed <n>  seed the terrain generator (default: the "
-                  "current time).\n"
-                  "  --time <n>  Starting time of day. (0-1)\n"
-                  "  --max-players <players> specifies a limit to the player "
-                  "count.\n",
-                  argv[0]);
+      std::printf(
+          "usage: %s [--ws-port <port>] [--save-path <path>] "
+          "[--save-time <seconds>] [--seed <n>]\n\n"
+          "  --ws-port <port>  also accept browser clients over "
+          "WebSocket on <port>.\n"
+          "                    Needed for the Emscripten build, which "
+          "cannot use raw UDP.\n"
+          "  --save-path <path>  specify the path to save game data.\n"
+          "  --save-time <seconds>  specify the time interval between "
+          "world saves.\n"
+          "  --seed <n>  seed the terrain generator (default: the "
+          "current time).\n"
+          "  --time <n>  Starting time of day. (0-1)\n"
+          "  --freeze-time Stops time from going on, useful for debugging\n"
+          "  --max-players <players> specifies a limit to the player "
+          "count.\n",
+          argv[0]);
       return 0;
     } else {
       std::fprintf(stderr, "unknown argument: %s (try --help)\n", argv[i]);
@@ -99,7 +104,7 @@ int main(int argc, char **argv) {
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
   Server server(wsPort, savePath, saveTime, seed, nextObjectId, maxPlayers,
-                time);
+                time, freezeTime);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {

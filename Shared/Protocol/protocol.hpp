@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 11; // Added setTime handshake
+constexpr int PROTOCOL_VERSION = 12; // Added freezeTime to setTime handshake
 
 enum class Type : uint8_t {
   // player
@@ -147,7 +147,10 @@ struct SetViewRadius {
 struct SetTime {
   float timeOfDay;
   float dayLengthSecs;
-  template <class A> void serialize(A &ar) { ar(timeOfDay, dayLengthSecs); }
+  bool freezeTime;
+  template <class A> void serialize(A &ar) {
+    ar(timeOfDay, dayLengthSecs, freezeTime);
+  }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //

@@ -140,13 +140,9 @@ void Game::applyNetworkUpdates() {
     }
     syncViewRadius();
 
-    std::optional<float> newTime = client.takeTime();
-    std::optional<float> newDayLength = client.takeDayLengthSecs();
+    std::optional<TimeSetting> newTime = client.takeTimeSetting();
     if (newTime.has_value()) {
-      world.setTime(newTime.value());
-    }
-    if (newDayLength.has_value()) {
-      world.setDayLength(newDayLength.value());
+      world.setTimeSettings(newTime.value());
     }
   } else if (client.connect()) {
     world.clear();  // the server re-streams every block on join

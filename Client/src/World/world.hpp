@@ -16,6 +16,7 @@ class World {
   std::vector<Object> objects{};
   float timeOfDay{};
   float dayLengthSecs{};
+  bool freezeTime{false};
 
  public:
   bool placeBlock(Ray aim, Client& client, const Vector3& playerPos,
@@ -78,8 +79,11 @@ class World {
     return std::exchange(dirtyChunks, {});
   }
 
-  // time getters and setters
-  void setTime(float time) { timeOfDay = time; }
+  void setTimeSettings(TimeSetting timeSettings) {
+    timeOfDay = timeSettings.timeOfDay;
+    dayLengthSecs = timeSettings.dayLengthSecs;
+    freezeTime = timeSettings.freezeTime;
+  }
 
   float getTime() const { return timeOfDay; }
 
