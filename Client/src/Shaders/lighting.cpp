@@ -17,16 +17,8 @@ static int glslVersion() {
 
 Lighting::Lighting() {
   if (glslVersion() == 330) {
-#ifdef DEBUG
-    shader = LoadShader(
-        "/Users/hamish/Desktop/Code/sandboxNetwork/Client/assets/shaders/"
-        "glsl330/lighting.vs",
-        "/Users/hamish/Desktop/Code/sandboxNetwork/Client/assets/shaders/"
-        "glsl330/lighting.fs");
-#else
     shader = LoadShader("assets/shaders/glsl330/lighting.vs",
                         "assets/shaders/glsl330/lighting.fs");
-#endif
   } else {
     shader = LoadShader("assets/shaders/glsl100/lighting.vs",
                         "assets/shaders/glsl100/lighting.fs");
