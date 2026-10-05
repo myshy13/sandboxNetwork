@@ -47,11 +47,12 @@ Left:
       dirty (the pass costs ~6 ms every frame today)
 - [x] Snap the camera centre to whole texels, or shadow edges crawl as you walk (the snap grid turns with the sun, so it
       still hops about once a second; see bug #3)
-- [x] A shadow radius of its own (`Renderer::SHADOW_RADIUS`, 200 units, capped by the render distance): sharper map, ~6x
-      fewer faces; the shaders fade the shadow out over the map's outer tenth
+- [x] A shadow radius of its own (`GameState::getShadowRadius()`, default 200 units, 50 to 400 from a slider on the
+      settings screen, capped by the render distance): sharper map, ~6x fewer faces at the default; the shaders fade the
+      shadow out over the map's outer tenth
 - [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
-- [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); written, not yet
-      checked in the afternoon. Tune by eye (stripes = too small, floating shadows = too big)
+- [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); checked in the
+      afternoon, the stripes are gone. Tune by eye if it changes (stripes = too small, floating shadows = too big)
 - [ ] Night: skip the pass while the sun is below the horizon
 - [ ] Web: check the depth-texture extension and `glsl100` in a browser once
 

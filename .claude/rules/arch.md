@@ -15,10 +15,12 @@ Client/src/
                sun and sky; setShadow hands the sun's view-projection matrix + depth map to the shader
   Raylib/      small helpers around raylib's own API (shadowMap.hpp: depth-only render target)
   Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
-  UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler)
-  Settings/    settings screen (reached from the menu; writes values into GameState)
+  UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler; menu or any-rectangle
+               buttons. Slider/: int range tied to a value by a getter and a setter)
+  Settings/    settings screen (reached from the menu; Buttons and Sliders that write values into GameState)
   AssetManager/ owns loaded assets (textures now); enum-indexed get(); built in main.cpp, destroyed before CloseWindow()
-  GameState/   singleton shared by menu/settings/game: current MenuState + user settings (e.g. render distance)
+  GameState/   singleton shared by menu/settings/game: current MenuState + user settings (render distance, shadows
+               on/off, shadow radius, interpolation)
 main.cpp       opens nothing itself: constructs Game and calls Game::frame() in a loop
 
 Server/src/
