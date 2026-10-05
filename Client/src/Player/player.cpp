@@ -99,7 +99,11 @@ void Player::Update(float dt, Camera3D &camera, const World &world) {
   waterMoveCooldown -= dt;
   if (inputEnabled && inWater && IsKeyDown(KEY_SPACE) && waterMoveCooldown <= 0) {
     onGround          = false;
-    velocity.y        = swimPower;
+    // if they're moving slow enough, use full swim power
+    if ((velocity.y > 0 ? velocity.y : -velocity.y) < 30.0f) {
+      velocity.y = 0;
+    }
+    velocity.y += swimPower;
     waterMoveCooldown = waterMoveCooldownTime;
   }
 
