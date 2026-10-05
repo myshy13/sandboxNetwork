@@ -67,7 +67,14 @@ void main() {
   float currentDepth = p.z;
 
   vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
-  float bias = 0.0005;
+
+  // Slope-scaled bias: the flatter the sun hits a surface, the more the map's
+  // depth changes across one texel (tan of the angle to the normal), so the
+  // bias grows with it. 0.0005 is about one texel's depth per unit of slope.
+  vec3 sunDir = normalize(lights[0].position - lights[0].target);  // toward the sun
+  float cosTheta = clamp(dot(normal, sunDir), 0.05, 1.0);
+  float tanTheta = sqrt(1.0 - cosTheta*cosTheta) / cosTheta;
+  float bias = clamp(0.0005 * tanTheta, 0.0001, 0.005);
   
   // 1.0 = fully lit; stays 1.0 when the shadows setting is off.
   float lit = 1.0;
