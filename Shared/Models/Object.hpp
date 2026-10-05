@@ -84,6 +84,7 @@ public:
   void setId(int newId) { id = newId; }
 
   bool isSolid() const { return ::isSolid(type); }
+  bool isTranslucent() const { return ::isTranslucent(type); }
 
   Object() = default;
   Object(int objectId, ObjectTransform t, BlockType ty)

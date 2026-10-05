@@ -13,6 +13,8 @@
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 
+constexpr float lightUpdateCooldownTime = 0.1f;
+
 class Game {
  public:
   Game(const AssetManager& a);
@@ -45,6 +47,9 @@ class Game {
   Player player;
   World world;
   Renderer renderer;
+
+  int sunLights[4] = {-1, -1, -1, -1};
+  float lightUpdateCooldown{lightUpdateCooldownTime};
 
   // The scene renders into a texture RENDER_SCALE times the window size, then
   // is scaled down to the window (supersampling: smoother edges, more cost).
@@ -92,4 +97,5 @@ class Game {
   void drawOverlays(float dt);
   void drawDebug();
   bool chunkUnderPlayerLoaded() const;
+  void updateLighting(float dt);
 };

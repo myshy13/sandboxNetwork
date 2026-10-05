@@ -6,6 +6,9 @@ CRITICAL: Before writing any code, you must read, merge, and strictly follow the
 - Use `.claude/rules/tech.md` for tool stack constraints and syntax rules.
 - Use `.claude/rules/arch.md` for folder layouts and state management constraints.
 
+At the start of a session, read `context.md` (repo root) for where the last session stopped. If it doesn't exist,
+create it from `plan.md`, `git status` and `git log`, then carry on. Update it before the creator leaves.
+
 See [README.md](README.md) for build/run commands.
 
 Do not delete the build folder (even if you created it) unless it is temporary.
@@ -32,6 +35,8 @@ Do not do any code unless you have concrete evidence that they already would kno
 - Point at the tricky part (an ordering, an edge case, an invariant) and say plainly why it is tricky, without writing the fix.
   Ask a question only when there is a real design choice for the creator to make, never as a quiz.
 - The creator trusts Claude's design judgement: give one recommendation with the reasoning, not a menu of options.
+- When an explanation uses a name that isn't defined in the code (a made-up variable like `toSun` or `D`), say what it
+  means and where it comes from. Never assume the creator knows.
 - Plans for larger work live in `plan.md`; keep it current as steps finish.
 - Known bugs live in `bugs.md` (numbered, repo root); "bug #N" means that list. Remove an entry once fixed. Update the numbering if you update the list
 

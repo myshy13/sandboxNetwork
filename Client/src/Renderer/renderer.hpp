@@ -24,7 +24,8 @@ class Renderer {
 
   Object* drawObjects(std::vector<Object>& objects, World& world,
                       const Ray& facing, const Lighting& lighting,
-                      const Camera3D& camera);
+                      const Camera3D& camera,
+                      const std::vector<OnlinePlayer>& players);
 
   size_t getLastDrawnCount() const {
     int total{0};
@@ -41,7 +42,21 @@ class Renderer {
 
   double getLastGpuMs() const { return lastGpuMs; }
 
+  double getLastShadowMapMs() const { return lastShadowMapMs; }
+
+  void shadowMap(const std::vector<Object>& objects, Camera3D camera,
+                 const Lighting& lighting, Vector3 toSun,
+                 const std::vector<OnlinePlayer>& players,
+                 const OnlinePlayer& localPlayer);
+
+  const Texture2D& getShadowTexture() { return shadowMapTarget.texture; }
+
+  const Texture2D& getShadowDepth() { return shadowMapTarget.depth; }
+
+  const Matrix& getLightMatrix() { return lightMatrix; }
+
  private:
+  RenderTexture2D shadowMapTarget;
   const AssetManager& assets;
   // One quad, instanced once per *visible face*. Drawing whole cubes would put
   // two coincident faces at every block boundary, which z-fight at distance.
@@ -53,9 +68,20 @@ class Renderer {
   static const Matrix FACE_ROT[6];
   static const Vector3 FACE_DIR[6];
   static const Matrix FACE_SPIN[6];
+  // One face's instance matrix, placed relative to the camera (floating
+  // origin).
+  static Matrix faceMatrix(int f, Vector3 at, Vector3 size,
+                           const Vector3& cameraPos);
+  // The six face matrices of a player's box (not a cube, turned by its yaw),
+  // relative to `origin`. Both the lit pass and the shadow pass use it.
+  static std::array<Matrix, 6> playerFaceMatrices(const OnlinePlayer& p,
+                                                  const Vector3& origin);
 
-  // One batch per texture, plus a last one (index Tex::Count) for faces with no
-  // texture. Opaque and translucent are separate so translucent can draw last.
+  Matrix lightMatrix;
+
+  // One batch per texture, plus a last one (index Tex::Count) for faces
+  // with no texture. Opaque and translucent are separate so translucent can
+  // draw last.
   static constexpr size_t BATCH_COUNT = static_cast<size_t>(Tex::Count) + 1;
   std::array<Batch, BATCH_COUNT> opaque;
   std::array<Batch, BATCH_COUNT> translucent;
@@ -80,6 +106,7 @@ class Renderer {
 
   double lastCullMs = 0.0;
   double lastGpuMs = 0.0;
+  double lastShadowMapMs = 0.0;
 
   // Visible (non-occluded) blocks of one World chunk, so the whole chunk can be
   // frustum-culled at once. Keyed by the same chunk key World uses; only chunks

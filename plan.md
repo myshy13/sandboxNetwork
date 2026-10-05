@@ -1,64 +1,65 @@
-# Plan: block types (Grass / Dirt / Water / ...) and textures
-
-Goal: a block's *type* decides how it looks and behaves; its colour is only a fallback look (and the damage shading).
-New block = one enum value + one `BLOCK_INFO` row + one texture entry.
-
-## Where things stand
-
-- [x] `BlockType { Grass, Dirt, Water, Leaves, Wood }` + `BLOCK_INFO` (solid, placeable, fluid, colour) in `Shared/Models/Object.hpp`
-- [x] Colour is derived, never stored or sent: `Object::getColor()` = the type's `BLOCK_INFO` colour, a quarter darker per
-      point of damage. The only writers are the type (at construction) and `damage()`
-- [x] `PROTOCOL_VERSION` 9 / `saveFormatVersion` 4 (colour left the wire and the save files)
-- [x] Server terrain and trees pass types only; the server ignores everything but the type in `PlaceObject`
-- [x] Hotbar is a list of `BlockType`s (`Game::blockTypes`); slots draw their colour, with the texture over it if `blockTex` has one
-- [x] `BLOCK_TEX` / `blockTex()` in `Client/src/AssetManager/blockTex.hpp` (Grass, Dirt have a texture; the rest are `nullopt`)
-- [x] Swimming and "place over it" use the `fluid` flag instead of `== BlockType::Water`
-- [ ] The world itself is still drawn from colours: nothing in the renderer reads `BLOCK_TEX` yet (step 4)
-
-## Design (one recommendation)
-
-**One instanced batch per texture, not an atlas.**
-The fragment shader already multiplies `texture0` by `fragColor`, and the face quad already has UVs 0..1. So
-texturing is: swap `cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture` before each `drawBatch`. No shader change, no new
-vertex attribute. An atlas (tile index per instance) only pays off once there are ~10+ textures; revisit then.
-
-**Colour is a tint**, derived from type + damage. Textured blocks get a `WHITE` base colour so only damage shades them.
-
-**Texture choice lives on the client**, indexed by `BlockType`. The server and `Shared` never see textures.
+# Day time and lighting
 
 ## Steps
 
-1. **Assets** — grass and dirt tiles exist. Still needed: a `grass_top`/`grass_side` split, `leaves`, `wood`, `water`
-   (16x16 or 32x32) in `Client/assets/images/`.
-2. **AssetManager** — add a `Tex` entry + `TEXTURE_PATHS` row per new tile (same order, the `static_assert` guards it).
-   Set `SetTextureFilter(..., TEXTURE_FILTER_POINT)` after loading so blocks look crisp, not blurred.
-3. **Face -> texture table** — `BLOCK_TEX` holds one texture per type today. Grass needs {top, side, bottom}, so widen
-   the rows to three slots. Face index 2 is +Y (top), 3 is -Y (bottom), the rest are sides (matches `FACE_DIR`).
-4. **Renderer batches** — today there are two batches (opaque, water). Replace the two `instanceMats/instanceColors`
-   vectors with one pair *per `Tex`* (arrays sized `Tex::Count`, plus the existing water set). In `drawObjects`, push
-   each face into the batch picked by `blockTex`; blocks with `nullopt` go into a plain colour batch. At draw time loop
-   the batches: set the material texture, then `drawBatch`.
-   - *Tricky:* `currentBuffer` rotates through `BUFFER_COUNT` VBO slots per `drawBatch` call. More batches per frame
-     means more slots needed, or a slot reused within a frame gets overwritten before the GPU reads it.
-   - *Tricky:* water stays last and with depth writes off (see the existing comment).
-5. **Flip colours to tints** — once a type has a texture, set its `BLOCK_INFO` colour to `WHITE` so the texture isn't
-   tinted green/brown. Damage still darkens it, which is the intended use.
-6. **Leaves + opacity** — if the leaf texture has see-through holes, add an `opaque` flag next to `solid`: physics asks
-   `solid`, face culling asks `opaque`.
-7. **Tests** — `cd Shared/Protocol && make test` and `cd Server && make test` (both already cover the colour rules).
-8. **Adding a type later (the recipe this plan proves)**
-   1. enum value before `Count` in `BlockType`
-   2. row in `BLOCK_INFO` (the compiler checks the count, not the order: match the enum by eye)
-   3. `Tex` entry + path row, then a `BLOCK_TEX` row (`std::nullopt` until the art exists)
-   4. add it to `Game::blockTypes` if players can place it
-   5. bump `PROTOCOL_VERSION` and `saveFormatVersion` (type values on the wire/disk changed)
-   6. server terrain/placement if it spawns naturally
-   Candidates: Sand, Stone, Snow (matches the biome item in `backlog.md`).
-9. **Docs** — `.claude/rules/arch.md` describes block types and colour; update it when the renderer batches per
-   texture, and tick the matching `backlog.md` line.
+1. Add a time variable to the meta.bin file and the server
+2. send that to the client in the handshake (During server connection handler) Bump `PROTOCOL_VERSION` by 1
+3. create the handler in the client. **Optional:** Add it to the debug menu
+4. move the lights and change the light color based on the time in client
 
-## Later (not in this plan)
+# Lighting prerequisites and shadows
 
-- Texture atlas + per-instance tile index, once the batch count gets annoying.
-- Water animation (scroll UV by `GetTime()` in the shader).
-- Non-cube block shapes (ramp, slab) — own item in `backlog.md`.
+Builds on the day time steps above: shadows need a sun direction that follows the time, and the shader's light and the
+shadow rays must read the same direction or lit and shaded sides will disagree.
+
+## Before the time steps (so the look is right first)
+
+- [x] Gamma: convert the texture's rgb to linear right after sampling it in `assets/shaders/glsl330/lighting.fs` and
+      `glsl100/lighting.fs` (`pow` by 2.2, alpha untouched). The final `pow(1/2.2)` already exists; this is its other half
+- [x] One sun: keep a single `addDirectional` in `Game::Game` instead of three (two overhead lights stack to ~1.7x on top
+      faces and clip). Raise ambient (the `ambient / 10.0` in the shader) so shaded faces stay visible but dark
+
+## Time-of-day lighting (step 4 above, in detail)
+
+- [x] `Lighting` gets an update call that moves the sun's direction and colour each frame from the synced time, since the
+      lights are only created once today **Revision:** Every 0.1 seconds, not every frame
+- [x] One function turns time into a sun direction; both the shader light and the shadow rays call it **After:** `Lighting.cpp` Owns the function
+
+## Shadows (client only, cosmetic)
+
+One sun shadow map, not per block (per-block rays can't reach 1/8-block accuracy and cost far too much on the CPU).
+`Renderer::shadowMap` draws every opaque, exposed face within the render distance from the sun into a 2048x2048 depth
+texture, through an orthographic camera centred on the player. The lighting shaders sample it (3x3 PCF) and scale the
+sun's light; ambient is left alone. Nothing here touches the server, the protocol or `Object`.
+
+Done:
+
+- [x] Depth target: `Raylib/shadowMap.hpp` (`LoadShadowmapRenderTexture`, after raylib's shadowmap example)
+- [x] The pass: `Renderer::shadowMap`, with `Renderer::faceMatrix` shared with `drawObjects` so the two can't drift
+- [x] The sun's view-projection matrix is captured in the pass and handed over by `Lighting::setShadow` (texture slot 10)
+- [x] Shader lookup in `glsl330` and `glsl100`; pixels outside the map count as lit
+- [x] Settings toggle: `GameState` bool, settings screen button, `SHADOWS_DEFAULT` from `CMakeLists.txt` (off on web).
+      `useShadows` makes the shader skip the lookup and `Game::frame` skips the pass
+
+Left:
+
+- [ ] Cache the map: redraw only when the texel-snapped centre moves, the sun has moved a few degrees, or a chunk went
+      dirty (the pass costs ~6 ms every frame today)
+- [x] Snap the camera centre to whole texels, or shadow edges crawl as you walk (the snap grid turns with the sun, so it
+      still hops about once a second; see bug #3)
+- [x] A shadow radius of its own (`GameState::getShadowRadius()`, default 200 units, 50 to 400 from a slider on the
+      settings screen, capped by the render distance): sharper map, ~6x fewer faces at the default; the shaders fade the
+      shadow out over the map's outer tenth
+- [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
+- [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); checked in the
+      afternoon, the stripes are gone. Tune by eye if it changes (stripes = too small, floating shadows = too big)
+- [ ] Night: skip the pass while the sun is below the horizon
+- [ ] Web: check the depth-texture extension and `glsl100` in a browser once
+
+Known limits: a low sun squashes the covered area into a thin ellipse of the map, so shadows blur along the sun's
+direction; unloaded chunks count as open air, so shadows can pop in as chunks load; water casts none.
+
+Later: ambient occlusion (darken corners where blocks meet, same neighbour-lookup idea at chunk rebuild).
+
+Maybe later: cascaded shadow maps (2-3 maps of growing size around the player; the shader picks the smallest that
+contains the pixel). Not wanted yet; do it only after the single map is snapped, cached and has its own radius.

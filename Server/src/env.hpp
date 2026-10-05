@@ -41,11 +41,20 @@ constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
 constexpr int DEFAULT_VIEW_RADIUS = 4; // default
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 
-constexpr uint32_t saveFormatVersion = 4; // Object no longer saves its colour
-constexpr uint32_t terrainVersion =
-    5; // block damage now rolls from a 3D hash
+constexpr uint32_t saveFormatVersion = 5; // Added timeOfDay to SaveMeta
+constexpr uint32_t terrainVersion = 5; // block damage now rolls from a 3D hash
 
 constexpr float FLOW_INTERVAL = 0.2f;
 constexpr float WATER_HEIGHT = 6;
+
+// #define DEBUG_SHORT_DAY // easy toggle here
+#ifdef DEBUG_SHORT_DAY
+constexpr float DAY_LENGTH_SECONDS = 10.0f; // for debugging shadows
+#else
+constexpr float DAY_LENGTH_SECONDS =
+    60.0f * 20.0f; // 20 minutes // 1200 seconds
+#endif
+constexpr float DAY_DEFAULT_TIME = 0.5f;
+constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 
 } // namespace env

@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 9; // Object no longer sends its colour
+constexpr int PROTOCOL_VERSION = 12; // Added freezeTime to setTime handshake
 
 enum class Type : uint8_t {
   // player
@@ -44,6 +44,8 @@ enum class Type : uint8_t {
   ChunkData,
   ChunkUnload,
   SetViewRadius,
+
+  SetTime
 };
 
 struct PlayerUpdate {
@@ -142,12 +144,14 @@ struct SetViewRadius {
   int radius;
   template <class A> void serialize(A &ar) { ar(radius); }
 };
-// TODO: Implement player permissions
-// struct kickPlayer {
-//   int playerId; // who to kick
-//   std::string reason;
-//   template <class A> void serialize(A &ar) { ar(playerId, reason); }
-// };
+struct SetTime {
+  float timeOfDay;
+  float dayLengthSecs;
+  bool freezeTime;
+  template <class A> void serialize(A &ar) {
+    ar(timeOfDay, dayLengthSecs, freezeTime);
+  }
+};
 
 // ==== pack: struct -> bytes, tag prepended ==== //
 template <typename T> std::string pack(Type type, const T &msg) {

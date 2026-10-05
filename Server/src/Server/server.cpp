@@ -64,8 +64,9 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers)
-    : savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
+               int nextObjectId, int maxPlayers, float time, bool freezeTime)
+    : freezeTime(freezeTime), savePath(std::move(savePath)),
+      maxPlayers(maxPlayers), saveTime(saveTime), timeOfDay(time),
       nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
@@ -143,7 +144,7 @@ void Server::saveWorld() {
   dirtyChunks.clear(); // clear right after the copy, not after the write
 
   SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
-                nextObjectId};
+                timeOfDay, nextObjectId};
   writeMetaFile(metaFilePath(savePath), meta);
 
   for (auto &[key, chunk] : snapshot) {
@@ -183,7 +184,7 @@ void Server::saveWorldAsync() {
   dirtyChunks.clear(); // clear right after the copy, not after the write
 
   SaveMeta meta{env::saveFormatVersion, env::terrainVersion, terrain.seed(),
-                nextObjectId};
+                timeOfDay, nextObjectId};
   writeMetaFile(metaFilePath(savePath), meta);
 
   saving = std::async(
@@ -288,10 +289,6 @@ void Server::generateChunk(int cx, int cz) {
         Object top(nextObjectId,
                    ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                    BlockType::Grass);
-        int topDamage = terrain.hash(cellX, height, cellZ) % 3;
-        for (int i = 0; i < topDamage; i++) {
-          top.damage();
-        }
         addBlock(top, false); // generated, not a new edit
         nextObjectId++;
 
@@ -300,10 +297,6 @@ void Server::generateChunk(int cx, int cz) {
           Object below(nextObjectId,
                        ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                        BlockType::Dirt);
-          int belowDamage = terrain.hash(cellX, i, cellZ) % 3;
-          for (int d = 0; d < belowDamage; d++) {
-            below.damage();
-          }
           addBlock(below, false); // generated, not a new edit
           nextObjectId++;
         }
@@ -333,10 +326,6 @@ void Server::generateChunk(int cx, int cz) {
         Object o(nextObjectId,
                  ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                  BlockType::Dirt);
-        int damage = terrain.hash(cellX, height, cellZ) % 2;
-        for (int d = 0; d < damage; d++) {
-          o.damage();
-        }
         addBlock(o, false); // generated, not a new edit
         nextObjectId++;
       }
@@ -375,14 +364,6 @@ void Server::generateChunk(int cx, int cz) {
                                               (float)block.dz * BLOCK_SIZE}),
                             blockSize},
             block.type);
-        // Each tree block rolls from its own cell, so a whole layer doesn't
-        // share one damage value.
-        for (int i = terrain.hash(cellX + block.dx, height + block.dy,
-                                  cellZ + block.dz) %
-                     3;
-             i > 0; i--) {
-          b.damage();
-        }
         addBlock(b, false); // generated, not a new edit
         nextObjectId++;
       }
@@ -476,8 +457,13 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
-  // Names are only broadcast when set, so a newcomer needs everyone's current
-  // one.
+  sendTo(id,
+         proto::pack(
+             proto::Type::SetTime,
+             proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS, freezeTime}),
+         true);
+  // Names are only broadcast when set, so a newcomer needs everyone's
+  // current one.
   for (const Player &p : players) {
     if (p.displayName.has_value()) {
       sendTo(id,
@@ -863,6 +849,19 @@ int Server::findBlockHit(Vector3 from, Vector3 to) const {
 }
 
 void Server::tick(float dt) {
+  if (!freezeTime) {
+    timeOfDay += dt / env::DAY_LENGTH_SECONDS;
+    if (timeOfDay >= 1)
+      timeOfDay -= 1;
+  }
+  timeBroadcastCountdown -= dt;
+  if (timeBroadcastCountdown <= 0) {
+    timeBroadcastCountdown = env::TIME_BROADCAST_INTERVAL;
+    broadcast(proto::pack(proto::Type::SetTime,
+                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS,
+                                         freezeTime}),
+              true);
+  }
   saveCountdown -= dt;
   if (saveCountdown <= 0) {
     saveCountdown = saveCountdownTime;

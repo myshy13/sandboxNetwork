@@ -91,6 +91,14 @@ endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
+# Shadows start on natively and off in the browser (the settings screen can
+# still change it); game code reads this as a plain value, not an #ifdef.
+if(BUILD_WEB)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=0)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
+endif()
+
 # Native macOS: bundle into a .app. Emscripten sets its own .html suffix
 # below, so keep this off for the web build.
 if(APPLE AND NOT BUILD_WEB)

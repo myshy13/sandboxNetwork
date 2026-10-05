@@ -15,6 +15,7 @@
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
+#include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
 #ifdef CHEATS
@@ -24,14 +25,15 @@
 // ==== setup / teardown ==== //
 Game::Game(const AssetManager& a) : assets(a), renderer(a) {
   // ==== lighting ==== //
-  lighting.addDirectional({50.0f, 100.0f, 40.0f}, {0.0f, 0.0f, 0.0f},
-                          {255, 245, 225, 255});
-  lighting.addDirectional({-50.0f, 100.0f, -40.0f}, {0.0f, 0.0f, 0.0f},
-                          {255, 245, 225, 255});
-  lighting.addDirectional({-50.0f, -100.0f, -40.0f}, {0.0f, 0.0f, 0.0f},
-                          {255, 245, 225, 255});
-
-  // TODO: Sunrise and sunset
+  DirectionalLight light = lighting.timeToLight(world.getTime());
+  sunLights[0] = lighting.addDirectional(Vector3Add(light.pos, {0, 0, 0}),
+                                         light.tar, light.color);
+  sunLights[1] = lighting.addDirectional(Vector3Add(light.pos, {10, 0, 0}),
+                                         light.tar, light.color);
+  sunLights[2] = lighting.addDirectional(Vector3Add(light.pos, {-10, -10, 10}),
+                                         light.tar, light.color);
+  sunLights[3] = lighting.addDirectional(Vector3Add(light.pos, {0, 10, -10}),
+                                         light.tar, light.color);
 }
 
 Game::~Game() {
@@ -40,9 +42,9 @@ Game::~Game() {
 }
 
 RenderTexture Game::makeTarget() {
-  RenderTexture t = LoadRenderTexture(
-      static_cast<int>(GetScreenWidth() * RENDER_SCALE),
-      static_cast<int>(GetScreenHeight() * RENDER_SCALE));
+  RenderTexture t =
+      LoadRenderTexture(static_cast<int>(GetScreenWidth() * RENDER_SCALE),
+                        static_cast<int>(GetScreenHeight() * RENDER_SCALE));
   // Bilinear, so scaling down averages neighbouring pixels (the default,
   // nearest, would just drop them and shimmer).
   SetTextureFilter(t.texture, TEXTURE_FILTER_BILINEAR);
@@ -57,7 +59,9 @@ void Game::frame() {
   constexpr float MAX_DT = 1.0f / 30.0f;
   float dt = std::min(GetFrameTime(), MAX_DT);
 
+  world.update(dt);
   applyNetworkUpdates();
+  updateLighting(dt);
   handlePause();
   handleChatInput();
   updatePlayer(dt);
@@ -70,7 +74,24 @@ void Game::frame() {
   const float wantedFov = (!inChat && IsKeyDown(KEY_C)) ? ZOOM_FOV : BASE_FOV;
   camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
 
+  // The setting, and a valid clock (it isn't until the handshake finishes).
+  const bool shadowsOn =
+      GameState::shared().getShadows() && std::isfinite(world.getTime());
+  if (shadowsOn) {
+    renderer.shadowMap(
+        world.getObjects(), camera, lighting,
+        Vector3Normalize(lighting.timeToLight(world.getTime()).pos),
+        client.getPlayers(),
+        {client.getPlayerId(), player.getTransform().translation,
+         player.getPitch(), player.getYaw(), ""});
+  }
+  lighting.setShadowsEnabled(shadowsOn);
+
   BeginTextureMode(target);
+  if (shadowsOn) {
+    lighting.setShadow(renderer.getLightMatrix(), renderer.getShadowDepth().id,
+                       renderer.getShadowDepth().width);
+  }
   drawScene(dt);
   EndTextureMode();
 
@@ -129,6 +150,11 @@ void Game::applyNetworkUpdates() {
       }
     }
     syncViewRadius();
+
+    std::optional<TimeSetting> newTime = client.takeTimeSetting();
+    if (newTime.has_value()) {
+      world.setTimeSettings(newTime.value());
+    }
   } else if (client.connect()) {
     world.clear();  // the server re-streams every block on join
     sentViewRadius = -1;
@@ -249,6 +275,32 @@ void Game::sendPosition(float dt) {
   }
 }
 
+void Game::updateLighting(float dt) {
+  // The clock is infinite until the handshake sends the day length.
+  if (!std::isfinite(world.getTime())) return;
+  lightUpdateCooldown -= dt;
+  if (lightUpdateCooldown < 0) {
+    lightUpdateCooldown += lightUpdateCooldownTime;
+    auto newLight = lighting.timeToLight(world.getTime());
+    // Four lights stack, so each gets a quarter (alpha is ignored by the
+    // shader).
+    const Color sun = ColorBrightness(newLight.color, -0.75f);
+    lighting.updateLight(sunLights[0], Vector3Add(newLight.pos, {0, 0, 0}),
+                         newLight.tar, sun);
+    lighting.updateLight(sunLights[1], Vector3Add(newLight.pos, {10, 0, 0}),
+                         newLight.tar, sun);
+    lighting.updateLight(sunLights[2], Vector3Add(newLight.pos, {-10, -10, 10}),
+                         newLight.tar, sun);
+    lighting.updateLight(sunLights[3], Vector3Add(newLight.pos, {0, 10, -10}),
+                         newLight.tar, sun);
+    const float (&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
+                                 ((float)newLight.color.g / 4 + 10) / 255,
+                                 ((float)newLight.color.b / 4 + 10) / 255,
+                                 1.0f};
+    lighting.updateAmbient(ambient);
+  }
+}
+
 void Game::handleActions(float dt) {
   if (IsWindowResized()) {
     UnloadRenderTexture(target);
@@ -306,7 +358,14 @@ void Game::handleActions(float dt) {
 
 // ==== draw ==== //
 void Game::drawScene(float dt) {
-  ClearBackground({5, 5, 5, 255});
+  // Black while the handshake is still loading (the clock isn't set yet).
+  if (!std::isfinite(world.getTime())) {
+    ClearBackground(BLACK);
+    return;
+  }
+  Color bg = lighting.skyColor(world.getTime());
+  // ClearBackground({5, 5, 5, 255});
+  ClearBackground(bg);
 
   // Floating origin: the GPU only ever sees coordinates near zero, however far
   // into the world `camera` itself has drifted. Everything drawn below this
@@ -339,7 +398,7 @@ void Game::drawScene(float dt) {
     double t1 = GetTime();
 #endif
     targeted = renderer.drawObjects(world.getObjects(), world, pickRay,
-                                    lighting, camera);
+                                    lighting, camera, client.getPlayers());
 #ifdef DEBUG
     drawObjectsMs = (GetTime() - t1) * 1000.0;
 #endif
@@ -350,7 +409,7 @@ void Game::drawScene(float dt) {
   // vertex by a per-instance matrix that only the block renderer supplies, so
   // anything else would collapse to 0,0,0.
   if (targeted != nullptr) {
-    ObjectTransform t = targeted->getTransform();
+    const ObjectTransform& t = targeted->getTransform();
     DrawCubeWiresV(Vector3Subtract(t.pos, camera.position), t.scale, BLACK);
   }
   // ==== draw online players ====
@@ -743,6 +802,10 @@ void Game::drawDebug() {
     DrawText("World:", 10, rowPos, FONTSIZE, RED);
     rowPos += ROWSIZE;
 
+    DrawText(TextFormat("World time: %f", world.getTime()), 10, rowPos,
+             FONTSIZE, RED);
+    rowPos += ROWSIZE;
+
     DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos,
              FONTSIZE, RED);
     rowPos += ROWSIZE;
@@ -766,6 +829,22 @@ void Game::drawDebug() {
     DrawText(TextFormat("draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos,
              FONTSIZE, RED);
     rowPos += ROWSIZE;
+
+    if (GameState::shared().getShadows()) {
+      DrawText(TextFormat("Shadows: %.2f ms", renderer.getLastShadowMapMs()),
+               10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      const Texture2D& shadowMap = renderer.getShadowDepth();
+      DrawTexturePro(shadowMap,
+                     {0, 0, static_cast<float>(shadowMap.width),
+                      -static_cast<float>(shadowMap.height)},
+                     {static_cast<float>(GetScreenWidth() - 10 -
+                                         ((float)GetScreenWidth() / 8)),
+                      10, static_cast<float>(GetScreenWidth()) / 8,
+                      static_cast<float>(GetScreenWidth()) / 8},
+                     {0, 0}, 0, WHITE);
+    }
 
     rowPos += ROWSIZE / 2;
 
