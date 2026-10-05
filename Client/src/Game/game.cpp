@@ -74,6 +74,12 @@ void Game::frame() {
   const float wantedFov = (!inChat && IsKeyDown(KEY_C)) ? ZOOM_FOV : BASE_FOV;
   camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
 
+  if (std::isfinite(world.getTime())) {
+    renderer.shadowMap(
+        world.getObjects(), camera, lighting,
+        Vector3Normalize(lighting.timeToLight(world.getTime()).pos));
+  }
+
   BeginTextureMode(target);
   drawScene(dt);
   EndTextureMode();
@@ -396,7 +402,7 @@ void Game::drawScene(float dt) {
   // vertex by a per-instance matrix that only the block renderer supplies, so
   // anything else would collapse to 0,0,0.
   if (targeted != nullptr) {
-    ObjectTransform t = targeted->getTransform();
+    const ObjectTransform& t = targeted->getTransform();
     DrawCubeWiresV(Vector3Subtract(t.pos, camera.position), t.scale, BLACK);
   }
   // ==== draw online players ====
@@ -816,6 +822,22 @@ void Game::drawDebug() {
     DrawText(TextFormat("draw: %.2f ms", renderer.getLastGpuMs()), 10, rowPos,
              FONTSIZE, RED);
     rowPos += ROWSIZE;
+
+    if (GameState::shared().getShadows()) {
+      DrawText(TextFormat("Shadows: %.2f ms", renderer.getLastShadowMapMs()),
+               10, rowPos, FONTSIZE, RED);
+      rowPos += ROWSIZE;
+
+      const Texture2D& shadowMap = renderer.getShadowTexture();
+      DrawTexturePro(shadowMap,
+                     {0, 0, static_cast<float>(shadowMap.width),
+                      -static_cast<float>(shadowMap.height)},
+                     {static_cast<float>(GetScreenWidth() - 10 -
+                                         ((float)GetScreenWidth() / 8)),
+                      10, static_cast<float>(GetScreenWidth()) / 8,
+                      static_cast<float>(GetScreenWidth()) / 8},
+                     {0, 0}, 0, WHITE);
+    }
 
     rowPos += ROWSIZE / 2;
 

@@ -13,8 +13,14 @@ private:
   // ==== settings ==== //
   int renderDistance{500};
   bool interpolation{true};
+#ifndef __EMSCRIPTEN__
+  bool shadows{true};
+#else
+  // shadows off by default in web builds
+  bool shadows{false};
+#endif
 
-public:
+ public:
   static constexpr int MIN_RENDER_DISTANCE = 200;
   // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
   static constexpr int MAX_RENDER_DISTANCE = 640;
@@ -49,13 +55,12 @@ public:
   const int &getRenderDistance() const {
     return renderDistance;
   }
-  void toggleInterpolation() {
-    interpolation = !interpolation;
-  }
-  bool getInterpolation() const {
-    return interpolation;
-  }
+  void toggleInterpolation() { interpolation = !interpolation; }
 
-private:
+  bool getInterpolation() const { return interpolation; }
+
+  bool getShadows() const { return shadows; }
+
+ private:
   GameState() = default;
 };

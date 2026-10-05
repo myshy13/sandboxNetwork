@@ -41,7 +41,19 @@ class Renderer {
 
   double getLastGpuMs() const { return lastGpuMs; }
 
+  double getLastShadowMapMs() const { return lastShadowMapMs; }
+
+  void shadowMap(const std::vector<Object>& objects, Camera3D camera,
+                 const Lighting& lighting, Vector3 toSun);
+
+  const Texture2D& getShadowTexture() { return shadowMapTarget.texture; }
+
+  const Texture2D& getShadowDepth() {
+    return shadowMapTarget.depth;
+  }  // not used yet
+
  private:
+  RenderTexture2D shadowMapTarget;
   const AssetManager& assets;
   // One quad, instanced once per *visible face*. Drawing whole cubes would put
   // two coincident faces at every block boundary, which z-fight at distance.
@@ -53,6 +65,10 @@ class Renderer {
   static const Matrix FACE_ROT[6];
   static const Vector3 FACE_DIR[6];
   static const Matrix FACE_SPIN[6];
+  // One face's instance matrix, placed relative to the camera (floating
+  // origin).
+  static Matrix faceMatrix(int f, Vector3 at, Vector3 size,
+                           const Vector3& cameraPos);
 
   // One batch per texture, plus a last one (index Tex::Count) for faces with no
   // texture. Opaque and translucent are separate so translucent can draw last.
@@ -80,6 +96,7 @@ class Renderer {
 
   double lastCullMs = 0.0;
   double lastGpuMs = 0.0;
+  double lastShadowMapMs = 0.0;
 
   // Visible (non-occluded) blocks of one World chunk, so the whole chunk can be
   // frustum-culled at once. Keyed by the same chunk key World uses; only chunks

@@ -9,12 +9,14 @@
 #include <cfloat>
 #include <cstddef>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "AssetManager/blockTex.hpp"
 #include "AssetManager/manager.hpp"
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
+#include "Shaders/lighting.hpp"
 #include "env.hpp"
 
 BoundingBox objectBox(const ObjectTransform& t);
@@ -33,12 +35,27 @@ const Matrix Renderer::FACE_SPIN[6] = {
     MatrixRotateY(PI / 2), MatrixRotateY(-PI / 2), MatrixIdentity(),
     MatrixIdentity(),      MatrixIdentity(),       MatrixRotateY(PI)};
 
+// The quad is spun (texture upright), then scaled, before FACE_ROT turns it
+// onto its face: the +-X faces turn size.x onto world Y, the +-Z faces size.z.
+Matrix Renderer::faceMatrix(int f, Vector3 at, Vector3 size,
+                            const Vector3& cameraPos) {
+  Matrix m = MatrixMultiply(
+      MatrixMultiply(FACE_SPIN[f], MatrixScale(size.x, size.y, size.z)),
+      FACE_ROT[f]);
+  at = Vector3Subtract(at, cameraPos);
+  return MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+}
+
 Renderer::Renderer(const AssetManager& a) : assets(a) {
+  static constexpr int SHADOW_MAP_SIZE = 2048;
+
   faceMesh =
       GenMeshPlane(1, 1, 1, 1);  // lies in XZ, normal +Y; FACE_ROT turns it
   Model tmp = LoadModelFromMesh(faceMesh);
   cubeMat = tmp.materials[0];
   whiteTex = cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture;
+
+  shadowMapTarget = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 }
 
 Renderer::~Renderer() {
@@ -47,6 +64,8 @@ Renderer::~Renderer() {
     if (colorVBO[i]) rlUnloadVertexBuffer(colorVBO[i]);
   }
   UnloadMesh(faceMesh);
+
+  UnloadRenderTexture(shadowMapTarget);
 }
 
 void Renderer::ensureBufferCapacity(int slot, size_t count) {
@@ -249,9 +268,6 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
             Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
         Vector3 size = t.scale;
 
-        // The quad is spun (texture upright), then scaled, before FACE_ROT
-        // turns it onto its face: the +-X faces turn scale.x onto world Y, the
-        // +-Z faces scale.z; top/bottom keep the footprint.
         if (water && f == 2) {
           at.y = floorY + shape.top;
         } else if (water && f != 3) {
@@ -261,11 +277,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
           at.y = floorY + (bottom + shape.top) * 0.5f;
           ((f == 0 || f == 1) ? size.x : size.z) = shape.top - bottom;
         }
-        Matrix m = MatrixMultiply(
-            MatrixMultiply(FACE_SPIN[f], MatrixScale(size.x, size.y, size.z)),
-            FACE_ROT[f]);
-        at = Vector3Subtract(at, camera.position);
-        m = MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+        const Matrix m = faceMatrix(f, at, size, camera.position);
 
         // Index of the face's texture; Tex::Count (the last slot) = untextured.
         const size_t faceTex = static_cast<size_t>(
@@ -290,4 +302,63 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
   lastGpuMs = (GetTime() - gpuStart) * 1000.0;
 
   return (targeted != nullptr && bestDistance <= REACH) ? targeted : nullptr;
+}
+
+void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
+                         const Lighting& lighting, Vector3 toSun) {
+  double startTime = GetTime();
+  // get default raylib values
+  double defaultNear = rlGetCullDistanceNear();
+  double defaultFar = rlGetCullDistanceFar();
+  const float radius = GameState::shared().getRenderDistance();
+  float D = 2 * radius;
+  Camera3D shadowCamera = {
+      toSun * D, {0, 0, 0}, {0, 0, 1}, 2 * radius, CAMERA_ORTHOGRAPHIC};
+
+  BeginTextureMode(shadowMapTarget);
+  ClearBackground(WHITE);
+  rlSetClipPlanes(1, D + radius + 100);
+  BeginMode3D(shadowCamera);
+  // draw objects
+  std::vector<Matrix> mats;
+  std::vector<Vector4> colors;
+  for (const auto& [_, cell] : grid) {
+    if (Vector3Distance(
+            Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5f),
+            camera.position) > radius + 10)
+      continue;
+    for (size_t n = 0; n < cell.indices.size(); n++) {
+      const Object& o = objects[cell.indices[n]];
+      if (o.isTranslucent()) {
+        continue;
+      }
+      for (int f = 0; f < 6; f++) {
+        if (!(cell.faceMasks[n] & (1 << f))) continue;
+        const ObjectTransform& t = o.getTransform();
+        Vector3 at =
+            Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
+        mats.push_back(faceMatrix(f, at, t.scale, camera.position));
+        colors.push_back({0, 0, 0, 255});  // dummy color, not used
+      }
+    }
+  }
+  cubeMat.shader = lighting.getShader();
+  cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture = whiteTex;
+
+  for (size_t i = 0; i < BATCH_COUNT; i++) {
+    cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture =
+        i == static_cast<size_t>(Tex::Count) ? whiteTex
+                                             : assets.get(static_cast<Tex>(i));
+    currentBuffer = (currentBuffer + 1) % BUFFER_COUNT;
+  }
+
+  drawBatch(mats, colors, currentBuffer, lighting.getTransformLoc(),
+            lighting.getColorLoc(), true);
+
+  EndMode3D();
+  EndTextureMode();
+
+  // restore default values
+  rlSetClipPlanes(defaultNear, defaultFar);
+  lastShadowMapMs = (GetTime() - startTime) * 1000;
 }
