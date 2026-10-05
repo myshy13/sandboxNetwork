@@ -18,7 +18,6 @@
 #include <cstdlib>
 #include <exception>
 #include <future>
-#include <hfs/hfs_format.h>
 #include <optional>
 #include <raymath.h>
 #include <string>
