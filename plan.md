@@ -50,7 +50,8 @@ Left:
 - [x] A shadow radius of its own (`Renderer::SHADOW_RADIUS`, 200 units, capped by the render distance): sharper map, ~6x
       fewer faces; the shaders fade the shadow out over the map's outer tenth
 - [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
-- [ ] Slope-scaled bias instead of the constant 0.0005; tune by eye (stripes = too small, floating shadows = too big)
+- [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); written, not yet
+      checked in the afternoon. Tune by eye (stripes = too small, floating shadows = too big)
 - [ ] Night: skip the pass while the sun is below the horizon
 - [ ] Web: check the depth-texture extension and `glsl100` in a browser once
 
