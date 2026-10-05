@@ -1,10 +1,12 @@
 #pragma once
 
-// Count is a sentinel, never a real block: it sizes BLOCK_INFO and
-// bounds-checks.
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <raylib.h>
+
+// Count is a sentinel, never a real block: it sizes BLOCK_INFO and
+// bounds-checks.
 enum class BlockType : uint8_t {
   Grass,
   Dirt,
@@ -16,28 +18,46 @@ enum class BlockType : uint8_t {
 };
 
 struct BlockInfo {
-  bool solid;       // players collide with it
-  bool placeable;   // a client may ask the server to place it
-  bool fluid;       // placing over it replaces it, and players swim in it
-  Color color;      // the block's look until it has a texture; alpha is opacity
-  bool translucent; // the player can see through it
+  BlockType type;
+  bool opaque{true}; // hides the face of a neighbour behind it
+  bool fluid{false}; // placing over it replaces it, and players swim in it
+  bool translucent{false}; // the player can see through it
+  bool solid{true};        // players collide with it
+  bool placeable{true};    // a client may ask the server to place it
+  Color color{WHITE};      // the block's look until it has a texture
 };
 
 // One row per BlockType, in enum order: a new block is a new enum value + a
 // row.
 inline constexpr BlockInfo BLOCK_INFO[] = {
-    {true, true, false, WHITE, false}, // Grass
-    {true, true, false, WHITE, false}, // Dirt
-    {false, true, true, WHITE, true},  // Water
-    {true, true, false, WHITE, false}, // Leaves
-    {true, true, false, WHITE, false}, // Wood
-    {true, true, false, WHITE, false}, // Planks
+    {.type = BlockType::Grass},
+    {.type = BlockType::Dirt},
+    {.type = BlockType::Water,
+     .opaque = false,
+     .fluid = true,
+     .translucent = true,
+     .solid = false},
+    {.type = BlockType::Leaves},
+    {.type = BlockType::Wood},
+    {.type = BlockType::Planks},
 };
 
-static_assert(std::size(BLOCK_INFO) == static_cast<size_t>(BlockType::Count),
-              "BLOCK_INFO needs exactly one row per BlockType");
+constexpr bool rowsValid() {
+  if (!(std::size(BLOCK_INFO) == static_cast<size_t>(BlockType::Count)))
+    return false;
+  for (size_t i = 0; i < static_cast<size_t>(BlockType::Count); i++) {
+    BlockType infoType = BLOCK_INFO[i].type;
+    BlockType expectedType = static_cast<BlockType>(i);
+    if (infoType != expectedType)
+      return false;
+  }
+  return true;
+}
 
-// A type read off the wire is untrusted: check it before indexing BLOCK_INFO.
+static_assert(rowsValid(), "BLOCK_INFO is not valid");
+
+// A type read off the wire is untrusted: check it before indexing
+// BLOCK_INFO.
 inline bool isValid(BlockType t) { return t < BlockType::Count; }
 inline bool isSolid(BlockType t) {
   return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].solid;
