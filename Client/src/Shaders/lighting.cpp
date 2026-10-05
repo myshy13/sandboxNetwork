@@ -33,21 +33,21 @@ Lighting::Lighting() {
   }
 
   viewPosLoc = GetShaderLocation(shader, "viewPos");
+  reflectivityLoc = GetShaderLocation(shader, "reflectivity");
+  ambientLoc = GetShaderLocation(shader, "ambient");
 
   // Ambient light.
-  float ambient[4] = {
+  float defaultAmbient[4] = {
       0.05f,
       0.05f,
       0.05f,
       1.0f,
   };
 
-  float reflectivity = 0.1f;
+  float reflectivity = 0.0f;
 
-  SetShaderValue(shader, GetShaderLocation(shader, "ambient"), ambient,
-                 SHADER_UNIFORM_VEC4);
-  SetShaderValue(shader, GetShaderLocation(shader, "reflectivity"),
-                 &reflectivity, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shader, ambientLoc, defaultAmbient, SHADER_UNIFORM_VEC4);
+  SetShaderValue(shader, reflectivityLoc, &reflectivity, SHADER_UNIFORM_FLOAT);
 
   colorLoc = GetShaderLocationAttrib(shader, "instanceColor");
   transformLoc = GetShaderLocationAttrib(shader, "instanceTransform");
@@ -91,6 +91,10 @@ bool Lighting::updateLight(int index, Vector3 pos, Vector3 tar, Color color) {
   UpdateLightValues(shader, lights[index]);
 
   return true;
+}
+
+void Lighting::updateAmbient(const float (&newAmbient)[4]) {
+  SetShaderValue(shader, ambientLoc, newAmbient, SHADER_UNIFORM_VEC4);
 }
 
 bool Lighting::setLightEnabled(int index, bool enabled) {

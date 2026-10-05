@@ -27,6 +27,7 @@ class Lighting {
   // Updates an existing light.
   // Returns false if the index is invalid.
   bool updateLight(int index, Vector3 pos, Vector3 tar, Color color);
+  void updateAmbient(const float (&newAmbient)[4]);
 
   // Enable/disable an existing light.
   bool setLightEnabled(int index, bool enabled);
@@ -54,6 +55,8 @@ class Lighting {
   int viewPosLoc = -1;
   int colorLoc = -1;
   int transformLoc = -1;
+  int reflectivityLoc = -1;
+  int ambientLoc = -1;
 
   std::array<Light, MAX_LIGHTS> lights{};
   int lightCount = 0;

@@ -269,7 +269,8 @@ void Game::updateLighting(float dt) {
   if (lightUpdateCooldown < 0) {
     lightUpdateCooldown += lightUpdateCooldownTime;
     auto newLight = lighting.timeToLight(world.getTime());
-    // Four lights stack, so each gets a quarter (alpha is ignored by the shader).
+    // Four lights stack, so each gets a quarter (alpha is ignored by the
+    // shader).
     const Color sun = ColorBrightness(newLight.color, -0.75f);
     lighting.updateLight(sunLights[0], Vector3Add(newLight.pos, {0, 0, 0}),
                          newLight.tar, sun);
@@ -279,6 +280,11 @@ void Game::updateLighting(float dt) {
                          newLight.tar, sun);
     lighting.updateLight(sunLights[3], Vector3Add(newLight.pos, {0, 10, -10}),
                          newLight.tar, sun);
+    const float (&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
+                                 ((float)newLight.color.g / 4 + 10) / 255,
+                                 ((float)newLight.color.b / 4 + 10) / 255,
+                                 1.0f};
+    lighting.updateAmbient(ambient);
   }
 }
 
