@@ -289,10 +289,6 @@ void Server::generateChunk(int cx, int cz) {
         Object top(nextObjectId,
                    ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                    BlockType::Grass);
-        int topDamage = terrain.hash(cellX, height, cellZ) % 3;
-        for (int i = 0; i < topDamage; i++) {
-          top.damage();
-        }
         addBlock(top, false); // generated, not a new edit
         nextObjectId++;
 
@@ -301,10 +297,6 @@ void Server::generateChunk(int cx, int cz) {
           Object below(nextObjectId,
                        ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                        BlockType::Dirt);
-          int belowDamage = terrain.hash(cellX, i, cellZ) % 3;
-          for (int d = 0; d < belowDamage; d++) {
-            below.damage();
-          }
           addBlock(below, false); // generated, not a new edit
           nextObjectId++;
         }
@@ -334,10 +326,6 @@ void Server::generateChunk(int cx, int cz) {
         Object o(nextObjectId,
                  ObjectTransform{{blockX, blockY, blockZ}, blockSize},
                  BlockType::Dirt);
-        int damage = terrain.hash(cellX, height, cellZ) % 2;
-        for (int d = 0; d < damage; d++) {
-          o.damage();
-        }
         addBlock(o, false); // generated, not a new edit
         nextObjectId++;
       }
@@ -376,14 +364,6 @@ void Server::generateChunk(int cx, int cz) {
                                               (float)block.dz * BLOCK_SIZE}),
                             blockSize},
             block.type);
-        // Each tree block rolls from its own cell, so a whole layer doesn't
-        // share one damage value.
-        for (int i = terrain.hash(cellX + block.dx, height + block.dy,
-                                  cellZ + block.dz) %
-                     3;
-             i > 0; i--) {
-          b.damage();
-        }
         addBlock(b, false); // generated, not a new edit
         nextObjectId++;
       }
