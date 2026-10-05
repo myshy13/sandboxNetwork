@@ -14,6 +14,7 @@
 
 #include "AssetManager/blockTex.hpp"
 #include "AssetManager/manager.hpp"
+#include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
 #include "Raylib/shadowMap.hpp"
@@ -45,6 +46,33 @@ Matrix Renderer::faceMatrix(int f, Vector3 at, Vector3 size,
       FACE_ROT[f]);
   at = Vector3Subtract(at, cameraPos);
   return MatrixMultiply(m, MatrixTranslate(at.x, at.y, at.z));
+}
+
+std::array<Matrix, 6> Renderer::playerFaceMatrices(const OnlinePlayer& p,
+                                                   const Vector3& origin) {
+  const Vector3 s = env::PLAYER_SCALE;
+  // The box stands on p.pos, so its centre is half its height up.
+  const Vector3 centre = Vector3Subtract(Vector3Add(p.pos, {0, s.y * 0.5f, 0}),
+                                         origin);
+  const Matrix yaw = MatrixRotateY(p.yaw);
+
+  std::array<Matrix, 6> out;
+  for (int f = 0; f < 6; f++) {
+    // Each face sits half the box's extent away along its own axis.
+    const Vector3 offset = Vector3Multiply(FACE_DIR[f], Vector3Scale(s, 0.5f));
+    // faceMatrix turns size.x onto world Y for the +-X faces and size.z for
+    // the +-Z faces, so the box's height goes in those slots.
+    Vector3 size = {s.x, 1.0f, s.z};
+    if (f == 0 || f == 1) size = {s.y, 1.0f, s.z};
+    if (f == 4 || f == 5) size = {s.x, 1.0f, s.y};
+
+    // Place the face on the unturned box, turn the box by its yaw, then move
+    // it to where the player is.
+    Matrix m = faceMatrix(f, offset, size, {0, 0, 0});
+    m = MatrixMultiply(m, yaw);
+    out[f] = MatrixMultiply(m, MatrixTranslate(centre.x, centre.y, centre.z));
+  }
+  return out;
 }
 
 Renderer::Renderer(const AssetManager& a) : assets(a) {
@@ -205,7 +233,8 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
 
 Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
                               const Ray& facing, const Lighting& lighting,
-                              const Camera3D& camera) {
+                              const Camera3D& camera,
+                              const std::vector<OnlinePlayer>& players) {
   Frustum frustum =
       extractFrustum(camera);  // <-- replaces the manual matrix build
 
@@ -291,6 +320,21 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
     }
   }
 
+  // Other players are lit like blocks (white, untextured): six faces each.
+  // Yaw can swing the box's corners out to its diagonal, hence the margin.
+  const Vector3 playerScale = env::PLAYER_SCALE;
+  const float reach = std::max(playerScale.x, playerScale.z);
+  for (const OnlinePlayer& p : players) {
+    const BoundingBox box = {
+        Vector3Subtract(p.pos, {reach, 0.0f, reach}),
+        Vector3Add(p.pos, {reach, playerScale.y, reach})};
+    if (!boxInFrustum(frustum, box)) continue;
+    for (const Matrix& m : playerFaceMatrices(p, camera.position)) {
+      opaque[static_cast<size_t>(Tex::Count)].colors.push_back({1, 1, 1, 1});
+      opaque[static_cast<size_t>(Tex::Count)].mats.push_back(m);
+    }
+  }
+
   lastCullMs = (GetTime() - cullStart) * 1000.0;
   double gpuStart = GetTime();
 
@@ -307,15 +351,35 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
 }
 
 void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
-                         const Lighting& lighting, Vector3 toSun) {
+                         const Lighting& lighting, Vector3 toSun,
+                         const std::vector<OnlinePlayer>& players,
+                         const OnlinePlayer& localPlayer) {
   double startTime = GetTime();
   // get default raylib values
   double defaultNear = rlGetCullDistanceNear();
   double defaultFar = rlGetCullDistanceFar();
   const float radius = GameState::shared().getRenderDistance();
   float D = 2 * radius;
+
+  // ==== snap the map's centre to whole texels ==== //
+  // Slide the map in whole-texel steps along the light's own axes, so shadow
+  // edges stay put as the player walks. `centre` is the snapped point, and the
+  // pass is drawn relative to it instead of to the player.
+  const float texel = (2.0f * radius) / shadowMapTarget.depth.width;
+  const Vector3 lightRight =
+      Vector3Normalize(Vector3CrossProduct(Vector3Negate(toSun), {0, 0, 1}));
+  const Vector3 lightUp = Vector3CrossProduct(lightRight, Vector3Negate(toSun));
+  const float alongRight = Vector3DotProduct(camera.position, lightRight);
+  const float alongUp = Vector3DotProduct(camera.position, lightUp);
+  const Vector3 centre = Vector3Subtract(
+      camera.position,
+      Vector3Add(
+          Vector3Scale(lightRight,
+                       alongRight - floorf(alongRight / texel) * texel),
+          Vector3Scale(lightUp, alongUp - floorf(alongUp / texel) * texel)));
+
   Camera3D shadowCamera = {
-      toSun * D, {0, 0, 0}, {0, 0, 1}, 2 * radius, CAMERA_ORTHOGRAPHIC};
+      toSun * D, {0, 0, 0}, {0, 0, PI}, 2 * radius, CAMERA_ORTHOGRAPHIC};
 
   BeginTextureMode(shadowMapTarget);
   ClearBackground(WHITE);
@@ -323,7 +387,12 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   BeginMode3D(shadowCamera);
   Matrix lightView = rlGetMatrixModelview();
   Matrix lightProjection = rlGetMatrixProjection();
-  lightMatrix = MatrixMultiply(lightView, lightProjection);
+  // The main pass is relative to the player and the map to `centre`, so shift
+  // by the difference first.
+  lightMatrix = MatrixMultiply(MatrixTranslate(camera.position.x - centre.x,
+                                               camera.position.y - centre.y,
+                                               camera.position.z - centre.z),
+                               MatrixMultiply(lightView, lightProjection));
 
   // draw objects
   std::vector<Matrix> mats;
@@ -331,7 +400,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   for (const auto& [_, cell] : grid) {
     if (Vector3Distance(
             Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5f),
-            camera.position) > radius + 10)
+            centre) > radius + 10)
       continue;
     for (size_t n = 0; n < cell.indices.size(); n++) {
       const Object& o = objects[cell.indices[n]];
@@ -343,20 +412,27 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
         const ObjectTransform& t = o.getTransform();
         Vector3 at =
             Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
-        mats.push_back(faceMatrix(f, at, t.scale, camera.position));
+        mats.push_back(faceMatrix(f, at, t.scale, centre));
         colors.push_back({0, 0, 0, 255});  // dummy color, not used
       }
     }
   }
+  // Players cast shadows too, as the same six faces they are drawn with. The
+  // local player is drawn here (not in the lit pass) so you have a shadow.
+  auto addPlayer = [&](const OnlinePlayer& p) {
+    for (const Matrix& m : playerFaceMatrices(p, centre)) {
+      mats.push_back(m);
+      colors.push_back({1, 1, 1, 1});
+    }
+  };
+  for (const auto& p : players) {
+    if (Vector3Distance(p.pos, centre) > radius) continue;
+    addPlayer(p);
+  }
+  addPlayer(localPlayer);
+
   cubeMat.shader = lighting.getShader();
   cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture = whiteTex;
-
-  for (size_t i = 0; i < BATCH_COUNT; i++) {
-    cubeMat.maps[MATERIAL_MAP_DIFFUSE].texture =
-        i == static_cast<size_t>(Tex::Count) ? whiteTex
-                                             : assets.get(static_cast<Tex>(i));
-    currentBuffer = (currentBuffer + 1) % BUFFER_COUNT;
-  }
 
   drawBatch(mats, colors, currentBuffer, lighting.getTransformLoc(),
             lighting.getColorLoc(), true);

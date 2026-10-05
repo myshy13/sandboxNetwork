@@ -24,7 +24,8 @@ class Renderer {
 
   Object* drawObjects(std::vector<Object>& objects, World& world,
                       const Ray& facing, const Lighting& lighting,
-                      const Camera3D& camera);
+                      const Camera3D& camera,
+                      const std::vector<OnlinePlayer>& players);
 
   size_t getLastDrawnCount() const {
     int total{0};
@@ -44,7 +45,9 @@ class Renderer {
   double getLastShadowMapMs() const { return lastShadowMapMs; }
 
   void shadowMap(const std::vector<Object>& objects, Camera3D camera,
-                 const Lighting& lighting, Vector3 toSun);
+                 const Lighting& lighting, Vector3 toSun,
+                 const std::vector<OnlinePlayer>& players,
+                 const OnlinePlayer& localPlayer);
 
   const Texture2D& getShadowTexture() { return shadowMapTarget.texture; }
 
@@ -69,6 +72,10 @@ class Renderer {
   // origin).
   static Matrix faceMatrix(int f, Vector3 at, Vector3 size,
                            const Vector3& cameraPos);
+  // The six face matrices of a player's box (not a cube, turned by its yaw),
+  // relative to `origin`. Both the lit pass and the shadow pass use it.
+  static std::array<Matrix, 6> playerFaceMatrices(const OnlinePlayer& p,
+                                                  const Vector3& origin);
 
   Matrix lightMatrix;
 

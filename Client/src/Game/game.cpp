@@ -80,7 +80,10 @@ void Game::frame() {
   if (shadowsOn) {
     renderer.shadowMap(
         world.getObjects(), camera, lighting,
-        Vector3Normalize(lighting.timeToLight(world.getTime()).pos));
+        Vector3Normalize(lighting.timeToLight(world.getTime()).pos),
+        client.getPlayers(),
+        {client.getPlayerId(), player.getTransform().translation,
+         player.getPitch(), player.getYaw(), ""});
   }
   lighting.setShadowsEnabled(shadowsOn);
 
@@ -390,7 +393,7 @@ void Game::drawScene(float dt) {
     double t1 = GetTime();
 #endif
     targeted = renderer.drawObjects(world.getObjects(), world, pickRay,
-                                    lighting, camera);
+                                    lighting, camera, client.getPlayers());
 #ifdef DEBUG
     drawObjectsMs = (GetTime() - t1) * 1000.0;
 #endif
