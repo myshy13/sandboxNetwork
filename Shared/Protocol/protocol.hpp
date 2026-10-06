@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 13; // Added the Planks block type
+constexpr int PROTOCOL_VERSION = 14; // Added the Glass block type
 
 enum class Type : uint8_t {
   // player

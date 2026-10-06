@@ -17,6 +17,7 @@ inline constexpr std::optional<Tex> BLOCK_TEX[][3] = {
     {Tex::Leaves, Tex::Leaves, Tex::Leaves},   // Leaves
     {Tex::Wood, Tex::Wood, Tex::Wood},         // Wood
     {Tex::Planks, Tex::Planks, Tex::Planks},   // Planks
+    {Tex::Glass, Tex::Glass, Tex::Glass},      // Glass
 };
 
 static_assert(std::size(BLOCK_TEX) == static_cast<size_t>(BlockType::Count),

@@ -14,6 +14,7 @@ enum class BlockType : uint8_t {
   Leaves,
   Wood,
   Planks,
+  Glass,
   Count
 };
 
@@ -39,6 +40,7 @@ inline constexpr BlockInfo BLOCK_INFO[] = {
     {.type = BlockType::Leaves},
     {.type = BlockType::Wood},
     {.type = BlockType::Planks},
+    {.type = BlockType::Glass, .opaque = false, .translucent = true},
 };
 
 constexpr bool rowsValid() {

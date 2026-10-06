@@ -13,6 +13,7 @@ constexpr const char* TEXTURE_PATHS[] = {
     "assets/images/wood.png",        // wood
     "assets/images/grass_side.png",  // grass side
     "assets/images/planks.png",      // wooden planks
+    "assets/images/glass.png",       // glass
 };
 
 static_assert(std::size(TEXTURE_PATHS) == static_cast<size_t>(Tex::Count), "Tex and TEXTURE_PATHS are out of sync");

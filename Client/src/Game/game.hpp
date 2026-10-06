@@ -26,8 +26,8 @@ class Game {
  private:
   // Hotbar slots, selected with the number keys.
   static constexpr BlockType blockTypes[] = {
-      BlockType::Dirt, BlockType::Grass,  BlockType::Leaves,
-      BlockType::Wood, BlockType::Planks, BlockType::Water};
+      BlockType::Dirt,   BlockType::Grass, BlockType::Leaves, BlockType::Wood,
+      BlockType::Planks, BlockType::Water, BlockType::Glass};
   static constexpr int blockTypesSize = std::size(blockTypes);
   int activeBlockType = 0;
 
