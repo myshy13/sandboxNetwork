@@ -23,6 +23,7 @@ struct BlockInfo {
   bool opaque{true}; // hides the face of a neighbour behind it
   bool fluid{false}; // placing over it replaces it, and players swim in it
   bool translucent{false}; // the player can see through it
+  bool blended{false};     // drawn with alpha blending (water); glass is a cutout
   bool solid{true};        // players collide with it
   bool placeable{true};    // a client may ask the server to place it
   Color color{WHITE};      // the block's look until it has a texture
@@ -36,6 +37,7 @@ inline constexpr BlockInfo BLOCK_INFO[] = {
      .opaque = false,
      .fluid = true,
      .translucent = true,
+     .blended = true,
      .solid = false},
     {.type = BlockType::Leaves},
     {.type = BlockType::Wood},
@@ -71,6 +73,9 @@ inline bool isFluid(BlockType t) {
 }
 inline bool isTranslucent(BlockType t) {
   return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].translucent;
+}
+inline bool isBlended(BlockType t) {
+  return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].blended;
 }
 inline bool isOpaque(BlockType t) {
   return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].opaque;

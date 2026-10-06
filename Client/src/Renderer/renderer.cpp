@@ -293,7 +293,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
       // Every face of a block is either translucent or not, so pick the array
       // once here rather than per face.
-      auto& batches = isTranslucent(o.getType()) ? translucent : opaque;
+      auto& batches = isBlended(o.getType()) ? translucent : opaque;
       uint8_t mask = cell.faceMasks[n];
       const WaterShape& shape = cell.waterShapes[n];
       const float floorY = t.pos.y - t.scale.y * 0.5f;
