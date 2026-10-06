@@ -90,8 +90,6 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
   if (Vector3Length(moveDir) > 0.0f) {
     moveDir =
         Vector3Normalize(moveDir);  // prevents diagonal movement being faster
-    velocity = Vector3Add(velocity,
-                          Vector3Scale(moveDir, speed * multiplier * dt * 60));
   }
 
   if (!inWater && inputEnabled && (onGround) && IsKeyDown(KEY_SPACE)) {
@@ -111,18 +109,20 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
     waterMoveCooldown = waterMoveCooldownTime;
   }
 
+  // Push and damp in one exact step, so top speed doesn't depend on frame rate.
+  const float dampBase = inWater ? 0.6f : onGround ? 0.7f : 0.9f;  // per 1/60 s
+  const float damping  = powf(dampBase, dt * 60.0f);
+  // The speed the old per-frame version settled at when running at 60 fps.
+  const float topSpeed = speed * multiplier * dampBase / (1.0f - dampBase);
+  velocity.x = velocity.x * damping + moveDir.x * topSpeed * (1.0f - damping);
+  velocity.z = velocity.z * damping + moveDir.z * topSpeed * (1.0f - damping);
+
   Vector2 horizontalVel = {velocity.x, velocity.z};
   if (Vector2Length(horizontalVel) > 50.0f) {
     horizontalVel = Vector2Scale(Vector2Normalize(horizontalVel), 50.0f);
     velocity.x = horizontalVel.x;
     velocity.z = horizontalVel.y;
   }
-  float damping = powf(onGround ? 0.7f : 0.9f, dt * 60.0f);
-  if (inWater) {
-    damping = 0.6f;
-  }
-  velocity.x *= damping;
-  velocity.z *= damping;
   if (!onGround) {
     if (inWater) {
       velocity.y -= GRAVITY * dt * 0.2f;
