@@ -7,7 +7,6 @@
 
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
-#include "Models/Object.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
@@ -26,9 +25,9 @@ class Game {
 
  private:
   // Hotbar slots, selected with the number keys.
-  static constexpr BlockType blockTypes[] = {BlockType::Dirt, BlockType::Grass,
-                                             BlockType::Leaves, BlockType::Wood,
-                                             BlockType::Water};
+  static constexpr BlockType blockTypes[] = {
+      BlockType::Dirt,   BlockType::Grass, BlockType::Leaves, BlockType::Wood,
+      BlockType::Planks, BlockType::Water, BlockType::Glass};
   static constexpr int blockTypesSize = std::size(blockTypes);
   int activeBlockType = 0;
 

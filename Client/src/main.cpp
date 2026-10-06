@@ -76,8 +76,8 @@ int main() {
 
 #else
 
-  // Native behaviour is unchanged; FLAG_VSYNC_HINT controls presentation.
-  // No explicit target FPS is necessary.
+  // The settings slider changes this later; FLAG_VSYNC_HINT paces presentation too.
+  SetTargetFPS(GameState::shared().getTargetFps());
 
 #endif
 

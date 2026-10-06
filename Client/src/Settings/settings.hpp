@@ -12,8 +12,9 @@ class Settings {
     Button shadowsButton;
     Slider renderDistanceSlider;
     Slider shadowRadiusSlider;
+    Slider targetFpsSlider;
 
-  public:
+   public:
     Settings();
     void frame();
 };

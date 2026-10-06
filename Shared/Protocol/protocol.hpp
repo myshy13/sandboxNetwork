@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 12; // Added freezeTime to setTime handshake
+constexpr int PROTOCOL_VERSION = 14; // Added the Glass block type
 
 enum class Type : uint8_t {
   // player

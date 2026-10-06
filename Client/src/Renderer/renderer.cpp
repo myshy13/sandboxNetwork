@@ -17,6 +17,7 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
+#include "Models/blocks.hpp"
 #include "Raylib/shadowMap.hpp"
 #include "Shaders/lighting.hpp"
 #include "env.hpp"
@@ -174,7 +175,8 @@ static float waterHeight(const World& world, Vector3 pos) {
   const int level = world.waterLevel(pos);
   if (level < 0) return 0.0f;
   const float size = env::BLOCKSIZE.y;
-  if (world.isWater(Vector3Add(pos, {0, size, 0}))) return size;
+  const Vector3 above = Vector3Add(pos, {0, size, 0});
+  if (world.isWater(above) || world.isSolid(above)) return size;
   constexpr float SURFACE_DROP =
       0.6f;  // even a source sits a little below full, so it reads as water
   constexpr int STEPS = SHARED_WATER_MAX_LEVEL + 1;
@@ -204,7 +206,11 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour =
           Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
-      if (world.isSolid(neighbour)) continue;
+      BlockType neighbourType = world.typeAt(neighbour);
+      if (world.occludes(neighbour)) continue;
+      if (world.isTranslucent(neighbour) &&
+          objects[i].getType() == neighbourType && !isFluid(neighbourType))
+        continue;
       if (water && world.isWater(neighbour)) {
         if (FACE_DIR[f].y != 0)
           continue;  // above/below is the same body of water
@@ -287,7 +293,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
       // Every face of a block is either translucent or not, so pick the array
       // once here rather than per face.
-      auto& batches = isTranslucent(o.getType()) ? translucent : opaque;
+      auto& batches = isBlended(o.getType()) ? translucent : opaque;
       uint8_t mask = cell.faceMasks[n];
       const WaterShape& shape = cell.waterShapes[n];
       const float floorY = t.pos.y - t.scale.y * 0.5f;
@@ -298,6 +304,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
         Vector3 at =
             Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
         Vector3 size = t.scale;
+        float crop = 0.0f;  // fraction of the texture's height left out
 
         if (water && f == 2) {
           at.y = floorY + shape.top;
@@ -307,8 +314,13 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
           const float bottom = shape.sideBottom[f];
           at.y = floorY + (bottom + shape.top) * 0.5f;
           ((f == 0 || f == 1) ? size.x : size.z) = shape.top - bottom;
+          crop = 1.0f - (shape.top - bottom) / t.scale.y;
         }
-        const Matrix m = faceMatrix(f, at, size, camera.position);
+        Matrix m = faceMatrix(f, at, size, camera.position);
+        // ponytail: m3 is an affine matrix's spare slot; the shader reads it
+        // as the texture crop and zeroes it. A real attribute if more is
+        // needed.
+        m.m3 = crop;
 
         // Index of the face's texture; Tex::Count (the last slot) = untextured.
         const size_t faceTex = static_cast<size_t>(

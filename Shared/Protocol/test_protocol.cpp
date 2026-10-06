@@ -127,16 +127,16 @@ int main() {
   {
     Object water(9, ObjectTransform{{2.5f, 2.5f, 2.5f}, {5, 5, 5}},
                  BlockType::Water);
-    water.setLevel(3);
+    water.setState(3);
     Object solid(10, ObjectTransform{{7.5f, 2.5f, 2.5f}, {5, 5, 5}},
                  BlockType::Dirt);
 
     auto msg = proto::unpack<proto::ChunkData>(proto::pack(
         proto::Type::ChunkData, proto::ChunkData{0, 0, {water, solid}}));
     assert(msg.blocks[0].getType() == BlockType::Water &&
-           msg.blocks[0].getLevel() == 3);
+           msg.blocks[0].getState() == 3);
     assert(msg.blocks[1].getType() == BlockType::Dirt &&
-           msg.blocks[1].getLevel() == 0); // default: source/unset
+           msg.blocks[1].getState() == 0); // default: source/unset
   }
 
   // ==== BLOCK_INFO: properties come from the table, bad wire values fail ====

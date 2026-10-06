@@ -40,12 +40,23 @@ Shared/
 
 ## Block types
 
-`BlockType` and `BLOCK_INFO` (`Shared/Models/Object.hpp`) are the one place a block's behaviour is defined: solid,
-placeable, fluid and base colour. A new block is an enum value plus a row (one row per value, in enum order: a
-misplaced row compiles but swaps two blocks' properties). An `Object` stores no colour: `getColor()` is the type's
-colour, darkened a quarter per point of damage, so server and client agree without sending it. The client's
-type-to-texture table is `BLOCK_TEX` in `Client/src/AssetManager/blockTex.hpp`. Changing what is sent or saved for an
-`Object` bumps `PROTOCOL_VERSION` and `env::saveFormatVersion`.
+`BlockType` and `BLOCK_INFO` (`Shared/Models/blocks.hpp`) are the one place a block's behaviour is defined: solid,
+opaque (hides the faces behind it), translucent, placeable, fluid and base colour. A row names only the fields that
+differ from the defaults, and a compile-time check fails the build if a row is missing or out of enum order. An `Object`
+(`Shared/Models/Object.hpp`) stores no colour: `getColor()` is the type's colour, darkened a quarter per point of
+damage, so server and client agree without sending it. It does store `state`, one byte each block type reads its own way
+(water: flow level, 0 = source). The client's type-to-texture table is `BLOCK_TEX` in
+`Client/src/AssetManager/blockTex.hpp`. Changing what is sent or saved for an `Object` bumps `PROTOCOL_VERSION` and
+`env::saveFormatVersion`.
+
+Adding a block:
+
+1. Add the enum value before `Count` in `BlockType`.
+2. Add its `BLOCK_INFO` row, in the same position.
+3. Add a `Tex` entry, its path row and a `BLOCK_TEX` row, if it has a texture.
+4. Bump `PROTOCOL_VERSION` (an old client would draw the new type as an invalid magenta block).
+5. Optional: add it to `blockTypes` (`Client/src/Game/game.hpp`) if it should be on the hotbar. `placeable` only says the
+   server accepts a place request; the hotbar is a separate choice of slots and order.
 
 ## State ownership
 

@@ -13,6 +13,8 @@ enum class Tex {
   Leaves,
   Wood,
   Grass_Side,
+  Planks,
+  Glass,
   Count  // keep last: sizes the array and the path table
 };
 

@@ -46,6 +46,48 @@ and skipped items were cleared (see git history and `plan.md`).
 - [ ] water: cap or test worst-case flow cost per tick on big open drops
 - [ ] sound effects (shoot, hit, splash)
 
+## Blocks to add
+
+Each is an enum value + `BLOCK_INFO` row (see "Adding a block" in `arch.md`). Grouped by what they need beyond that.
+
+Just a row and a texture (flags only):
+
+- [ ] glass (see `plan.md`, "Then: glass"): solid, translucent, not opaque
+- [ ] stone, gravel, snow, brick: plain solid cubes, for terrain variety and building
+- [ ] ice: solid + translucent, a good cold-biome block
+- [ ] cactus / bush: solid, could hurt on touch later (needs a damage hook, so wait)
+
+Needs the per-block `state` byte (already in `Object`, no wire change):
+
+- [ ] door / trapdoor: `state` = open or closed; the `solid` flag has to follow the state, so physics asks the state too
+- [ ] crops / farmland: `state` = growth stage; needs a server tick that advances it
+- [ ] torch / lantern: a light source; needs `Lighting` to take lights from blocks (only the sun exists now)
+
+Needs stage 2 of the registry (behaviour hooks or a non-cube shape):
+
+- [ ] sand (falls when unsupported): the first block with a server tick, so it is one of the two cases stage 2 is designed from
+- [ ] lava: a second fluid, which is what lets `FluidSim` stop being water-only
+- [ ] slab / stairs / ramp: a client-side shape per block, plus a matching hitbox (see "block types beyond the cube")
+- [ ] ladder: climb instead of fall, a player-movement rule keyed on the block under you
+
+## Entities & animals
+
+Cows, sheep, chickens. This is a new system, not a block: expect it to be bigger than anything so far (a rough guess:
+more work than bullets, about the size of chunk streaming). Do it in slices, each one playable:
+
+- [ ] 1. One entity type (a cow) that the **server** owns and moves: a `std::vector<Entity>` next to `players` and
+      `bullets` in `Server`, ticked in `Server::tick`. Wander AI: pick a direction, walk a few seconds, stand, repeat.
+      Server-side gravity and block collision (players do this on the client; an animal can't, nobody owns it)
+- [ ] 2. Sync it: `SpawnEntity` / `EntityUpdate` (unreliable, like `PlayerUpdate`) / `DespawnEntity` in `protocol.hpp`,
+      plus a client list and a drawn box (a cube cow first, a model later). Interpolate between updates on the client
+- [ ] 3. Interest: only send entities in chunks the client can see (reuse the per-client chunk view, `updateView` /
+      `broadcastToChunk`), or every animal on the map goes to every player
+- [ ] 4. Shootable: reuse the bullet sweep in `Server::tick` against entity boxes; entity health, death, despawn
+- [ ] 5. Spawning: a few per chunk from the seed when it generates, a cap per chunk, despawn when far from all players
+- [ ] 6. More species and drops (meat, wool), once one species is solid
+- [ ] unresolved: persistence. The product rules say no persistence, but chunks are saved, so decide whether animals are
+      saved with their chunk or respawn fresh
+
 ## Structures
 
 Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
@@ -70,6 +112,11 @@ Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
 - [ ] blob shadow under each player (shadow mapping is a big lift)
 - [ ] skybox / gradient background instead of near-black clear
 - [ ] fog at the render-distance edge so chunk pop-in is hidden
+- [ ] weaker shadows from translucent blocks (glass, water): a second depth map holding only translucent faces, drawn in
+      its own pass in `Renderer::shadowMap`; the lighting shader looks it up beside the opaque map and scales the sun by a
+      constant (about 0.6) where it is blocked. One strength for every translucent block (a depth map can't carry a
+      per-block value). A face must not shadow itself (reuse the bias), and `glsl100` needs the same change. Until
+      then glass and water cast no shadow
 
 ## Combat & players
 

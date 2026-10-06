@@ -36,7 +36,7 @@ public:
   void add(int x, int y, int z, BlockType type, uint8_t level = 0,
            bool activate = true) {
     Object o(nextId++, ObjectTransform{centre(x, y, z), blockSize}, type);
-    o.setLevel(level);
+    o.setState(level);
     addObject(o, activate);
   }
 
@@ -69,7 +69,7 @@ public:
     std::map<int64_t, int> snap;
     for (const Object &o : objects)
       if (o.getType() == BlockType::Water)
-        snap[blockKey(o.getTransform().pos)] = o.getLevel();
+        snap[blockKey(o.getTransform().pos)] = o.getState();
     return snap;
   }
 
@@ -103,12 +103,12 @@ private:
     auto it = occupied.find(blockKey(pos));
     if (it == occupied.end()) {
       Object o(nextId++, ObjectTransform{pos, blockSize}, BlockType::Water);
-      o.setLevel((uint8_t)level);
+      o.setState((uint8_t)level);
       addObject(o, true);
       return;
     }
     if (objects[it->second].getType() == BlockType::Water)
-      objects[it->second].setLevel((uint8_t)level);
+      objects[it->second].setState((uint8_t)level);
   }
 
   void removeBlock(int index) {
@@ -184,12 +184,12 @@ void testSpreadsSideways() {
 
   bool neighbours = true;
   for (auto [x, z] : {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}})
-    neighbours &= w.waterAt(x, 1, z) && w.at(x, 1, z)->getLevel() == 1;
+    neighbours &= w.waterAt(x, 1, z) && w.at(x, 1, z)->getState() == 1;
   check(neighbours,
         "a source on a floor spreads to its 4 neighbours at level 1");
   check(!w.waterAt(1, 1, 1) && !w.waterAt(0, 2, 0),
         "no diagonal or upward spread");
-  check(w.at(0, 1, 0)->getLevel() == SOURCE, "a source keeps level 0");
+  check(w.at(0, 1, 0)->getState() == SOURCE, "a source keeps level 0");
 }
 
 void testSpreadCappedAtMaxLevel() {
@@ -205,7 +205,7 @@ void testSpreadCappedAtMaxLevel() {
     const Vector3 p = o.getTransform().pos;
     const int d = std::abs((int)floorf(p.x / BLOCK_SIZE)) +
                   std::abs((int)floorf(p.z / BLOCK_SIZE));
-    levelsMatchDistance &= d <= MAX_LEVEL && o.getLevel() == d;
+    levelsMatchDistance &= d <= MAX_LEVEL && o.getState() == d;
   }
   check(levelsMatchDistance, "on flat ground, level == distance from the "
                              "source, never past MAX_LEVEL");
@@ -248,7 +248,7 @@ void testFallenWaterIsNotASource() {
   w.step(5);
 
   check(w.waterAt(0, 2, 0), "water falls into the empty cell below");
-  check(w.waterAt(0, 2, 0) && w.at(0, 2, 0)->getLevel() != SOURCE,
+  check(w.waterAt(0, 2, 0) && w.at(0, 2, 0)->getState() != SOURCE,
         "fallen water is not a new source (sources don't multiply)");
 }
 
@@ -279,7 +279,7 @@ void testTwoSourcesMergeSupportedHole() {
   w.step(6);
   w.removeAt(0, 1, 0); // punch a hole in the middle, resting on the floor
   w.step(3);
-  check(w.waterAt(0, 1, 0) && w.at(0, 1, 0)->getLevel() == SOURCE,
+  check(w.waterAt(0, 1, 0) && w.at(0, 1, 0)->getState() == SOURCE,
         "a hole in a pond with 2+ side sources and solid ground below refills "
         "as a source, not flowing water");
 }
@@ -290,7 +290,7 @@ void testTwoSourcesDoNotMergeOverADrop() {
   w.add(1, 9, 0,
         BlockType::Water); // source, 1 cell gap between them, nothing below
   w.step(10);
-  check(!w.waterAt(0, 9, 0) || w.at(0, 9, 0)->getLevel() != SOURCE,
+  check(!w.waterAt(0, 9, 0) || w.at(0, 9, 0)->getState() != SOURCE,
         "two sources either side of an open drop don't create a floating "
         "source (it stays a waterfall)");
 }
@@ -303,7 +303,7 @@ void testStrongerNeighbourFeeds() {
   w.add(1, 1, 0, BlockType::Water, 2,
         true); // too weak for its spot, but next to a source
   w.step();
-  check(w.waterAt(1, 1, 0) && w.at(1, 1, 0)->getLevel() == 1,
+  check(w.waterAt(1, 1, 0) && w.at(1, 1, 0)->getState() == 1,
         "water next to a source is fed by it and strengthens to level 1");
 }
 
@@ -332,9 +332,9 @@ void testEqualNeighboursDoNotPropUpEachOther() {
   w.add(0, 1, 0, BlockType::Water);
   w.step(20); // settle into a diamond, level == distance from the source
   w.removeAt(0, 1, 0);
-  const int before = w.at(1, 1, 0)->getLevel();
+  const int before = w.at(1, 1, 0)->getState();
   w.step();
-  check(w.waterAt(1, 1, 0) && w.at(1, 1, 0)->getLevel() > before,
+  check(w.waterAt(1, 1, 0) && w.at(1, 1, 0)->getState() > before,
         "a cell whose only neighbours are the same level (or weaker) decays "
         "instead of staying fed forever");
 }
@@ -344,7 +344,7 @@ void testDrainsAfterSourceRemoved() {
   w.floor(10, 0);
   w.add(0, 1, 0, BlockType::Water);
   w.step(20);
-  check(w.waterAt(0, 1, 0) && w.at(0, 1, 0)->getLevel() == SOURCE,
+  check(w.waterAt(0, 1, 0) && w.at(0, 1, 0)->getState() == SOURCE,
         "the source is still a source after settling");
   if (w.waterAt(0, 1, 0))
     w.removeAt(0, 1, 0);

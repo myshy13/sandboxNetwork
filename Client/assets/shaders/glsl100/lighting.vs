@@ -45,14 +45,20 @@ mat3 transpose(mat3 m)
 
 void main()
 {
+    // The renderer stores a texture crop in the matrix's spare slot; read it, then clear it.
+    mat4 model = instanceTransform;
+    float visible = 1.0 - model[0][3];
+    model[0][3] = 0.0;
+
     // Send vertex attributes to fragment shader
-    fragPosition = vec3(instanceTransform*vec4(vertexPosition, 1.0));
-    fragTexCoord = vertexTexCoord;
+    fragPosition = vec3(model*vec4(vertexPosition, 1.0));
+    // Keep the top of the texture and cut the bottom, so a thin water strip isn't squashed.
+    fragTexCoord = vec2(vertexTexCoord.x, vertexTexCoord.y*visible);
     fragColor = vertexColor * instanceColor;
 
-    mat3 normalMatrix = transpose(inverse(mat3(instanceTransform)));
+    mat3 normalMatrix = transpose(inverse(mat3(model)));
     fragNormal = normalize(normalMatrix*vertexNormal);
 
     // Calculate final vertex position
-    gl_Position = mvp*instanceTransform*vec4(vertexPosition, 1.0);
+    gl_Position = mvp*model*vec4(vertexPosition, 1.0);
 }
