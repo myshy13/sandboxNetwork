@@ -21,11 +21,10 @@ cases, not from water alone. `Object` stays small: ~843,000 live, so no per-bloc
    Mechanical; leave `fluidSim.cpp` alone until lava gives it a second case.
 4. **Rename `Object::level` to `state`.** Water's level is really "this block's own state byte" (a crop's growth, a
    stair's facing). Same position in `serialize`, so the wire and the saves don't change.
-5. **Hotbar from the table.** Build `Game::blockTypes` from the `placeable` rows, so adding a block doesn't mean editing a
-   second list.
-6. **Docs.** Update the "Block types" paragraph in `.claude/rules/arch.md`, and put the add-a-block recipe in it: enum
-   value before `Count`, a `BLOCK_INFO` row, a `Tex` entry + path row + `BLOCK_TEX` row, the hotbar, and a
-   `PROTOCOL_VERSION` bump.
+5. [-] **Hotbar from the table.** Build `Game::blockTypes` from the `placeable` rows, so adding a block doesn't mean
+   editing a second list. Skipped: `placeable` is permission, the hotbar is a choice of slots and order, so the list
+   stays hand-written (an optional step in the add-a-block recipe).
+6. **Docs.** Update the "Block types" paragraph in `.claude/rules/arch.md` with the add-a-block recipe. Done.
 
 Tricky: step 2 (an `opaque` that disagrees with the renderer's cull shows as holes in the world); step 3 (a missed site
 keeps treating the new block as plain). Stage 1 changes nothing on the wire or on disk, so no version bump.
