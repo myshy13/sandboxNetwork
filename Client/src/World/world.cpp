@@ -293,6 +293,14 @@ bool World::isSolid(Vector3 pos) const {
   return it != occupiedCells.end() && objects[it->second].isSolid();
 }
 
+BlockType World::typeAt(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  if (it == occupiedCells.end()) {
+    return BlockType::Count;
+  }
+  return objects[it->second].getType();
+}
+
 bool World::occludes(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
   return it != occupiedCells.end() && objects[it->second].isOpaque();
@@ -301,6 +309,11 @@ bool World::occludes(Vector3 pos) const {
 bool World::isFluid(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
   return it != occupiedCells.end() && objects[it->second].isFluid();
+}
+
+bool World::isTranslucent(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  return it != occupiedCells.end() && objects[it->second].isTranslucent();
 }
 
 bool World::isWater(Vector3 pos) const {

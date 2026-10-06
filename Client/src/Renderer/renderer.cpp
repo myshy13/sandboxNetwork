@@ -17,6 +17,7 @@
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
+#include "Models/blocks.hpp"
 #include "Raylib/shadowMap.hpp"
 #include "Shaders/lighting.hpp"
 #include "env.hpp"
@@ -204,7 +205,11 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour =
           Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
+      BlockType neighbourType = world.typeAt(neighbour);
       if (world.occludes(neighbour)) continue;
+      if (world.isTranslucent(neighbour) &&
+          objects[i].getType() == neighbourType && !isFluid(neighbourType))
+        continue;
       if (water && world.isWater(neighbour)) {
         if (FACE_DIR[f].y != 0)
           continue;  // above/below is the same body of water
