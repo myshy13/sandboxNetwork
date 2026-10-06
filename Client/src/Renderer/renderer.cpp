@@ -304,6 +304,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
         Vector3 at =
             Vector3Add(t.pos, Vector3Scale(FACE_DIR[f], t.scale.x * 0.5f));
         Vector3 size = t.scale;
+        float crop = 0.0f;  // fraction of the texture's height left out
 
         if (water && f == 2) {
           at.y = floorY + shape.top;
@@ -313,8 +314,13 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
           const float bottom = shape.sideBottom[f];
           at.y = floorY + (bottom + shape.top) * 0.5f;
           ((f == 0 || f == 1) ? size.x : size.z) = shape.top - bottom;
+          crop = 1.0f - (shape.top - bottom) / t.scale.y;
         }
-        const Matrix m = faceMatrix(f, at, size, camera.position);
+        Matrix m = faceMatrix(f, at, size, camera.position);
+        // ponytail: m3 is an affine matrix's spare slot; the shader reads it
+        // as the texture crop and zeroes it. A real attribute if more is
+        // needed.
+        m.m3 = crop;
 
         // Index of the face's texture; Tex::Count (the last slot) = untextured.
         const size_t faceTex = static_cast<size_t>(

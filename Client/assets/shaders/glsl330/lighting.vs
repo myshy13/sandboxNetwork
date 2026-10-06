@@ -20,16 +20,22 @@ out vec3 fragNormal;
 
 void main()
 {
-    // Compute per-instance MVP
-    mat4 mvpi = mvp * instanceTransform;
+    // The renderer stores a texture crop in the matrix's spare slot; read it, then clear it.
+    mat4 model = instanceTransform;
+    float visible = 1.0 - model[0][3];
+    model[0][3] = 0.0;
 
-    fragPosition = vec3(instanceTransform * vec4(vertexPosition, 1.0));
-    fragTexCoord = vertexTexCoord;
+    // Compute per-instance MVP
+    mat4 mvpi = mvp * model;
+
+    fragPosition = vec3(model * vec4(vertexPosition, 1.0));
+    // Keep the top of the texture and cut the bottom, so a thin water strip isn't squashed.
+    fragTexCoord = vec2(vertexTexCoord.x, vertexTexCoord.y * visible);
     fragColor = vertexColor * instanceColor;
 
     // Normal matrix from the instance transform.
     // Fine for uniform scale; for non-uniform scale you'd want inverse-transpose.
-    fragNormal = normalize(vec3(instanceTransform * vec4(vertexNormal, 0.0)));
+    fragNormal = normalize(vec3(model * vec4(vertexNormal, 0.0)));
 
     gl_Position = mvpi * vec4(vertexPosition, 1.0);
 }
