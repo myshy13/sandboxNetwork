@@ -11,6 +11,7 @@
 
 #include "Client/client.hpp"
 #include "Models/Object.hpp"
+#include "Models/blocks.hpp"
 #include "env.hpp"
 #include "rlgl.h"
 
@@ -64,7 +65,7 @@ bool World::placeBlock(Ray aim, Client& client, const Vector3& playerPos,
         GetRayCollisionBox(aim, objectBox(objects[it->second].getTransform()));
     if (rc.hit) {
       best = rc;
-      onWater = objects[it->second].getType() == BlockType::Water;
+      onWater = objects[it->second].isFluid();
       break;
     }
   }
@@ -295,6 +296,11 @@ bool World::isSolid(Vector3 pos) const {
 bool World::occludes(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
   return it != occupiedCells.end() && objects[it->second].isOpaque();
+}
+
+bool World::isFluid(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  return it != occupiedCells.end() && objects[it->second].isFluid();
 }
 
 bool World::isWater(Vector3 pos) const {

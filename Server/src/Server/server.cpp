@@ -237,14 +237,14 @@ void Server::ensureChunk(int cx, int cz) {
     // including mid-flow water; what lies under a surface is already settled.
     std::unordered_set<int64_t> waterCells;
     for (const Object &block : saved->blocks) {
-      if (block.getType() == BlockType::Water)
+      if (block.isFluid())
         waterCells.insert(blockKey(block.getTransform().pos));
     }
     for (const Object &block : saved->blocks) {
       const Vector3 above =
           Vector3Add(block.getTransform().pos, {0, BLOCK_SIZE, 0});
-      const bool surface = block.getType() == BlockType::Water &&
-                           !waterCells.contains(blockKey(above));
+      const bool surface =
+          block.isFluid() && !waterCells.contains(blockKey(above));
       addBlock(block, false, surface); // loaded, not a new edit
     }
   } else {
@@ -735,7 +735,7 @@ void Server::addBlock(const Object &block, bool markDirty, bool activate) {
   if (markDirty) {
     dirtyChunks.insert(chunkKeyAt(block.getTransform().pos));
   }
-  if (activate && block.getType() == BlockType::Water)
+  if (activate && block.isFluid())
     fluidSim.markActive(blockKey(block.getTransform().pos));
 }
 
@@ -753,7 +753,7 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
                      true);
     return;
   }
-  if (objects[occupant->second].getType() != BlockType::Water) {
+  if (!objects[occupant->second].isFluid()) {
     return; // solid, can't flow into an occupied cell
   }
   objects[occupant->second].setLevel(level);
@@ -803,8 +803,7 @@ void Server::removeBlock(int index) {
 
   for (const int64_t key : neighborKeys) {
     auto it = occupiedCells.find(key);
-    if (it != occupiedCells.end() &&
-        objects[it->second].getType() == BlockType::Water)
+    if (it != occupiedCells.end() && objects[it->second].isFluid())
       fluidSim.markActive(key);
   }
 }
@@ -827,7 +826,7 @@ int Server::findBlockHit(Vector3 from, Vector3 to) const {
         auto it = occupiedCells.find(cellKey(x, y, z));
         if (it == occupiedCells.end())
           continue;
-        if (objects[it->second].getType() == BlockType::Water)
+        if (objects[it->second].isFluid())
           continue; // bullets pass through water
 
         const ObjectTransform &t = objects[it->second].getTransform();
@@ -881,8 +880,8 @@ void Server::tick(float dt) {
         occupiedCells.find(cellKey((int)floorf(prevPos.x / BLOCK_SIZE),
                                    (int)floorf(prevPos.y / BLOCK_SIZE),
                                    (int)floorf(prevPos.z / BLOCK_SIZE)));
-    bool inWater = cell != occupiedCells.end() &&
-                   objects[cell->second].getType() == BlockType::Water;
+    bool inWater =
+        cell != occupiedCells.end() && objects[cell->second].isFluid();
     b.pos =
         Vector3Add(b.pos, Vector3Scale(b.vel, dt * (inWater ? 0.8f : 1.0f)));
 

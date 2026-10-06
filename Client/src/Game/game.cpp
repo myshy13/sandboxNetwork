@@ -454,7 +454,7 @@ void Game::drawCollisionDebug() {
     return;
   }
 
-  constexpr float CELL = 5.0f;  // same as env::BLOCKSIZE in world.cpp
+  constexpr float CELL = env::BLOCKSIZE.x;
   const Vector3 feet = player.getTransform().translation;
   for (int dx = -3; dx <= 3; dx++) {
     for (int dy = -2; dy <= 3; dy++) {

@@ -48,10 +48,12 @@ class World {
   bool isSolid(Vector3 pos) const;
   // should the block be occluded (is it opaque)
   bool occludes(Vector3 pos) const;
-  // True if the cell containing pos holds a water block.
+  // True if the cell containing pos holds a fluid block.
+  bool isFluid(Vector3 pos) const;
+  // Whether the specified cell contains water
   bool isWater(Vector3 pos) const;
-  // The flow level of the water in pos's cell (0 = source), or -1 if there's no
-  // water there.
+  // The flow level of the water in pos's cell (0 = source), or -1 if there's
+  // no water there.
   int waterLevel(Vector3 pos) const;
   // True if box overlaps a placed block. Only tests the handful of grid
   // cells box spans, not every object - see occupiedCells.
