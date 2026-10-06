@@ -112,6 +112,11 @@ Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
 - [ ] blob shadow under each player (shadow mapping is a big lift)
 - [ ] skybox / gradient background instead of near-black clear
 - [ ] fog at the render-distance edge so chunk pop-in is hidden
+- [ ] weaker shadows from translucent blocks (glass, water): a second depth map holding only translucent faces, drawn in
+      its own pass in `Renderer::shadowMap`; the lighting shader looks it up beside the opaque map and scales the sun by a
+      constant (about 0.6) where it is blocked. One strength for every translucent block (a depth map can't carry a
+      per-block value). A face must not shadow itself (reuse the bias), and `glsl100` needs the same change. Until
+      then glass and water cast no shadow
 
 ## Combat & players
 
