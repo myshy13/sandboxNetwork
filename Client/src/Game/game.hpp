@@ -7,7 +7,6 @@
 
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
-#include "Models/Object.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
