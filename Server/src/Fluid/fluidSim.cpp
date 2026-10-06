@@ -29,7 +29,7 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
     return;
 
   const Vector3 pos = occupant.getTransform().pos;
-  const int level = occupant.getLevel();
+  const int level = occupant.getState();
 
   // Wakes the cells this one can feed: its four sides and the cell below.
   auto wakeNeighbours = [&]() {
@@ -74,12 +74,12 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
       // forever instead of ever draining (this is what let a whole pond hang at
       // max level and vanish in one pass, all at once, once its source was
       // removed). Water above always feeds: it's genuinely upstream.
-      if (!above && neighbour.getLevel() >= level)
+      if (!above && neighbour.getState() >= level)
         return;
-      const int feeds = above ? std::max<int>(neighbour.getLevel(), 1)
-                              : neighbour.getLevel() + 1;
+      const int feeds = above ? std::max<int>(neighbour.getState(), 1)
+                              : neighbour.getState() + 1;
       fedLevel = std::min(fedLevel, feeds);
-      if (!above && neighbour.getLevel() == SOURCE)
+      if (!above && neighbour.getState() == SOURCE)
         fedCount++;
     };
 
@@ -96,7 +96,7 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
     const bool supported =
         belowIt != world.occupiedCells.end() &&
         (world.objects[belowIt->second].getType() != BlockType::Water ||
-         world.objects[belowIt->second].getLevel() == SOURCE);
+         world.objects[belowIt->second].getState() == SOURCE);
     if (fedCount >= 2 && supported) {
       world.setWaterLevel(pos, SOURCE);
       wakeNeighbours();

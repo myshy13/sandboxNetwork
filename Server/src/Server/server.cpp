@@ -317,7 +317,7 @@ void Server::generateChunk(int cx, int cz) {
           // chunk load and stalls the client on chunk-mesh rebuilds.
           bool isTopLayer = (i == height + 1);
           if (!isTopLayer)
-            o.setLevel(1); // fed from above, not a source: drains if cut off
+            o.setState(1); // fed from above, not a source: drains if cut off
           addBlock(o, false, isTopLayer); // generated, not a new edit
           nextObjectId++;
         }
@@ -746,7 +746,7 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
       return; // generateChunk would later build over it (or it'd save as a
               // terrain-less chunk)
     Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BlockType::Water);
-    o.setLevel(level);
+    o.setState(level);
     addBlock(o);
     broadcastToChunk(chunkKeyAt(pos),
                      proto::pack(proto::Type::NewObject, proto::NewObject{o}),
@@ -756,7 +756,7 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
   if (!objects[occupant->second].isFluid()) {
     return; // solid, can't flow into an occupied cell
   }
-  objects[occupant->second].setLevel(level);
+  objects[occupant->second].setState(level);
   dirtyChunks.insert(chunkKeyAt(pos));
   broadcastToChunk(chunkKeyAt(pos),
                    proto::pack(proto::Type::UpdateWaterLevel,

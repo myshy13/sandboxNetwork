@@ -18,7 +18,7 @@ private:
   ObjectTransform transform{};
   int durability{MAX_DURABILITY};
   BlockType type{BlockType::Dirt};
-  uint8_t level{0}; // source block
+  uint8_t state{0}; // source block
 
 public:
   const ObjectTransform &getTransform() const { return transform; }
@@ -36,8 +36,8 @@ public:
   int getId() const { return id; }
   BlockType getType() const { return type; }
   void damage() { durability--; }
-  void setLevel(uint8_t newLevel) { level = newLevel; };
-  uint8_t getLevel() const { return level; };
+  void setState(uint8_t newLevel) { state = newLevel; };
+  uint8_t getState() const { return state; };
 
   void setId(int newId) { id = newId; }
 
@@ -56,6 +56,6 @@ public:
   // block (colour is derived from type + durability, so it isn't sent).
   // Vector3's serializer is the free function in Shared/Protocol/protocol.hpp.
   template <class Archive> void serialize(Archive &ar) {
-    ar(id, transform.pos, transform.scale, durability, type, level);
+    ar(id, transform.pos, transform.scale, durability, type, state);
   }
 };

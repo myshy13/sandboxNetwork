@@ -95,7 +95,7 @@ bool World::placeBlock(Ray aim, Client& client, const Vector3& playerPos,
 
   auto occupant = occupiedCells.find(cellKey(cell));
   if (occupant != occupiedCells.end() &&
-      !isFluid(objects[occupant->second].getType())) {
+      !::isFluid(objects[occupant->second].getType())) {
     return false;  // one block per cell - only a fluid can be placed over
   }
 
@@ -235,7 +235,7 @@ void World::setWaterLevel(Vector3 pos, uint8_t level) {
   auto it = occupiedCells.find(cellKey(pos));
   if (it == occupiedCells.end()) return;
 
-  objects[it->second].setLevel(level);
+  objects[it->second].setState(level);
   markDirty(
       pos);  // its surface height (and its neighbours' side faces) changed
 }
@@ -314,7 +314,7 @@ int World::waterLevel(Vector3 pos) const {
   if (it == occupiedCells.end() ||
       objects[it->second].getType() != BlockType::Water)
     return -1;
-  return objects[it->second].getLevel();
+  return objects[it->second].getState();
 }
 
 bool World::boxCollides(BoundingBox box, BlockPredicate matches) const {
