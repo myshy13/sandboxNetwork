@@ -99,6 +99,14 @@ else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
 endif()
 
+# Frame-rate cap: 0 means uncapped (the browser's own loop paces the web build, and
+# the settings slider is hidden there); native starts at 120.
+if(BUILD_WEB)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=0)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=120)
+endif()
+
 # Native macOS: bundle into a .app. Emscripten sets its own .html suffix
 # below, so keep this off for the web build.
 if(APPLE AND NOT BUILD_WEB)
