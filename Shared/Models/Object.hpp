@@ -43,6 +43,7 @@ public:
 
   bool isSolid() const { return ::isSolid(type); }
   bool isTranslucent() const { return ::isTranslucent(type); }
+  bool isOpaque() const { return ::isOpaque(type); }
 
   Object() = default;
   Object(int objectId, ObjectTransform t, BlockType ty)

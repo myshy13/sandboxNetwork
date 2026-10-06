@@ -204,7 +204,7 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour =
           Vector3Add(t.pos, Vector3Multiply(FACE_DIR[f], t.scale));
-      if (world.isSolid(neighbour)) continue;
+      if (world.occludes(neighbour)) continue;
       if (water && world.isWater(neighbour)) {
         if (FACE_DIR[f].y != 0)
           continue;  // above/below is the same body of water

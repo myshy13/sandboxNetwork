@@ -292,6 +292,11 @@ bool World::isSolid(Vector3 pos) const {
   return it != occupiedCells.end() && objects[it->second].isSolid();
 }
 
+bool World::occludes(Vector3 pos) const {
+  auto it = occupiedCells.find(cellKey(pos));
+  return it != occupiedCells.end() && objects[it->second].isOpaque();
+}
+
 bool World::isWater(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
   return it != occupiedCells.end() &&

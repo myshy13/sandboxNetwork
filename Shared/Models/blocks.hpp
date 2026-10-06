@@ -27,8 +27,7 @@ struct BlockInfo {
   Color color{WHITE};      // the block's look until it has a texture
 };
 
-// One row per BlockType, in enum order: a new block is a new enum value + a
-// row.
+// One row per BlockType, in enum order. (it's checked at compile time)
 inline constexpr BlockInfo BLOCK_INFO[] = {
     {.type = BlockType::Grass},
     {.type = BlockType::Dirt},
@@ -70,6 +69,9 @@ inline bool isFluid(BlockType t) {
 }
 inline bool isTranslucent(BlockType t) {
   return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].translucent;
+}
+inline bool isOpaque(BlockType t) {
+  return isValid(t) && BLOCK_INFO[static_cast<size_t>(t)].opaque;
 }
 // Magenta marks an invalid type so it's obvious rather than invisible.
 inline Color blockColor(BlockType t) {

@@ -46,6 +46,8 @@ class World {
   bool isOccupied(Vector3 pos) const;
   // checks if a block type is solid (can the player collide with it)
   bool isSolid(Vector3 pos) const;
+  // should the block be occluded (is it opaque)
+  bool occludes(Vector3 pos) const;
   // True if the cell containing pos holds a water block.
   bool isWater(Vector3 pos) const;
   // The flow level of the water in pos's cell (0 = source), or -1 if there's no
