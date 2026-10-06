@@ -175,7 +175,8 @@ static float waterHeight(const World& world, Vector3 pos) {
   const int level = world.waterLevel(pos);
   if (level < 0) return 0.0f;
   const float size = env::BLOCKSIZE.y;
-  if (world.isWater(Vector3Add(pos, {0, size, 0}))) return size;
+  const Vector3 above = Vector3Add(pos, {0, size, 0});
+  if (world.isWater(above) || world.isSolid(above)) return size;
   constexpr float SURFACE_DROP =
       0.6f;  // even a source sits a little below full, so it reads as water
   constexpr int STEPS = SHARED_WATER_MAX_LEVEL + 1;
