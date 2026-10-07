@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <optional>
 #include <utility>
@@ -21,6 +22,8 @@
 #include "Raylib/shadowMap.hpp"
 #include "Shaders/lighting.hpp"
 #include "env.hpp"
+
+constexpr float SHADOW_SNAP = 20;
 
 BoundingBox objectBox(const ObjectTransform& t);
 
@@ -53,8 +56,8 @@ std::array<Matrix, 6> Renderer::playerFaceMatrices(const OnlinePlayer& p,
                                                    const Vector3& origin) {
   const Vector3 s = env::PLAYER_SCALE;
   // The box stands on p.pos, so its centre is half its height up.
-  const Vector3 centre = Vector3Subtract(Vector3Add(p.pos, {0, s.y * 0.5f, 0}),
-                                         origin);
+  const Vector3 centre =
+      Vector3Subtract(Vector3Add(p.pos, {0, s.y * 0.5f, 0}), origin);
   const Matrix yaw = MatrixRotateY(p.yaw);
 
   std::array<Matrix, 6> out;
@@ -337,9 +340,8 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
   const Vector3 playerScale = env::PLAYER_SCALE;
   const float reach = std::max(playerScale.x, playerScale.z);
   for (const OnlinePlayer& p : players) {
-    const BoundingBox box = {
-        Vector3Subtract(p.pos, {reach, 0.0f, reach}),
-        Vector3Add(p.pos, {reach, playerScale.y, reach})};
+    const BoundingBox box = {Vector3Subtract(p.pos, {reach, 0.0f, reach}),
+                             Vector3Add(p.pos, {reach, playerScale.y, reach})};
     if (!boxInFrustum(frustum, box)) continue;
     for (const Matrix& m : playerFaceMatrices(p, camera.position)) {
       opaque[static_cast<size_t>(Tex::Count)].colors.push_back({1, 1, 1, 1});
@@ -375,31 +377,21 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   const float radius =
       static_cast<float>(std::min(GameState::shared().getShadowRadius(),
                                   GameState::shared().getRenderDistance()));
-  float D = 2 * radius;
+  const float mapRadius = radius + SHADOW_SNAP * sqrtf(2.0f);
 
-  // ==== snap the map's centre to whole texels ==== //
-  // Slide the map in whole-texel steps along the light's own axes, so shadow
-  // edges stay put as the player walks. `centre` is the snapped point, and the
-  // pass is drawn relative to it instead of to the player.
-  const float texel = (2.0f * radius) / shadowMapTarget.depth.width;
-  const Vector3 lightRight =
-      Vector3Normalize(Vector3CrossProduct(Vector3Negate(toSun), {0, 0, 1}));
-  const Vector3 lightUp = Vector3CrossProduct(lightRight, Vector3Negate(toSun));
-  const float alongRight = Vector3DotProduct(camera.position, lightRight);
-  const float alongUp = Vector3DotProduct(camera.position, lightUp);
-  const Vector3 centre = Vector3Subtract(
-      camera.position,
-      Vector3Add(
-          Vector3Scale(lightRight,
-                       alongRight - floorf(alongRight / texel) * texel),
-          Vector3Scale(lightUp, alongUp - floorf(alongUp / texel) * texel)));
+  const float D = 2 * mapRadius;
+
+  // ==== calculate the map's centre pos ==== //
+  Vector3 centre = camera.position;
+  centre.x = floorf(centre.x / SHADOW_SNAP) * SHADOW_SNAP;
+  centre.z = floorf(centre.z / SHADOW_SNAP) * SHADOW_SNAP;
 
   Camera3D shadowCamera = {
-      toSun * D, {0, 0, 0}, {0, 0, PI}, 2 * radius, CAMERA_ORTHOGRAPHIC};
+      toSun * D, {0, 0, 0}, {0, 0, PI}, 2 * mapRadius, CAMERA_ORTHOGRAPHIC};
 
   BeginTextureMode(shadowMapTarget);
   ClearBackground(WHITE);
-  rlSetClipPlanes(1, D + radius + 100);
+  rlSetClipPlanes(1, D + mapRadius + 100);
   BeginMode3D(shadowCamera);
   Matrix lightView = rlGetMatrixModelview();
   Matrix lightProjection = rlGetMatrixProjection();
@@ -416,7 +408,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   for (const auto& [_, cell] : grid) {
     if (Vector3Distance(
             Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5f),
-            centre) > radius + 10)
+            centre) > mapRadius + 10)
       continue;
     for (size_t n = 0; n < cell.indices.size(); n++) {
       const Object& o = objects[cell.indices[n]];
@@ -442,7 +434,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
     }
   };
   for (const auto& p : players) {
-    if (Vector3Distance(p.pos, centre) > radius) continue;
+    if (Vector3Distance(p.pos, centre) > mapRadius) continue;
     addPlayer(p);
   }
   addPlayer(localPlayer);

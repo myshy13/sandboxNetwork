@@ -86,10 +86,11 @@ Done:
 
 Left:
 
-- [ ] Cache the map: redraw only when the texel-snapped centre moves, the sun has moved a few degrees, or a chunk went
+- [ ] Cache the map: redraw only when the snapped centre moves, the sun has moved a few degrees, or a chunk went
       dirty (the pass costs ~6 ms every frame today)
-- [x] Snap the camera centre to whole texels, or shadow edges crawl as you walk (the snap grid turns with the sun, so it
-      still hops about once a second; see bug #3)
+- [x] Snap the map centre on a coarse world grid (`SHADOW_SNAP` 20 units on x and z, map padded by `SHADOW_SNAP * sqrt 2`),
+      so the grid no longer turns with the sun. The once-a-second hop is much less noticeable but not gone; left as is
+      (caching would cut it further)
 - [x] A shadow radius of its own (`GameState::getShadowRadius()`, default 200 units, 50 to 400 from a slider on the
       settings screen, capped by the render distance): sharper map, ~6x fewer faces at the default; the shaders fade the
       shadow out over the map's outer tenth
