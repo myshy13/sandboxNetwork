@@ -112,7 +112,7 @@ contains the pixel). Not wanted yet; do it only after the single map is snapped,
 
 ## iOS client (`ghera/raylib-ios`)
 
-Branch `feature/ios-client`. The fork replaces raylib and runs through ANGLE (OpenGL ES on Metal); iOS owns the main loop, so
+Branch `feature/ios-support`. The fork replaces raylib and runs through ANGLE (OpenGL ES on Metal); iOS owns the main loop, so
 the game is driven by three callbacks (`ios_ready`, `ios_update`, `ios_destroy`) instead of a `while` loop. Setup and device
 signing for someone new: `iOS.md`. The creator writes the code. Nothing here touches the server or the protocol.
 
@@ -126,16 +126,20 @@ signing for someone new: `iOS.md`. The creator writes the code. Nothing here tou
        `#ifdef` in game code.
 3. [ ] **Xcode target** (iOS stays out of `Client/CMakeLists.txt`: it fetches upstream raylib, not the fork). Explicit file list
        (no glob): `src/` minus `main.cpp` and `transport_ws.cpp`, plus `Shared/Protocol/protocol.cpp`. Include paths `src`,
-       `../Shared`, cereal, enet. ENet compiled in. `assets/` as a bundle resource (replaces `copy_assets`).
+       `../Shared`, cereal, enet. ENet compiled in. `assets/` as a bundle resource (replaces `copy_assets`). Set
+       `CLANG_CXX_LANGUAGE_STANDARD` to `gnu++20` (the fork's example target is `c++17`, our code needs C++20), and
+       `DEVELOPMENT_TEAM` / bundle ID to your own (the example ships the fork author's team and `com.example.raylib`; keep yours
+       in the git-ignored `Signing.xcconfig`, see `iOS.md`). The example already defines `GRAPHICS_API_OPENGL_ES3`,
+       `PLATFORM_IOS`, `GL_GLEXT_PROTOTYPES`: keep them. Orientation: landscape only.
 4. [ ] **Input struct**: move vector, look delta, jump, fire. Desktop fills it from keyboard + mouse, iOS from touch. Find where
        `Player` reads `IsKeyDown` / `GetMouseDelta` first.
 5. [ ] **Touch controls**: virtual stick on the left half (WASD), drag on the right half (look), jump + fire buttons. Track each
        touch id by the half it started in, so a second finger can't steal the stick.
-6. [ ] **Rendering on a phone**: try `glsl100` first; shadows off (`SHADOWS_DEFAULT` 0), lower `RENDER_SCALE`. Check the
+6. [ ] **Rendering on a phone**: the example is a GLES 3 context (`GRAPHICS_API_OPENGL_ES3`), so `glsl100` should run; try it first; shadows off (`SHADOWS_DEFAULT` 0), lower `RENDER_SCALE`. Check the
        depth-texture extension (same open item as the web shadow check).
 7. [ ] **Networking**: the phone needs the Mac's LAN IP or a public host in `env::SERVER_IP` (not localhost);
        `NSLocalNetworkUsageDescription` in `Info.plist` for the Local Network prompt.
 8. [ ] **Docs**: `arch.md` (folder for `main_ios.cpp` + the Xcode project) and `tech.md` (iOS build, the fork).
 
 Tricky: step 2 (the window and GL context must exist before `AssetManager` loads textures); step 3 (Xcode has no
-`file(GLOB_RECURSE)`, a file missing from the target is a link error); step 5 (touch ids, not touch positions).
+`file(GLOB_RECURSE)`, a file missing from the target is a link error; a C++17 default fails on our C++20 code); step 5 (touch ids, not touch positions).
