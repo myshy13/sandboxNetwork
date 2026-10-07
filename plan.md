@@ -1,4 +1,6 @@
-# Block registry (so a new block is a row, not a hunt)
+# Plans
+
+## Block registry (so a new block is a row, not a hunt)
 
 Goal: the enum stays each block's identity (one byte, on the wire and in saves); everything else about a block is a
 lookup on it. Today `== BlockType::Water` is tested about 17 times across the renderer, world, server and `FluidSim`,
@@ -6,7 +8,7 @@ and one `solid` flag has to mean both "players collide" and "hides the face behi
 part. Per-block behaviour hooks wait for a second block that has logic (sand, lava), so they are designed from two real
 cases, not from water alone. `Object` stays small: ~843,000 live, so no per-block pointers or virtuals.
 
-## Stage 1 steps
+### Stage 1 steps
 
 1. **A row can't be misordered or misread.** In `Shared/Models/Object.hpp`: give `BlockInfo` a `type` field and use
    designated fields with defaults, so a row names only what differs (`.type = Water, .fluid = true, .translucent = true`).
@@ -29,46 +31,46 @@ cases, not from water alone. `Object` stays small: ~843,000 live, so no per-bloc
 Tricky: step 2 (an `opaque` that disagrees with the renderer's cull shows as holes in the world); step 3 (a missed site
 keeps treating the new block as plain). Stage 1 changes nothing on the wire or on disk, so no version bump.
 
-## Then: glass
+### Then: glass
 
 - [ ] enum value + row: `solid`, `placeable`, `translucent`, **not** `opaque` (needs step 2); a 16x16 texture with a
       `Tex` entry, path row and `BLOCK_TEX` row (planks, already wired by the creator, is the worked example)
 - [ ] decide whether glass casts a shadow (the shadow pass skips translucent blocks today, so it casts none)
 - [ ] bump `PROTOCOL_VERSION` (a new block value on the wire; old saves still load)
 
-## Stage 2 (when a second block has logic)
+### Stage 2 (when a second block has logic)
 
 A server-side table of optional function pointers per block (`onTick`, `onNeighbourChange`, `onPlace`, `onBreak`,
 `nullptr` = nothing); water's flow becomes its entry. A client-side shape per block (cube, or water's variable height).
 
-# Day time and lighting
+## Day time and lighting
 
-## Steps
+### Steps
 
 1. Add a time variable to the meta.bin file and the server
 2. send that to the client in the handshake (During server connection handler) Bump `PROTOCOL_VERSION` by 1
 3. create the handler in the client. **Optional:** Add it to the debug menu
 4. move the lights and change the light color based on the time in client
 
-# Lighting prerequisites and shadows
+## Lighting prerequisites and shadows
 
 Builds on the day time steps above: shadows need a sun direction that follows the time, and the shader's light and the
 shadow rays must read the same direction or lit and shaded sides will disagree.
 
-## Before the time steps (so the look is right first)
+### Before the time steps (so the look is right first)
 
 - [x] Gamma: convert the texture's rgb to linear right after sampling it in `assets/shaders/glsl330/lighting.fs` and
       `glsl100/lighting.fs` (`pow` by 2.2, alpha untouched). The final `pow(1/2.2)` already exists; this is its other half
 - [x] One sun: keep a single `addDirectional` in `Game::Game` instead of three (two overhead lights stack to ~1.7x on top
       faces and clip). Raise ambient (the `ambient / 10.0` in the shader) so shaded faces stay visible but dark
 
-## Time-of-day lighting (step 4 above, in detail)
+### Time-of-day lighting (step 4 above, in detail)
 
 - [x] `Lighting` gets an update call that moves the sun's direction and colour each frame from the synced time, since the
       lights are only created once today **Revision:** Every 0.1 seconds, not every frame
 - [x] One function turns time into a sun direction; both the shader light and the shadow rays call it **After:** `Lighting.cpp` Owns the function
 
-## Shadows (client only, cosmetic)
+### Shadows (client only, cosmetic)
 
 One sun shadow map, not per block (per-block rays can't reach 1/8-block accuracy and cost far too much on the CPU).
 `Renderer::shadowMap` draws every opaque, exposed face within the render distance from the sun into a 2048x2048 depth
@@ -107,3 +109,33 @@ Later: ambient occlusion (darken corners where blocks meet, same neighbour-looku
 
 Maybe later: cascaded shadow maps (2-3 maps of growing size around the player; the shader picks the smallest that
 contains the pixel). Not wanted yet; do it only after the single map is snapped, cached and has its own radius.
+
+## iOS client (`ghera/raylib-ios`)
+
+Branch `feature/ios-client`. The fork replaces raylib and runs through ANGLE (OpenGL ES on Metal); iOS owns the main loop, so
+the game is driven by three callbacks (`ios_ready`, `ios_update`, `ios_destroy`) instead of a `while` loop. Setup and device
+signing for someone new: `iOS.md`. The creator writes the code. Nothing here touches the server or the protocol.
+
+### Steps
+
+1. [ ] **Run the fork's own example** (`projects/Xcode26`) on the simulator, then on a device (`iOS.md`). Find out whether
+       `ios_ready()` runs after the window and GL context exist, and how assets are bundled (the README says neither).
+2. [ ] **`Client/src/main_ios.cpp`**: `ios_ready()` builds `AssetManager` then `Game` (file-scope `std::unique_ptr`s, no shared
+       stack frame), `ios_update()` calls `Game::frame()`, `ios_destroy()` destroys `Game` then `AssetManager`, the same order
+       as `main.cpp`. Compiled only by the Xcode target, like `transport_enet.cpp` / `transport_ws.cpp`: no `PLATFORM_IOS`
+       `#ifdef` in game code.
+3. [ ] **Xcode target** (iOS stays out of `Client/CMakeLists.txt`: it fetches upstream raylib, not the fork). Explicit file list
+       (no glob): `src/` minus `main.cpp` and `transport_ws.cpp`, plus `Shared/Protocol/protocol.cpp`. Include paths `src`,
+       `../Shared`, cereal, enet. ENet compiled in. `assets/` as a bundle resource (replaces `copy_assets`).
+4. [ ] **Input struct**: move vector, look delta, jump, fire. Desktop fills it from keyboard + mouse, iOS from touch. Find where
+       `Player` reads `IsKeyDown` / `GetMouseDelta` first.
+5. [ ] **Touch controls**: virtual stick on the left half (WASD), drag on the right half (look), jump + fire buttons. Track each
+       touch id by the half it started in, so a second finger can't steal the stick.
+6. [ ] **Rendering on a phone**: try `glsl100` first; shadows off (`SHADOWS_DEFAULT` 0), lower `RENDER_SCALE`. Check the
+       depth-texture extension (same open item as the web shadow check).
+7. [ ] **Networking**: the phone needs the Mac's LAN IP or a public host in `env::SERVER_IP` (not localhost);
+       `NSLocalNetworkUsageDescription` in `Info.plist` for the Local Network prompt.
+8. [ ] **Docs**: `arch.md` (folder for `main_ios.cpp` + the Xcode project) and `tech.md` (iOS build, the fork).
+
+Tricky: step 2 (the window and GL context must exist before `AssetManager` loads textures); step 3 (Xcode has no
+`file(GLOB_RECURSE)`, a file missing from the target is a link error); step 5 (touch ids, not touch positions).
