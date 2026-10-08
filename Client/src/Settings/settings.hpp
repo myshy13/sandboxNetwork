@@ -1,5 +1,6 @@
 #pragma once
 #include "GameState/gameState.hpp"
+#include "Input/input.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/Slider/slider.hpp"
 
@@ -13,8 +14,9 @@ class Settings {
     Slider renderDistanceSlider;
     Slider shadowRadiusSlider;
     Slider targetFpsSlider;
+    Input& input;
 
    public:
-    Settings();
+    Settings(Input& input);
     void frame();
 };

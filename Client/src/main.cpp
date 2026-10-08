@@ -97,7 +97,7 @@ static void ready() {
   input = std::make_unique<Input>(makeInputSource());
   game = std::make_unique<Game>(*assets);
   home = std::make_unique<Home>(*input);
-  settings = std::make_unique<Settings>();
+  settings = std::make_unique<Settings>(*input);
 
   input->setMouseLook(false);
 }

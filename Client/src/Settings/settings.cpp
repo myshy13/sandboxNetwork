@@ -5,13 +5,14 @@
 #include <string>
 
 #include "GameState/gameState.hpp"
+#include "Input/inputState.hpp"
 
 // Distances are stored in world units; show them in blocks (5 units each).
 static std::string inBlocks(int units) { return std::to_string(units / 5); }
 
 static std::string inUnits(int units) { return std::to_string(units); }
 
-Settings::Settings()
+Settings::Settings(Input& input)
     : exitButton([] { GameState::shared().setMenuState(MenuState::HOME); }, "<",
                  Rectangle{10, 10, 60, 60}, 50),
       vsyncButton(
@@ -42,15 +43,16 @@ Settings::Settings()
       targetFpsSlider(
           "Target FPS: ", 10, 512,
           [] { return GameState::shared().getTargetFps(); },
-          [](int v) { GameState::shared().setTargetFps(v); }, inUnits) {}
+          [](int v) { GameState::shared().setTargetFps(v); }, inUnits),
+      input(input) {}
 
 void Settings::frame() {
   const float left = GetScreenWidth() / 5.0f;
   const float width = left * 3;
   const float toggleX = left * 4 - 100;
-  const Vector2 mouse = GetMousePosition();
-  const bool pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-  const bool down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+  const Vector2 mouse = input.getPointer();
+  const bool pressed = input.pressed(Action::Click);
+  const bool down = input.down(Action::Click);
 
   // ==== layout (follows the window width) ==== //
   renderDistanceSlider.setBar({left, 200, width, 20});
