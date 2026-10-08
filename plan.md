@@ -114,32 +114,52 @@ contains the pixel). Not wanted yet; do it only after the single map is snapped,
 
 Branch `feature/ios-support`. The fork replaces raylib and runs through ANGLE (OpenGL ES on Metal); iOS owns the main loop, so
 the game is driven by three callbacks (`ios_ready`, `ios_update`, `ios_destroy`) instead of a `while` loop. Setup and device
-signing for someone new: `iOS.md`. The creator writes the code. Nothing here touches the server or the protocol.
+signing for someone new: `iOS.md`. Nothing here touches the server or the protocol.
 
-### Steps
+Status: the game runs on the phone (iPhone 15, iOS 27.2) with textures and blocks; touches still act as mouse clicks, so every
+tap fires. Next is the Input class (step 4).
 
-1. [ ] **Run the fork's own example** (`projects/Xcode26`) on the simulator, then on a device (`iOS.md`). Find out whether
-       `ios_ready()` runs after the window and GL context exist, and how assets are bundled (the README says neither).
-2. [ ] **`Client/src/main_ios.cpp`**: `ios_ready()` builds `AssetManager` then `Game` (file-scope `std::unique_ptr`s, no shared
-       stack frame), `ios_update()` calls `Game::frame()`, `ios_destroy()` destroys `Game` then `AssetManager`, the same order
-       as `main.cpp`. Compiled only by the Xcode target, like `transport_enet.cpp` / `transport_ws.cpp`: no `PLATFORM_IOS`
-       `#ifdef` in game code.
-3. [ ] **Xcode target** (iOS stays out of `Client/CMakeLists.txt`: it fetches upstream raylib, not the fork). Explicit file list
-       (no glob): `src/` minus `main.cpp` and `transport_ws.cpp`, plus `Shared/Protocol/protocol.cpp`. Include paths `src`,
-       `../Shared`, cereal, enet. ENet compiled in. `assets/` as a bundle resource (replaces `copy_assets`). Set
-       `CLANG_CXX_LANGUAGE_STANDARD` to `gnu++20` (the fork's example target is `c++17`, our code needs C++20), and
-       `DEVELOPMENT_TEAM` / bundle ID to your own (the example ships the fork author's team and `com.example.raylib`; keep yours
-       in the git-ignored `Signing.xcconfig`, see `iOS.md`). The example already defines `GRAPHICS_API_OPENGL_ES3`,
-       `PLATFORM_IOS`, `GL_GLEXT_PROTOTYPES`: keep them. Orientation: landscape only.
-4. [ ] **Input struct**: move vector, look delta, jump, fire. Desktop fills it from keyboard + mouse, iOS from touch. Find where
-       `Player` reads `IsKeyDown` / `GetMouseDelta` first.
-5. [ ] **Touch controls**: virtual stick on the left half (WASD), drag on the right half (look), jump + fire buttons. Track each
-       touch id by the half it started in, so a second finger can't steal the stick.
-6. [ ] **Rendering on a phone**: the example is a GLES 3 context (`GRAPHICS_API_OPENGL_ES3`), so `glsl100` should run; try it first; shadows off (`SHADOWS_DEFAULT` 0), lower `RENDER_SCALE`. Check the
-       depth-texture extension (same open item as the web shadow check).
-7. [ ] **Networking**: the phone needs the Mac's LAN IP or a public host in `env::SERVER_IP` (not localhost);
-       `NSLocalNetworkUsageDescription` in `Info.plist` for the Local Network prompt.
-8. [ ] **Docs**: `arch.md` (folder for `main_ios.cpp` + the Xcode project) and `tech.md` (iOS build, the fork).
+### Done
 
-Tricky: step 2 (the window and GL context must exist before `AssetManager` loads textures); step 3 (Xcode has no
-`file(GLOB_RECURSE)`, a file missing from the target is a link error; a C++17 default fails on our C++20 code); step 5 (touch ids, not touch positions).
+1. [x] **Run the fork's example.** Needs `ghera/raylib-ios` PR #1 "Support iOS27" (plain `release/5.5` crashes at launch on
+       iOS 27: UIKit needs the UIScene lifecycle). Fetch it with `git fetch origin pull/1/head:ios27`. `ios_ready()` runs after
+       the window and root view controller exist. Multitouch works (5 fingers).
+2. [x] **`main.cpp` split** into `ready()` / `update()` / `destroy()` (file-scope `unique_ptr`s, reverse-order teardown), with
+       `ios_*` wrappers (`extern "C"`) under `#ifdef PLATFORM_IOS` and the monitor-size `SetWindowSize` skipped on iOS.
+       **Known compromise:** this is a platform `#ifdef` in game code, against the `tech.md` rule. Move the wrappers into their
+       own file (`main_ios.cpp`, picked in CMake like the transports) before merging.
+3. [x] **CMake generates the Xcode project** instead of a hand-written one:
+       `cmake -S Client -B Client/build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<fork clone on PR #1>
+       -DIOS_TEAM=<team id> -DIOS_BUNDLE_ID=<unique id>`, then open `Client/build-ios/sandboxNetwork.xcodeproj` (re-run `cmake`
+       after any change; edits made in Xcode are lost). `BUILD_IOS` compiles the fork's sources as a `raylib` target:
+       `rcore.c` and `raudio.c` as Objective-C, Clang modules on (ANGLE's `glext.h` only compiles as a module import), ANGLE
+       xcframeworks linked and embedded, runpath `@executable_path/Frameworks`, landscape Info.plist keys, Local Network text.
+       Shadows off and FPS uncapped by default (display link paces). Pin the fork's commit: PR #1 is unmerged.
+6. [x] **Shader folder:** `glslVersion()` in `Shaders/lighting.cpp` is now `rlGetVersion() >= RL_OPENGL_ES_20` (ES 3 contexts
+       picked `glsl330`, which fails, so only raylib's default shader drew and no blocks showed). Relies on the enum order
+       `..._43, ES_20, ES_30`. A real `glsl300es` set would be the later upgrade.
+7. [x] **Networking:** `env::SERVER_IP` is a LAN address; the Local Network key is set by CMake.
+
+### Left
+
+4. [ ] **`Input/` class** (the next piece; also gives key binds and modular input for every target). Design:
+       - An `Action` enum (MoveForward/Back/Left/Right, Jump, Sneak, Fire, Place, Zoom, Pause, Chat, HotbarSlot, debug keys)
+         and an `Input` class that is polled **once per frame** at the top of `Game::frame()` (and by Home / Settings).
+       - Queries: `pressed(action)`, `down(action)`, `move()` (a Vector2, replaces the four `IsKeyDown` WASD checks), `look()`
+         (delta this frame, replaces `GetMouseDelta`), `pointer()` (position + pressed for menus, works for mouse and touch).
+       - Two backends fill the same per-frame state: keyboard + mouse (a key-bind table, action -> key / mouse button, so
+         rebinding is a table edit) and touch (step 5). Same idea as `Transport`: one interface, one class per backend, chosen in
+         CMake, no `#ifdef` in game code.
+       - Callers to convert: `Player::Update` (movement, jump, look, cursor capture), `Game::handleActions` (fire, place, hotbar
+         number keys), `handlePause`, `handleChatInput` (chat text stays raw: `GetCharPressed`), the debug keys, Home / Settings
+         / exit-button clicks.
+       - Tricky: `pressed` must be true for exactly one frame, so poll once and read the stored state (don't call raylib twice
+         per frame); `Player::Update` also captures the cursor (`DisableCursor` on a click), which a touch screen doesn't have.
+5. [ ] **Touch backend**: virtual stick on the left half (move), drag on the right half (look), jump + fire buttons. Track each
+       touch id by the half it started in, so a second finger can't steal the stick. Raylib turns a touch into a left mouse
+       click, so the touch backend must not let that reach `Fire`.
+8. [ ] **Rendering on a phone**: tune shadows and `RENDER_SCALE` on the device; check the depth-texture extension (same open
+       item as the web shadow check).
+9. [ ] **Docs**: `arch.md` (`Input/`, the iOS build) and `tech.md` (the fork, the CMake iOS command), then update `iOS.md`.
+
+Tricky: step 3 (an `ios27` fork checkout is required; re-run cmake after changing settings); step 5 (touch ids, not touch positions).

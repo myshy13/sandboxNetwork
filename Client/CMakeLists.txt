@@ -20,6 +20,14 @@ if(DEFINED EMSCRIPTEN)
     set(BUILD_WEB ON)
 endif()
 
+# iOS: cmake -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<ghera/raylib-ios clone with PR #1> [-DIOS_TEAM=<team id>]
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(BUILD_IOS ON)
+endif()
+set(RAYLIB_IOS_DIR "" CACHE PATH "ghera/raylib-ios checkout (needs the iOS 27 scene fix)")
+set(IOS_TEAM "" CACHE STRING "Apple development team id (device builds only)")
+set(IOS_BUNDLE_ID "com.sandboxnetwork.client" CACHE STRING "Bundle id for iOS (must be unique to your team)")
+
 # ---------------------------------------------------------------------------
 # raylib (fetched at configure time, built from source)
 # ---------------------------------------------------------------------------
@@ -41,7 +49,34 @@ if(BUILD_WEB)
     set(PLATFORM "Web" CACHE STRING "" FORCE)
 endif()
 
-FetchContent_MakeAvailable(raylib)
+if(BUILD_IOS)
+    # The fork has no CMake iOS support (only an Xcode project), so build its sources the way that project does.
+    if(NOT RAYLIB_IOS_DIR)
+        message(FATAL_ERROR "iOS needs -DRAYLIB_IOS_DIR=<path to ghera/raylib-ios>")
+    endif()
+    enable_language(C OBJC)
+    set(raylib_SOURCE_DIR "${RAYLIB_IOS_DIR}")
+    foreach(m rcore rshapes rtextures rtext rmodels raudio)
+        list(APPEND RAYLIB_IOS_SOURCES "${raylib_SOURCE_DIR}/src/${m}.c")
+    endforeach()
+    add_library(raylib STATIC ${RAYLIB_IOS_SOURCES})
+    # rcore.c #includes rcore_ios.c and raudio.c (miniaudio) pulls in Foundation: both are Objective-C, as in the fork's project
+    set_source_files_properties("${raylib_SOURCE_DIR}/src/rcore.c" "${raylib_SOURCE_DIR}/src/raudio.c" PROPERTIES LANGUAGE OBJC)
+    target_compile_options(raylib PRIVATE -fobjc-arc)
+    # Clang modules: rlgl.h includes ANGLE's glext.h before gl2.h, which only compiles as a module import
+    set_target_properties(raylib PROPERTIES XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES YES)
+    target_include_directories(raylib PUBLIC "${raylib_SOURCE_DIR}/src")
+    target_compile_definitions(raylib PUBLIC PLATFORM_IOS GRAPHICS_API_OPENGL_ES3 GL_GLEXT_PROTOTYPES)
+    # ANGLE (GLES on Metal), shipped as xcframeworks; rlgl.h includes them as <libGLESv2/...>
+    set(ANGLE_FRAMEWORKS
+        "${raylib_SOURCE_DIR}/deps/ANGLE/libEGL.xcframework"
+        "${raylib_SOURCE_DIR}/deps/ANGLE/libGLESv2.xcframework")
+    target_link_libraries(raylib PUBLIC ${ANGLE_FRAMEWORKS}
+        "-framework UIKit" "-framework Foundation" "-framework QuartzCore"
+        "-framework AudioToolbox" "-framework CoreAudio" "-framework AVFoundation")
+else()
+    FetchContent_MakeAvailable(raylib)
+endif()
 
 # ---------------------------------------------------------------------------
 # ENet (reliable UDP, fetched at configure time, built from source)
@@ -81,6 +116,13 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/../Shared/Protocol/protocol.cpp"
 )
 
+# # Exactly one InputSource backend gets compiled.
+# if(BUILD_IOS)
+#     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_kbm.cpp")
+# else()
+#     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_touch.cpp")
+# endif()
+
 # Exactly one transport backend gets compiled. This is deliberately the only
 # place the native/web split lives, so no #ifdef leaks into the game code.
 if(BUILD_WEB)
@@ -91,17 +133,17 @@ endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
-# Shadows start on natively and off in the browser (the settings screen can
+# Shadows start on natively and off in the browser and on phones (the settings screen can
 # still change it); game code reads this as a plain value, not an #ifdef.
-if(BUILD_WEB)
+if(BUILD_WEB OR BUILD_IOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=0)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
 endif()
 
-# Frame-rate cap: 0 means uncapped (the browser's own loop paces the web build, and
-# the settings slider is hidden there); native starts at 120.
-if(BUILD_WEB)
+# Frame-rate cap: 0 means uncapped (the browser's loop paces the web build, iOS's display link
+# paces the phone, and the settings slider is hidden there); native starts at 120.
+if(BUILD_WEB OR BUILD_IOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=0)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=120)
@@ -152,6 +194,25 @@ if(APPLE AND NOT BUILD_WEB)
             )
         endif()
     endif()
+endif()
+
+# iOS: embed + sign ANGLE, and the Info.plist keys the fork's example sets (landscape, full screen, no launch screen = letterboxed)
+if(BUILD_IOS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        XCODE_EMBED_FRAMEWORKS "${ANGLE_FRAMEWORKS}"
+        XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY ON
+        XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_ID}"
+        XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_TEAM}"
+        XCODE_ATTRIBUTE_CODE_SIGN_STYLE Automatic
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+        XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE YES
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_UILaunchScreen_Generation YES
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_UIRequiresFullScreen YES
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_UIStatusBarHidden YES
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_UISupportedInterfaceOrientations "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_NSLocalNetworkUsageDescription "Connects to the game server on your network."
+    )
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE

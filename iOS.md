@@ -62,6 +62,12 @@ by default. The ignore rules are a safety net.
 
 ## Common errors
 
+- **Xcode says "Running" but nothing happens on the phone (first run, or after an iOS update)**: Xcode is copying the
+  device's debug symbols to the Mac (status bar at the top). Plug in with a cable, keep the phone unlocked, and wait; over
+  Wi-Fi it can take far longer.
+- **The app crashes at launch on iOS 27 with `NoSceneLifecycleAdoption`**: the fork needs its UIScene fix (ghera/raylib-ios
+  PR #1, `git fetch origin pull/1/head:ios27`); plain `release/5.5` does not have it.
+
 - **"No account for team"**: step 1 was skipped, or the Xcode project still has someone else's Team ID.
 - **"Failed to register bundle identifier"**: it is taken; change it (step 4).
 - **"Developer Mode disabled"**: step 2.
