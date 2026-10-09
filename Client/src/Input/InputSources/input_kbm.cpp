@@ -7,8 +7,9 @@
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
-// ==== binds ==== //
+constexpr float SCROLL_SENSITIVITY = 1.5f;
 
+// ==== binds ==== //
 namespace {
 
 struct Bind {
@@ -56,7 +57,7 @@ class InputKbm : public InputSource {
 
     inputState.look = GetMouseDelta();
     inputState.pointer = GetMousePosition();
-    inputState.scroll = GetMouseWheelMove();
+    inputState.scroll = GetMouseWheelMove() * SCROLL_SENSITIVITY;
 
     int key = GetKeyPressed();
     // 1-9 range

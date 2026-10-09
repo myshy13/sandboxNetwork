@@ -16,6 +16,8 @@ class Settings {
     Slider targetFpsSlider;
     Input& input;
 
+    float scroll{0.0f};
+
    public:
     Settings(Input& input);
     void frame();

@@ -13,6 +13,8 @@ constexpr int STICK_RADIUS = 100;
 constexpr float DEAD_ZONE = 0.2f;
 constexpr float LOOK_SCALE = 2;
 
+constexpr float SCROLL_SENSITIVITY = 0.6f;
+
 struct Touch {
   Vector2 pos;
 };
@@ -121,6 +123,7 @@ class InputTouch : public InputSource {
     if (lookId != -1) {
       const Touch& t = touchPoints[lookId];
       state.look = Vector2Subtract(t.pos, lookLast) * LOOK_SCALE;
+      state.scroll = state.look.y * SCROLL_SENSITIVITY;
       lookLast = t.pos;
     }
 
@@ -142,7 +145,8 @@ class InputTouch : public InputSource {
   void draw() override {
     constexpr int FONTSIZE = 35;
     for (const TouchButton& b : buttons) {
-      DrawRectangleRec(b.rect, b.held != -1 ? Color{200, 200, 200, 150} : Color{185, 185, 185, 130});
+      DrawRectangleRec(b.rect, b.held != -1 ? Color{200, 200, 200, 150}
+                                            : Color{185, 185, 185, 130});
       DrawText(b.text,
                b.rect.x + (b.rect.width / 2) -
                    static_cast<float>(MeasureText(b.text, FONTSIZE)) / 2,

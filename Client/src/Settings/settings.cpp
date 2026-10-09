@@ -2,6 +2,8 @@
 
 #include <raylib.h>
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 #include "GameState/gameState.hpp"
@@ -47,6 +49,15 @@ Settings::Settings(Input& input)
       input(input) {}
 
 void Settings::frame() {
+  // Bottom edge of the last row plus a margin; scrolling stops when it meets
+  // the window's bottom.
+  constexpr float contentBottom = 740;
+  scroll -= input.getScroll();  // inverted scrolling
+  // Recomputed every frame: the window can shrink or rotate, which lowers the
+  // limit under the current scroll.
+  const float maxScroll = std::fmax(0.0f, contentBottom - GetScreenHeight());
+  scroll = std::clamp(scroll, 0.0f, maxScroll);
+
   const float left = GetScreenWidth() / 5.0f;
   const float width = left * 3;
   const float toggleX = left * 4 - 100;
@@ -55,12 +66,12 @@ void Settings::frame() {
   const bool down = input.down(Action::Click);
 
   // ==== layout (follows the window width) ==== //
-  renderDistanceSlider.setBar({left, 200, width, 20});
-  shadowRadiusSlider.setBar({left, 290, width, 20});
-  targetFpsSlider.setBar({left, 380, width, 20});
-  vsyncButton.setRec({toggleX, 460, 100, 50});
-  interpolationButton.setRec({toggleX, 530, 100, 50});
-  shadowsButton.setRec({toggleX, 600, 100, 50});
+  renderDistanceSlider.setBar({left, 200 - scroll, width, 20});
+  shadowRadiusSlider.setBar({left, 290 - scroll, width, 20});
+  targetFpsSlider.setBar({left, 380 - scroll, width, 20});
+  vsyncButton.setRec({toggleX, 460 - scroll, 100, 50});
+  interpolationButton.setRec({toggleX, 530 - scroll, 100, 50});
+  shadowsButton.setRec({toggleX, 600 - scroll, 100, 50});
 
   vsyncButton.setText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off");
   interpolationButton.setText(gameState.getInterpolation() ? "On" : "Off");
@@ -77,11 +88,11 @@ void Settings::frame() {
     targetFpsSlider.frame(mouse, pressed, down);
 
   // ==== toggles ==== //
-  DrawText("VSync:", left, 475, 30, WHITE);
+  DrawText("VSync:", left, 475 - scroll, 30, WHITE);
   vsyncButton.frame(mouse, pressed);
-  DrawText("Interpolation:", left, 545, 30, WHITE);
+  DrawText("Interpolation:", left, 545 - scroll, 30, WHITE);
   interpolationButton.frame(mouse, pressed);
-  DrawText("Shadows:", left, 615, 30, WHITE);
+  DrawText("Shadows:", left, 615 - scroll, 30, WHITE);
   shadowsButton.frame(mouse, pressed);
 
   EndDrawing();
