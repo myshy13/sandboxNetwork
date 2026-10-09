@@ -6,11 +6,13 @@
 #include <optional>
 #include <utility>
 
+#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
-Input::Input(std::unique_ptr<InputSource> inputSource)
-    : source(std::move(inputSource)) {}
+Input::Input(std::unique_ptr<InputSource> inputSource,
+             const AssetManager& assets)
+    : source(std::move(inputSource)), assets(assets) {}
 
 void Input::update() {
   previous = std::move(current);
@@ -19,7 +21,7 @@ void Input::update() {
   source->poll(current);
 }
 
-void Input::draw() { source->draw(); }
+void Input::draw() { source->draw(assets); }
 
 void Input::setMouseLook(bool mouseLook) { source->setMouseLook(mouseLook); }
 

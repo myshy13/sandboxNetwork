@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "AssetManager/manager.hpp"
+#include "Models/blocks.hpp"
 
 enum class BlockFace { Top = 0, Side, Bottom };
 

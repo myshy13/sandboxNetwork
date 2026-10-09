@@ -5,18 +5,20 @@
 #include <memory>
 #include <optional>
 
+#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
 class Input {
  private:
   std::unique_ptr<InputSource> source;
+  const AssetManager& assets;
 
   InputState current;
   InputState previous;
 
  public:
-  Input(std::unique_ptr<InputSource> source);
+  Input(std::unique_ptr<InputSource> source, const AssetManager& assets);
 
   void update();
   void draw();

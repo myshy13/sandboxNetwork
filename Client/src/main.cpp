@@ -94,7 +94,7 @@ static void ready() {
 #endif
 
   assets = std::make_unique<AssetManager>();
-  input = std::make_unique<Input>(makeInputSource());
+  input = std::make_unique<Input>(makeInputSource(), *assets);
   game = std::make_unique<Game>(*assets, *input);
   home = std::make_unique<Home>(*input);
   settings = std::make_unique<Settings>(*input);

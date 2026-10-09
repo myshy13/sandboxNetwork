@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
@@ -22,9 +23,10 @@ struct Touch {
 // Not "Button": UI/Button/button.hpp already defines a class of that name.
 struct TouchButton {
   Rectangle rect;
-  const char* text = "";
+  Tex icon;
 
   Action action;
+  float rotation{0.0f};
 
   int held{-1};  // id of the finger holding it, -1 when free
 };
@@ -51,17 +53,22 @@ class InputTouch : public InputSource {
 
     buttons = {
         {{(float)layoutWidth - 60, (float)layoutHeight - 60, 50, 50},
-         "J",
+         Tex::JumpIcon,
          Action::Jump},
         {{(float)layoutWidth - 60, (float)layoutHeight - 120, 50, 50},
-         "S",
+         Tex::ShootIcon,
          Action::Shoot},
         {{(float)layoutWidth - 60, (float)layoutHeight - 180, 50, 50},
-         "P",
+         Tex::PlaceIcon,
          Action::Place},
-        {{10, (float)layoutHeight - 60, 50, 50}, "Sneak", Action::Sneak},
+        {
+            {10, (float)layoutHeight - 60, 50, 50},
+            Tex::JumpIcon,
+            Action::Sneak,
+            180.0f,
+        },
         {{static_cast<float>(layoutWidth) / 2 - 25, 10, 50, 50},
-         "II",
+         Tex::PauseIcon,
          Action::Pause},
         // no zoom
         // no scores
@@ -142,16 +149,17 @@ class InputTouch : public InputSource {
 
   void setMouseLook(bool) override {}
 
-  void draw() override {
-    constexpr int FONTSIZE = 35;
+  void draw(const AssetManager& assets) override {
     for (const TouchButton& b : buttons) {
       DrawRectangleRec(b.rect, b.held != -1 ? Color{200, 200, 200, 150}
                                             : Color{185, 185, 185, 130});
-      DrawText(b.text,
-               b.rect.x + (b.rect.width / 2) -
-                   static_cast<float>(MeasureText(b.text, FONTSIZE)) / 2,
-               b.rect.y + b.rect.height / 2 - (float)FONTSIZE / 2, FONTSIZE,
-               WHITE);
+      const Texture2D& texture = assets.get(b.icon);
+      DrawTexturePro(texture,
+                     {0, 0, static_cast<float>(texture.width),
+                      static_cast<float>(texture.height)},
+                     {b.rect.x + b.rect.width / 2, b.rect.y + b.rect.height / 2,
+                      b.rect.width, b.rect.height},
+                     {b.rect.width / 2, b.rect.height / 2}, b.rotation, WHITE);
     }
   }
 };

@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 
+#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 

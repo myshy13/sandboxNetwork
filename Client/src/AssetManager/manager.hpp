@@ -6,6 +6,7 @@
 #include <cstddef>
 
 enum class Tex {
+  // blocks
   Heart,
   Grass,
   Dirt,
@@ -15,6 +16,13 @@ enum class Tex {
   Grass_Side,
   Planks,
   Glass,
+
+  // icons
+  JumpIcon,
+  ShootIcon,
+  PlaceIcon,
+  PauseIcon,
+
   Count  // keep last: sizes the array and the path table
 };
 
