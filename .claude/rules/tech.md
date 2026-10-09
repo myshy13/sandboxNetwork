@@ -5,6 +5,9 @@
   configure time (not vendored) — first configure needs network access.
 - **Rendering/windowing**: raylib 5.5.
 - **Native transport**: ENet 1.3.18 (reliable UDP).
+- **iOS**: the `ghera/raylib-ios` fork (raylib on ANGLE; needs its PR #1 UIScene fix on iOS 27), built with CMake's Xcode
+  generator: `cmake -S Client -B Client/build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<fork> -DIOS_TEAM=<id>
+  -DIOS_BUNDLE_ID=<id>` (see `iOS.md`). Same ENet transport as native; iOS owns the main loop (`ios_*` in `main.cpp`).
 - **Web transport**: Emscripten + WebSocket, proxied server-side through
   IXWebSocket 11.4.5.
 - **Wire format**: cereal 1.3.2 (header-only binary serialisation) —

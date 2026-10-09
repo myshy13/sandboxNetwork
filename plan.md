@@ -116,8 +116,8 @@ Branch `feature/ios-support`. The fork replaces raylib and runs through ANGLE (O
 the game is driven by three callbacks (`ios_ready`, `ios_update`, `ios_destroy`) instead of a `while` loop. Setup and device
 signing for someone new: `iOS.md`. Nothing here touches the server or the protocol.
 
-Status: the game runs on the phone (iPhone 15, iOS 27.2) with textures and blocks; touches still act as mouse clicks, so every
-tap fires. Next is the Input class (step 4).
+Status: the game runs on the phone (iPhone 15, iOS 27.2) with textures and blocks. The `Input/` class is in and every caller
+uses it; the touch backend exists (stick, look drag, five buttons). Next is tuning it on the device.
 
 ### Done
 
@@ -139,27 +139,35 @@ tap fires. Next is the Input class (step 4).
        picked `glsl330`, which fails, so only raylib's default shader drew and no blocks showed). Relies on the enum order
        `..._43, ES_20, ES_30`. A real `glsl300es` set would be the later upgrade.
 7. [x] **Networking:** `env::SERVER_IP` is a LAN address; the Local Network key is set by CMake.
+4. [x] **`Input/` class.** `Input` owns an `InputSource` (one interface, one backend file per platform, picked in CMake like
+       `Transport`) and is polled once per frame at the top of `update()` in `main.cpp`. Backends only fill a per-frame
+       `InputState`: a bitset of held `Action`s plus `move` (stick-space Vector2: x right, y forward), `look` (this frame's
+       delta), `scroll`, `pointer`, `newHotBarSlot`. `Input` keeps last frame's state, so `pressed(a)` is "held now, not
+       last frame" and `down(a)` is "held now". Keyboard + mouse backend (`input_kbm.cpp`): a bind table, one row per
+       `Action` (a `static_assert` catches a missing row, not a swapped one). Converted: Home, Settings, Game, Player. Chat
+       typing (`GetCharPressed`, backspace, enter) stays raw. `Player` caps the move length at 1 instead of normalising, so a
+       half-tilted stick walks slower.
+5. [x] **Touch backend** (`input_touch.cpp`, compiled only for iOS): left half is a floating stick, right half drags to look;
+       fingers are tracked by touch id so a second finger can't steal a role; `pointer` and `Click` come from raylib's
+       touch-to-mouse mapping (menus only, never for `Shoot` or `look`). On-screen buttons (rebuilt from the screen size):
+       Jump, Shoot, Place, Sneak, Pause. **Dropped on the phone:** Zoom, Scores (`TabKills`), chat and the debug keys: not
+       enough room. `Input::draw()` draws the controls; `Game` calls it at the end of the frame.
 
 ### Left
 
-4. [ ] **`Input/` class** (the next piece; also gives key binds and modular input for every target). Design:
-       - An `Action` enum (MoveForward/Back/Left/Right, Jump, Sneak, Fire, Place, Zoom, Pause, Chat, HotbarSlot, debug keys)
-         and an `Input` class that is polled **once per frame** at the top of `Game::frame()` (and by Home / Settings).
-       - Queries: `pressed(action)`, `down(action)`, `move()` (a Vector2, replaces the four `IsKeyDown` WASD checks), `look()`
-         (delta this frame, replaces `GetMouseDelta`), `pointer()` (position + pressed for menus, works for mouse and touch).
-       - Two backends fill the same per-frame state: keyboard + mouse (a key-bind table, action -> key / mouse button, so
-         rebinding is a table edit) and touch (step 5). Same idea as `Transport`: one interface, one class per backend, chosen in
-         CMake, no `#ifdef` in game code.
-       - Callers to convert: `Player::Update` (movement, jump, look, cursor capture), `Game::handleActions` (fire, place, hotbar
-         number keys), `handlePause`, `handleChatInput` (chat text stays raw: `GetCharPressed`), the debug keys, Home / Settings
-         / exit-button clicks.
-       - Tricky: `pressed` must be true for exactly one frame, so poll once and read the stored state (don't call raylib twice
-         per frame); `Player::Update` also captures the cursor (`DisableCursor` on a click), which a touch screen doesn't have.
-5. [ ] **Touch backend**: virtual stick on the left half (move), drag on the right half (look), jump + fire buttons. Track each
-       touch id by the half it started in, so a second finger can't steal the stick. Raylib turns a touch into a left mouse
-       click, so the touch backend must not let that reach `Fire`.
-8. [ ] **Rendering on a phone**: tune shadows and `RENDER_SCALE` on the device; check the depth-texture extension (same open
-       item as the web shadow check).
-9. [ ] **Docs**: `arch.md` (`Input/`, the iOS build) and `tech.md` (the fork, the CMake iOS command), then update `iOS.md`.
+8. [ ] **Tune on the device:** button size and labels (the fixed 50 px buttons, the Pause glyph `⏸` is not in raylib's default
+       font), `STICK_RADIUS`, `DEAD_ZONE`, `LOOK_SCALE`; shadows and `RENDER_SCALE`; check the depth-texture extension (same
+       open item as the web shadow check).
+10. [ ] **Not on touch yet:** chat (needs an on-screen keyboard), safe-area insets (`IOSBridge`), and moving the `ios_*`
+       wrappers out of `main.cpp` into their own file (platform `#ifdef` rule).
+11. [ ] **Make the controls look good:** replace the plain grey rectangles with icons (jump, fire, place, sneak, pause),
+       a clear pressed state, translucent so the world shows through, sized and placed for thumbs (and safe areas).
+       Tricky: the touch backend has no `AssetManager`, so it can't load icon textures today. Pick one: `draw()` takes the
+       `AssetManager`, or the backend loads its own textures (then they must unload before `CloseWindow()`).
+12. [ ] **Hotbar on touch:** tap a slot to select it (sets `newHotBarSlot`, like the number keys). Tricky: `Game` draws the
+       hotbar, so something has to share the slot rectangles between the drawing and the hit test, or they drift apart
+       (the `faceMatrix` idea): have `Game` hand its slot rectangles to `Input` each frame. Also decide where it sits so it
+       doesn't collide with the control buttons.
+9. [x] **Docs:** `arch.md` (`Input/`), `tech.md` (iOS build) and `iOS.md` (build command).
 
-Tricky: step 3 (an `ios27` fork checkout is required; re-run cmake after changing settings); step 5 (touch ids, not touch positions).
+Tricky: an `ios27` fork checkout is required; re-run cmake after changing settings; touch ids, not touch positions.

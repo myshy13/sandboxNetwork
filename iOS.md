@@ -9,6 +9,15 @@ Written for someone new to Xcode signing. Plan and design: the "iOS client" sect
 - The device and a USB cable (Wi-Fi debugging works after the first cable connection).
 - The simulator needs no signing at all. Start there.
 
+## Building the game
+
+1. Clone `ghera/raylib-ios` next to this repo and fetch its iOS 27 fix: `git fetch origin pull/1/head:ios27`, then `git switch ios27`.
+2. `cmake -S Client -B Client/build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<path to that clone> -DIOS_TEAM=<your team id> -DIOS_BUNDLE_ID=<a unique id>`
+   (add `-DCMAKE_OSX_SYSROOT=iphonesimulator` for the simulator; no team needed there).
+3. `open Client/build-ios/sandboxNetwork.xcodeproj`, pick a destination, Run. Edits made in Xcode are lost when `cmake` runs
+   again, so change settings in `Client/CMakeLists.txt`.
+4. `env::SERVER_IP` must be an address the phone can reach (not `localhost`).
+
 ## Why signing exists
 
 iOS only runs apps that are signed by a developer Apple knows, and only on devices that developer registered. Xcode can do
