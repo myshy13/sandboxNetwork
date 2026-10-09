@@ -687,7 +687,7 @@ void Game::drawOverlays(float dt) {
   {
     constexpr float BOXSIZE = 50.0f;  // square
     constexpr float BORDER = 5.0f;
-    const float left = GetScreenWidth() - BOXSIZE * blockTypesSize;
+    const float left = (GetScreenWidth() - BOXSIZE * blockTypesSize) / 2;
     const float top = GetScreenHeight() - BOXSIZE;
     for (int i = 0; i < blockTypesSize; i++) {
       const float x = left + i * BOXSIZE;
