@@ -1,7 +1,6 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -60,7 +59,7 @@ class InputTouch : public InputSource {
          Action::Place},
         {{10, (float)layoutHeight - 60, 50, 50}, "Sneak", Action::Sneak},
         {{static_cast<float>(layoutWidth) / 2 - 25, 10, 50, 50},
-         "⏸",
+         "II",
          Action::Pause},
         // no zoom
         // no scores
