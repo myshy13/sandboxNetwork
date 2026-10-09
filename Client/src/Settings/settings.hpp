@@ -11,6 +11,7 @@ class Settings {
     Button vsyncButton;
     Button interpolationButton;
     Button shadowsButton;
+    Button autoJumpButton;
     Slider renderDistanceSlider;
     Slider shadowRadiusSlider;
     Slider targetFpsSlider;

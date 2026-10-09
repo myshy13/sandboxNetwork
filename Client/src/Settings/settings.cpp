@@ -32,6 +32,8 @@ Settings::Settings(Input& input)
                           Rectangle{0, 0, 100, 50}, 30),
       shadowsButton([] { GameState::shared().toggleShadows(); }, "",
                     Rectangle{0, 0, 100, 50}, 30),
+      autoJumpButton([] { GameState::shared().toggleAutoJump(); }, "",
+                     Rectangle{0, 0, 100, 50}, 30),
       renderDistanceSlider(
           "Render distance: ", GameState::MIN_RENDER_DISTANCE,
           GameState::MAX_RENDER_DISTANCE,
@@ -72,10 +74,12 @@ void Settings::frame() {
   vsyncButton.setRec({toggleX, 460 - scroll, 100, 50});
   interpolationButton.setRec({toggleX, 530 - scroll, 100, 50});
   shadowsButton.setRec({toggleX, 600 - scroll, 100, 50});
+  autoJumpButton.setRec({toggleX, 670 - scroll, 100, 50});
 
   vsyncButton.setText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off");
   interpolationButton.setText(gameState.getInterpolation() ? "On" : "Off");
   shadowsButton.setText(gameState.getShadows() ? "On" : "Off");
+  autoJumpButton.setText(gameState.getAutoJump() ? "On" : "Off");
 
   BeginDrawing();
   ClearBackground(BLACK);
@@ -94,6 +98,8 @@ void Settings::frame() {
   interpolationButton.frame(mouse, pressed);
   DrawText("Shadows:", left, 615 - scroll, 30, WHITE);
   shadowsButton.frame(mouse, pressed);
+  DrawText("Auto jump:", left, 685 - scroll, 30, WHITE);
+  autoJumpButton.frame(mouse, pressed);
 
   EndDrawing();
 }

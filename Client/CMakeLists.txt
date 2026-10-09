@@ -141,6 +141,14 @@ else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
 endif()
 
+# Auto-jump (hop up one-block ledges while walking into them) starts on for phones, which have too few
+# fingers for a jump button as well as a stick and a look drag; the settings screen can still change it.
+if(BUILD_IOS)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE AUTO_JUMP_DEFAULT=1)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE AUTO_JUMP_DEFAULT=0)
+endif()
+
 # Frame-rate cap: 0 means uncapped (the browser's loop paces the web build, iOS's display link
 # paces the phone, and the settings slider is hidden there); native starts at 120.
 if(BUILD_WEB OR BUILD_IOS)

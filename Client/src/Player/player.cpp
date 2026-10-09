@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 
+#include "GameState/gameState.hpp"
 #include "Input/input.hpp"
 #include "Input/inputState.hpp"
 #include "Raylib/text3D.hpp"
@@ -87,7 +88,8 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
     multiplier *= 0.2f;
   }
 
-  // Cap at 1, don't force it: diagonals can't be faster, a half-tilted stick stays slower.
+  // Cap at 1, don't force it: diagonals can't be faster, a half-tilted stick
+  // stays slower.
   if (Vector3Length(moveDir) > 1.0f) {
     moveDir = Vector3Normalize(moveDir);
   }
@@ -145,6 +147,8 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
   Vector3 pos = transform.translation;
   Vector3 step = Vector3Scale(velocity, dt);
 
+  bool autoJump = GameState::shared().getAutoJump();
+
   pos.x += step.x;
   if (blocked(pos)) {
     pos.x -= step.x;
@@ -164,6 +168,19 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
     }
     pos.y -= step.y;
     velocity.y = 0.0f;
+  }
+
+  constexpr int autoJumpPrediction = 15;
+  if (autoJump && onGround && !inWater && !input.down(Action::Sneak) &&
+      inputEnabled && moveDir != Vector3Zero()) {
+    Vector3 newPos = Vector3Add(
+        pos, {step.x * autoJumpPrediction, 0, step.z * autoJumpPrediction});
+    if (blocked(newPos) &&
+        !blocked(Vector3Add(
+            newPos, {0, env::BLOCKSIZE.y * 1.2, 0}))) {  // 1.2 for a small gap
+      onGround = false;
+      velocity.y = jumpPower;
+    }
   }
 
   transform.translation = pos;
