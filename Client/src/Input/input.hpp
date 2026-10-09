@@ -19,6 +19,7 @@ class Input {
   Input(std::unique_ptr<InputSource> source);
 
   void update();
+  void draw();
 
   // ==== getters ==== //
   bool down(Action) const;

@@ -16,9 +16,9 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D& camera, const World& world,
-                    const Input& input) {
+                    Input& input) {
   if (inputEnabled && input.pressed(Action::Click) && !IsCursorHidden()) {
-    DisableCursor();
+    input.setMouseLook(true);
   }
   // ==== player movement ====
   Vector3 lookForward =
@@ -87,9 +87,9 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
     multiplier *= 0.2f;
   }
 
-  if (Vector3Length(moveDir) > 0.0f) {
-    moveDir =
-        Vector3Normalize(moveDir);  // prevents diagonal movement being faster
+  // Cap at 1, don't force it: diagonals can't be faster, a half-tilted stick stays slower.
+  if (Vector3Length(moveDir) > 1.0f) {
+    moveDir = Vector3Normalize(moveDir);
   }
 
   if (!inWater && inputEnabled && (onGround) && input.down(Action::Jump)) {

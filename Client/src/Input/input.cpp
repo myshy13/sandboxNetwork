@@ -19,6 +19,8 @@ void Input::update() {
   source->poll(current);
 }
 
+void Input::draw() { source->draw(); }
+
 void Input::setMouseLook(bool mouseLook) { source->setMouseLook(mouseLook); }
 
 Vector2 Input::getMove() const { return current.move; }

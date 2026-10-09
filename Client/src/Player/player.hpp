@@ -27,8 +27,7 @@ class Player : public Entity {
   // ignores keyboard/mouse - used while the chat box has focus.
   bool inputEnabled = true;
 
-  void Update(float dt, Camera3D& camera, const World& world,
-              const Input& input);
+  void Update(float dt, Camera3D& camera, const World& world, Input& input);
   void UpdateCamera(Camera3D& camera) const;
   // Exact look direction, unaffected by how far transform.translation is from
   // the origin.

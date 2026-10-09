@@ -8,6 +8,7 @@ class InputSource {
   virtual ~InputSource() = default;
   virtual void poll(InputState&) = 0;
   virtual void setMouseLook(bool) = 0;
+  virtual void draw() {};
 };
 
 std::unique_ptr<InputSource> makeInputSource();

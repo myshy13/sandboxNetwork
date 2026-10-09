@@ -118,6 +118,8 @@ void Game::frame() {
   drawScoreboard();
   drawDebug();
   drawOverlays(dt);
+
+  input.draw();
   EndDrawing();
 }
 
