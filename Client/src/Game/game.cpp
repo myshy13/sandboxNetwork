@@ -17,6 +17,8 @@
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "GameState/gameState.hpp"
+#include "Input/input.hpp"
+#include "Input/inputState.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
@@ -25,7 +27,8 @@
 #endif
 
 // ==== setup / teardown ==== //
-Game::Game(const AssetManager& a) : assets(a), renderer(a) {
+Game::Game(const AssetManager& a, Input& input)
+    : assets(a), renderer(a), input(input) {
   // ==== lighting ==== //
   DirectionalLight light = lighting.timeToLight(world.getTime());
   sunLights[0] = lighting.addDirectional(Vector3Add(light.pos, {0, 0, 0}),
@@ -73,7 +76,8 @@ void Game::frame() {
   // Zoom narrows the field of view instead of cropping the texture, so the
   // scene is re-rendered at full resolution rather than enlarged pixels. The
   // frustum culling and the camera-relative view both read camera.fovy too.
-  const float wantedFov = (!inChat && IsKeyDown(KEY_C)) ? ZOOM_FOV : BASE_FOV;
+  const float wantedFov =
+      (!inChat && input.down(Action::Zoom)) ? ZOOM_FOV : BASE_FOV;
   camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
 
   // The setting, and a valid clock (it isn't until the handshake finishes).
@@ -255,38 +259,15 @@ void Game::handleChatInput() {
     }
     if (IsKeyPressed(KEY_ENTER)) {
       if (!chatInput.empty()) {
-        if (chatInput.starts_with("/")) {
-          chatInput.erase(0, 1);
-          if (chatInput.starts_with("setname ")) {
-            chatInput.erase(0, 8);
-            client.setName(chatInput);
-            std::cout << "Set name to " << chatInput << "\n";
-          } else if (chatInput.starts_with("clear")) {
-            client.clearChat();
-          }
-#ifdef CHEATS
-          else if (chatInput.starts_with("tp ")) {
-            chatInput.erase(0, 3);
-            std::stringstream pos(chatInput);
-            Vector3 p;
-            if (pos >> p.x >> p.y >> p.z) {
-              player.setPosition(p);
-            }
-          } else {
-            client.addLocalChat("Command not found");
-          }
-#endif
-        } else {
-          client.sendChatMessage(chatInput);
-        }
+        handleChatInput(chatInput);
         chatInput.clear();
       }
       inChat = false;
     }
-  } else if (IsKeyPressed(KEY_T)) {
+  } else if (input.pressed(Action::Openchat)) {
     inChat = true;
     paused = false;
-  } else if (IsKeyPressed(KEY_SLASH)) {
+  } else if (input.pressed(Action::OpenChatCommands)) {
     inChat = true;
     paused = false;
     chatInput = "/";
@@ -309,10 +290,11 @@ void Game::updatePlayer(float dt) {
   // Chat freezes input, not the world: the player keeps falling/sliding
   // while you type, and other clients keep seeing you move.
   player.inputEnabled = !inChat;
+
 #ifdef DEBUG
   double t0 = GetTime();
 #endif
-  player.Update(dt, camera, world);
+  player.Update(dt, camera, world, input);
 #ifdef DEBUG
   playerUpdateMs = (GetTime() - t0) * 1000.0;
 #endif
@@ -359,9 +341,10 @@ void Game::handleActions(float dt) {
     target = makeTarget();
   }
   {
-    int key = GetKeyPressed();
-    if (key >= KEY_ONE && key < KEY_ONE + blockTypesSize) {
-      activeBlockType = key - KEY_ONE;
+    std::optional<int> hotbarSlot = input.getHotbarSlot();
+    if (hotbarSlot.has_value() && hotbarSlot >= 0 &&
+        hotbarSlot < blockTypesSize) {
+      activeBlockType = hotbarSlot.value();
     }
   }
   if (paused || inChat || !chunkUnderPlayerLoaded()) return;
@@ -374,9 +357,9 @@ void Game::handleActions(float dt) {
   // position, so it's exact at any distance.
   Ray aim{camera.position, player.getLookForward()};
 
-  if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+  if (input.pressed(Action::Shoot)) {
     client.createBullet(aim.position, aim.direction);
-  } else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+  } else if (input.down(Action::Shoot)) {
     bulletCooldown -= dt;
     if (bulletCooldown <= 0) {
       client.createBullet(aim.position, aim.direction);
@@ -392,12 +375,12 @@ void Game::handleActions(float dt) {
 #else
   constexpr float placeCooldownTime = 0.2f;
 #endif
-  if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+  if (input.pressed(Action::Place)) {
     if (world.placeBlock(aim, client, player.getTransform().translation,
                          blockTypes[activeBlockType])) {
       placeCooldown = placeCooldownTime;
     }
-  } else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+  } else if (input.down(Action::Place)) {
     placeCooldown -= dt;
     if (placeCooldown <= 0) {
       if (world.placeBlock(aim, client, player.getTransform().translation,
@@ -499,7 +482,7 @@ void Game::drawScene(float dt) {
 // green for your hitbox.
 void Game::drawCollisionDebug() {
 #ifdef DEBUG
-  if (IsKeyPressed(KEY_F5)) {
+  if (input.pressed(Action::ShowCollision)) {
     showCollisionDebug = !showCollisionDebug;
   }
   if (!showCollisionDebug) {
@@ -532,7 +515,7 @@ void Game::drawCollisionDebug() {
 // in yellow.
 void Game::drawChunkBorders() {
 #ifdef DEBUG
-  if (IsKeyPressed(KEY_F4)) {
+  if (input.pressed(Action::ShowChunkBorders)) {
     showChunkBorders = !showChunkBorders;
   }
   if (!showChunkBorders) {
@@ -667,7 +650,7 @@ void Game::drawChat() {
 
 // Hold Tab for the scoreboard, sorted by kills.
 void Game::drawScoreboard() {
-  if (!IsKeyDown(KEY_TAB)) return;
+  if (!input.down(Action::TabKills)) return;
 
   constexpr int ROW_HEIGHT = 28;
   constexpr int FONT_SIZE = 20;
@@ -728,9 +711,9 @@ void Game::drawOverlays(float dt) {
              GetScreenHeight() / 2 - 25, 50, WHITE);
 
     Rectangle exitButton = {10, 10, 60, 60};
-    if (CheckCollisionPointRec(GetMousePosition(), exitButton)) {
+    if (CheckCollisionPointRec(input.getPointer(), exitButton)) {
       DrawRectangleRec(exitButton, LIGHTGRAY);
-      if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      if (input.pressed(Action::Click)) {
         client.disconnect();
         paused = false;
         gameState.setMenuState(MenuState::HOME);
@@ -778,20 +761,14 @@ void Game::drawOverlays(float dt) {
 
 void Game::drawDebug() {
 #ifdef DEBUG
-#ifdef __EMSCRIPTEN__
-  if (IsKeyPressed(KEY_K)) {
+  if (input.pressed(Action::OpenDebug)) {
     showDebug = !showDebug;
   }
-#else
-  if (IsKeyPressed(KEY_F3)) {
-    showDebug = !showDebug;
-  }
-#endif
-  if (IsKeyPressed(KEY_R)) {
+  if (!inChat && input.pressed(Action::Reconnect)) {
     client
         .disconnect();  // applyNetworkUpdates starts a fresh session next frame
   }
-  if (IsKeyPressed(KEY_F7)) {
+  if (input.pressed(Action::ChangeClipping)) {
     nearPlaneStep = (nearPlaneStep + 1) % 5;
     // Far only has to clear the furthest block drawn, so it tracks render
     // distance.

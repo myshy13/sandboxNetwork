@@ -6,7 +6,8 @@
 
 #include <cstdlib>
 
-#include "Models/Object.hpp"
+#include "Input/input.hpp"
+#include "Input/inputState.hpp"
 #include "Raylib/text3D.hpp"
 #include "env.hpp"
 
@@ -14,12 +15,11 @@
 
 constexpr float GRAVITY = 140.0f;
 
-void Player::Update(float dt, Camera3D& camera, const World& world) {
-  if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
-      !IsCursorHidden()) {
+void Player::Update(float dt, Camera3D& camera, const World& world,
+                    const Input& input) {
+  if (inputEnabled && input.pressed(Action::Click) && !IsCursorHidden()) {
     DisableCursor();
   }
-
   // ==== player movement ====
   Vector3 lookForward =
       Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
@@ -76,14 +76,14 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
   Vector3 moveDir = Vector3Zero();
 
   if (inputEnabled) {
-    if (IsKeyDown(KEY_W)) moveDir = Vector3Add(moveDir, moveForward);
-    if (IsKeyDown(KEY_S)) moveDir = Vector3Subtract(moveDir, moveForward);
-    if (IsKeyDown(KEY_D)) moveDir = Vector3Add(moveDir, moveRight);
-    if (IsKeyDown(KEY_A)) moveDir = Vector3Subtract(moveDir, moveRight);
+    Vector2 move = input.getMove();
+
+    moveDir = Vector3Add(moveDir, Vector3Scale(moveForward, move.y));
+    moveDir = Vector3Add(moveDir, Vector3Scale(moveRight, move.x));
   }
 
   float multiplier = onGround ? 1.0f : inWater ? 0.5f : 0.05f;
-  if (IsKeyDown(KEY_LEFT_SHIFT)) {
+  if (input.down(Action::Sneak)) {
     multiplier *= 0.2f;
   }
 
@@ -92,13 +92,13 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
         Vector3Normalize(moveDir);  // prevents diagonal movement being faster
   }
 
-  if (!inWater && inputEnabled && (onGround) && IsKeyDown(KEY_SPACE)) {
+  if (!inWater && inputEnabled && (onGround) && input.down(Action::Jump)) {
     onGround = false;
     velocity.y = jumpPower;
   }
 
   waterMoveCooldown -= dt;
-  if (inputEnabled && inWater && IsKeyDown(KEY_SPACE) &&
+  if (inputEnabled && inWater && input.down(Action::Jump) &&
       waterMoveCooldown <= 0) {
     onGround = false;
     // if they're moving slow enough, use full swim power
@@ -111,7 +111,7 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
 
   // Push and damp in one exact step, so top speed doesn't depend on frame rate.
   const float dampBase = inWater ? 0.6f : onGround ? 0.7f : 0.9f;  // per 1/60 s
-  const float damping  = powf(dampBase, dt * 60.0f);
+  const float damping = powf(dampBase, dt * 60.0f);
   // The speed the old per-frame version settled at when running at 60 fps.
   const float topSpeed = speed * multiplier * dampBase / (1.0f - dampBase);
   velocity.x = velocity.x * damping + moveDir.x * topSpeed * (1.0f - damping);
@@ -169,7 +169,7 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
   transform.translation = pos;
 
   // ==== mouse rotaton =====
-  Vector2 mouseDelta = GetMouseDelta();
+  Vector2 mouseDelta = input.getLook();
   if (!inputEnabled) mouseDelta = {0.0f, 0.0f};
 
   float mouseSensitivity = 0.00301f;
@@ -215,8 +215,6 @@ Player::Player() {
   transform.scale = env::PLAYER_SCALE;
   transform.translation = spawnPos;
   onGround = false;
-
-  DisableCursor();
 }
 
 void Player::DrawBody(const Transform& transform, const bool outline) {

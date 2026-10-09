@@ -6,6 +6,7 @@
 #include <string>
 
 #include "Game/Entity/entity.hpp"
+#include "Input/input.hpp"
 #include "World/world.hpp"
 
 constexpr float waterMoveCooldownTime = 0.3f;
@@ -26,7 +27,8 @@ class Player : public Entity {
   // ignores keyboard/mouse - used while the chat box has focus.
   bool inputEnabled = true;
 
-  void Update(float dt, Camera3D& camera, const World& world);
+  void Update(float dt, Camera3D& camera, const World& world,
+              const Input& input);
   void UpdateCamera(Camera3D& camera) const;
   // Exact look direction, unaffected by how far transform.translation is from
   // the origin.

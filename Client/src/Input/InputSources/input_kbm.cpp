@@ -4,7 +4,6 @@
 #include <iterator>
 #include <memory>
 
-#include "Game/game.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
@@ -34,6 +33,7 @@ constexpr Bind BINDS[] = {
 #else
     {false, KEY_F3},  // OpenDebug
 #endif
+    {false, KEY_F4},  // Show chunk borders
     {false, KEY_F5},  // ShowCollision
     {false, KEY_F7},  // ChangeClipping
     {false, KEY_R},   // Reconnect
@@ -64,6 +64,7 @@ class InputKbm : public InputSource {
       inputState.newHotBarSlot = key - KEY_ONE;
     }
 
+    inputState.move = {0, 0};
     // Movement
     if (IsKeyDown(KEY_W)) {
       inputState.move.y += 1.0f;
