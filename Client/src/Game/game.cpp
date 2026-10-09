@@ -6,9 +6,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "AssetManager/blockTex.hpp"
@@ -174,23 +176,73 @@ void Game::syncViewRadius() {
 }
 
 void Game::handlePause() {
-  if (!IsKeyPressed(KEY_ESCAPE)) return;
+  if (!input.pressed(Action::Pause)) return;
 
   if (!inChat) {
     paused = !paused;
-    if (paused) {
-      EnableCursor();
-    } else {
-      DisableCursor();
-    }
+    input.setMouseLook(!paused);
   } else {
     inChat = false;
     chatInput.clear();
   }
 }
 
+struct ChatCommand {
+  std::string commandName;
+  std::function<void(std::string&)> handler;
+};
+
 void Game::handleChatInput() {
+  const std::vector<ChatCommand> commands = {
+      {
+          "/setname",
+          [&](std::string& input) {
+            client.setName(input);
+            std::cout << "Set name to " << input << "\n";
+          },
+      },
+      {
+          "/clear",
+          [&](std::string&) { client.clearChat(); },
+      },
+#ifdef CHEATS
+      {
+          "/tp",
+          [&](std::string& input) {
+            std::stringstream pos(input);
+            Vector3 p;
+            if (pos >> p.x >> p.y >> p.z) {
+              player.setPosition(p);
+            }
+          },
+      }
+#endif
+  };
 #ifdef CHAT
+  // ==== handle input ==== //
+  auto handleChatInput = [&](std::string input) {
+    if (input.starts_with("/")) {
+      bool commandRun{false};
+      for (auto& c : commands) {
+        std::cout << "parsing command: " << input << "\n";
+        if (input.starts_with(c.commandName)) {
+          std::cout << input << " qualified\n";
+          input.erase(0, c.commandName.size() + 1);
+          std::cout << "clipped to: " << input << "\n";
+          c.handler(input);
+          commandRun = true;
+          break;
+        }
+      }
+      if (!commandRun) {
+        client.addLocalChat("Command not found");
+      }
+    } else {
+      client.sendChatMessage(input);
+    }
+  };
+
+  // ==== chat menu ====
   if (inChat) {
     int ch;
     while ((ch = GetCharPressed()) != 0) {
