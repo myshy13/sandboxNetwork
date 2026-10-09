@@ -117,11 +117,11 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 )
 
 # # Exactly one InputSource backend gets compiled.
-# if(BUILD_IOS)
-#     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_kbm.cpp")
-# else()
-#     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_touch.cpp")
-# endif()
+if(BUILD_IOS)
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_kbm.cpp")
+else()
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_touch.cpp")
+endif()
 
 # Exactly one transport backend gets compiled. This is deliberately the only
 # place the native/web split lives, so no #ifdef leaks into the game code.
