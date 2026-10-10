@@ -57,7 +57,7 @@ Never commit:
 The pattern is the same as `Client/src/env.hpp` / `env.example.hpp`: keep your values in a git-ignored
 `Client/ios/Signing.xcconfig`, copied from the committed `Client/ios/Signing.example.xcconfig`:
 
-```
+```conf
 DEVELOPMENT_TEAM = XXXXXXXXXX
 PRODUCT_BUNDLE_IDENTIFIER = com.yourname.sandboxnetwork
 ```

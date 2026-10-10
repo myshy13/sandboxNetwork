@@ -31,7 +31,7 @@ authoritative server, one shared binary protocol.
 
 ## Non-goals (don't add without asking)
 
-- No persistence/accounts — the server is in-memory only, state resets on
-  restart.
+- No accounts or per-player persistence — the server saves the world (chunk files + `meta.bin`: seed, time of day,
+  next object id) under `--save-path`, but not players, bullets or identities.
 - No client-side authority over hits or position — the server is the
   source of truth.

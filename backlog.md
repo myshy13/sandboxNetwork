@@ -45,6 +45,7 @@ and skipped items were cleared (see git history and `plan.md`).
 - [ ] water: swimming (slower move, buoyancy) and a screen tint underwater
 - [ ] water: cap or test worst-case flow cost per tick on big open drops
 - [ ] sound effects (shoot, hit, splash)
+- [ ] Solid clouds (you can walk on them) **Note:** possibly maybe build the game goal about that
 
 ## Blocks to add
 
