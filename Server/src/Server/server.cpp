@@ -456,11 +456,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   // handshake stuff
   sendTo(id, proto::pack(proto::Type::GivenId, proto::GivenId{id}), true);
   sendTo(id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}), true);
-  sendTo(id,
-         proto::pack(
-             proto::Type::SetTime,
-             proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS, freezeTime}),
-         true);
+
   // Names are only broadcast when set, so a newcomer needs everyone's
   // current one.
   for (const Player &p : players) {
@@ -613,7 +609,13 @@ void Server::handleReceive(int playerId, const std::string &data) {
                             ". Server version: " +
                             std::to_string(proto::PROTOCOL_VERSION)});
         sendTo(playerId, kickBytes, true);
+        break;
       }
+      sendTo(playerId,
+             proto::pack(proto::Type::SetTime,
+                         proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS,
+                                        freezeTime}),
+             true);
       break;
     }
 
@@ -963,15 +965,17 @@ void Server::tick(float dt) {
     updateView(p);
   }
 
-  static float debugPrintCountdown = 0.0f;
-  debugPrintCountdown -= dt;
-  if (debugPrintCountdown <= 0.0f) {
-    debugPrintCountdown = 1.0f;
-    double tickMs = std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - tickStart)
-                        .count();
-    std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n", tickMs,
-                objects.size(), bullets.size(), players.size());
+  if (env::debug) {
+    static float debugPrintCountdown = 0.0f;
+    debugPrintCountdown -= dt;
+    if (debugPrintCountdown <= 0.0f) {
+      debugPrintCountdown = 1.0f;
+      double tickMs = std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - tickStart)
+                          .count();
+      std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
+                  tickMs, objects.size(), bullets.size(), players.size());
+    }
   }
 
   fluidSim.tick(
