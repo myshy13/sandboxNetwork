@@ -48,5 +48,7 @@ void Home::frame() {
     b.frame(mouse, clicked);
   }
 
+  input.drawCursor();
+
   EndDrawing();
 }

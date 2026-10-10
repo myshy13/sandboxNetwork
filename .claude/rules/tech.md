@@ -8,6 +8,14 @@
 - **iOS**: the `ghera/raylib-ios` fork (raylib on ANGLE; needs its PR #1 UIScene fix on iOS 27), built with CMake's Xcode
   generator: `cmake -S Client -B Client/build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<fork> -DIOS_TEAM=<id>
   -DIOS_BUNDLE_ID=<id>` (see `iOS.md`). Same ENet transport as native; iOS owns the main loop (`ios_*` in `main.cpp`).
+- **tvOS** (experimental): same fork and generator with `-DCMAKE_SYSTEM_NAME=tvOS` (`-DCMAKE_OSX_SYSROOT=appletvsimulator` for the
+  simulator). `BUILD_TVOS` implies `BUILD_IOS`. Native OpenGLES, no ANGLE (`PLATFORM_TVOS`, never alongside `PLATFORM_IOS`);
+  the fork needs the backend from `raylib-tvos/apply.sh` (kept outside this repo, next to the fork checkout). Input is
+  `input_gamepad.cpp` over raylib's gamepad API, which the backend fills from GameController (extended gamepads only; the
+  Siri Remote is not read). `-DUSE_GAMEPAD_INPUT=ON` compiles that backend on any platform, for testing; on macOS GLFW
+  only treats a pad as a gamepad if its GUID is in its mapping table, so newer firmware reads as all zeros until
+  `SetGamepadMappings` is given an up-to-date SDL_GameControllerDB.
+  `CMAKE_OSX_DEPLOYMENT_TARGET` is a cache variable: change it with `-D`, editing `CMakeLists.txt` alone won't take.
 - **Web transport**: Emscripten + WebSocket, proxied server-side through
   IXWebSocket 11.4.5.
 - **Wire format**: cereal 1.3.2 (header-only binary serialisation) —

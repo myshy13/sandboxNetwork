@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
+
+# tvOS: run on 26.0 and later (the SDK default would be its own version); must come before project()
+if(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "26.0" CACHE STRING "Minimum tvOS version")
+endif()
+
 project(sandboxNetwork CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -21,12 +27,18 @@ if(DEFINED EMSCRIPTEN)
 endif()
 
 # iOS: cmake -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<ghera/raylib-ios clone with PR #1> [-DIOS_TEAM=<team id>]
+# tvOS: same, with -DCMAKE_SYSTEM_NAME=tvOS [-DCMAKE_OSX_SYSROOT=appletvsimulator]; RAYLIB_IOS_DIR needs the tvOS backend (raylib-tvos/apply.sh)
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(BUILD_IOS ON)
 endif()
 set(RAYLIB_IOS_DIR "" CACHE PATH "ghera/raylib-ios checkout (needs the iOS 27 scene fix)")
 set(IOS_TEAM "" CACHE STRING "Apple development team id (device builds only)")
 set(IOS_BUNDLE_ID "com.sandboxnetwork.client" CACHE STRING "Bundle id for iOS (must be unique to your team)")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+    set(BUILD_IOS ON)
+    set(BUILD_TVOS ON)
+endif()
 
 # ---------------------------------------------------------------------------
 # raylib (fetched at configure time, built from source)
@@ -63,15 +75,23 @@ if(BUILD_IOS)
     # rcore.c #includes rcore_ios.c and raudio.c (miniaudio) pulls in Foundation: both are Objective-C, as in the fork's project
     set_source_files_properties("${raylib_SOURCE_DIR}/src/rcore.c" "${raylib_SOURCE_DIR}/src/raudio.c" PROPERTIES LANGUAGE OBJC)
     target_compile_options(raylib PRIVATE -fobjc-arc)
-    # Clang modules: rlgl.h includes ANGLE's glext.h before gl2.h, which only compiles as a module import
+    # Clang modules: ANGLE's glext.h must precede gl2.h (iOS), and rcore.c's Point/Size clash with Foundation's MacTypes.h without them
     set_target_properties(raylib PROPERTIES XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES YES)
     target_include_directories(raylib PUBLIC "${raylib_SOURCE_DIR}/src")
-    target_compile_definitions(raylib PUBLIC PLATFORM_IOS GRAPHICS_API_OPENGL_ES3 GL_GLEXT_PROTOTYPES)
-    # ANGLE (GLES on Metal), shipped as xcframeworks; rlgl.h includes them as <libGLESv2/...>
-    set(ANGLE_FRAMEWORKS
-        "${raylib_SOURCE_DIR}/deps/ANGLE/libEGL.xcframework"
-        "${raylib_SOURCE_DIR}/deps/ANGLE/libGLESv2.xcframework")
-    target_link_libraries(raylib PUBLIC ${ANGLE_FRAMEWORKS}
+    # PLATFORM_IOS and PLATFORM_TVOS must never both be set: rcore.c would pick the ANGLE backend
+    if(BUILD_TVOS)
+        # OpenGLES is deprecated on tvOS but still shipped, so there is no ANGLE
+        target_compile_definitions(raylib PUBLIC PLATFORM_TVOS GRAPHICS_API_OPENGL_ES3 GL_GLEXT_PROTOTYPES GLES_SILENCE_DEPRECATION)
+        target_link_libraries(raylib PUBLIC "-framework OpenGLES" "-framework GameController")
+    else()
+        target_compile_definitions(raylib PUBLIC PLATFORM_IOS GRAPHICS_API_OPENGL_ES3 GL_GLEXT_PROTOTYPES)
+        # ANGLE (GLES on Metal), shipped as xcframeworks; rlgl.h includes them as <libGLESv2/...>
+        set(ANGLE_FRAMEWORKS
+            "${raylib_SOURCE_DIR}/deps/ANGLE/libEGL.xcframework"
+            "${raylib_SOURCE_DIR}/deps/ANGLE/libGLESv2.xcframework")
+        target_link_libraries(raylib PUBLIC ${ANGLE_FRAMEWORKS})
+    endif()
+    target_link_libraries(raylib PUBLIC
         "-framework UIKit" "-framework Foundation" "-framework QuartzCore"
         "-framework AudioToolbox" "-framework CoreAudio" "-framework AVFoundation")
 else()
@@ -117,11 +137,20 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 )
 
 # # Exactly one InputSource backend gets compiled.
-if(BUILD_IOS)
-    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_kbm.cpp")
+# Testing: -DUSE_GAMEPAD_INPUT=ON swaps in the gamepad backend on any platform (keyboard and mouse stop working).
+option(USE_GAMEPAD_INPUT "Use input_gamepad.cpp instead of the platform's input backend" OFF)
+if(BUILD_TVOS OR USE_GAMEPAD_INPUT)
+    set(INPUT_BACKEND input_gamepad.cpp)
+elseif(BUILD_IOS)
+    set(INPUT_BACKEND input_touch.cpp)
 else()
-    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/input_touch.cpp")
+    set(INPUT_BACKEND input_kbm.cpp)
 endif()
+foreach(f input_kbm.cpp input_touch.cpp input_gamepad.cpp)
+    if(NOT f STREQUAL INPUT_BACKEND)
+        list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Input/InputSources/${f}")
+    endif()
+endforeach()
 
 # Exactly one transport backend gets compiled. This is deliberately the only
 # place the native/web split lives, so no #ifdef leaks into the game code.
@@ -204,22 +233,30 @@ if(APPLE AND NOT BUILD_WEB)
     endif()
 endif()
 
-# iOS: embed + sign ANGLE, and the Info.plist keys the fork's example sets (landscape, full screen, no launch screen = letterboxed)
+# iOS + tvOS: signing and the generated Info.plist
 if(BUILD_IOS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_ID}"
+        XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_TEAM}"
+        XCODE_ATTRIBUTE_CODE_SIGN_STYLE Automatic
+        XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE YES
+        XCODE_ATTRIBUTE_INFOPLIST_KEY_NSLocalNetworkUsageDescription "Connects to the game server on your network."
+    )
+endif()
+
+if(BUILD_TVOS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "3")
+elseif(BUILD_IOS)
+    # Embed + sign ANGLE; landscape, full screen, no launch screen = letterboxed (as the fork's example)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         XCODE_EMBED_FRAMEWORKS "${ANGLE_FRAMEWORKS}"
         XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY ON
         XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
-        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_ID}"
-        XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_TEAM}"
-        XCODE_ATTRIBUTE_CODE_SIGN_STYLE Automatic
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
-        XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE YES
         XCODE_ATTRIBUTE_INFOPLIST_KEY_UILaunchScreen_Generation YES
         XCODE_ATTRIBUTE_INFOPLIST_KEY_UIRequiresFullScreen YES
         XCODE_ATTRIBUTE_INFOPLIST_KEY_UIStatusBarHidden YES
         XCODE_ATTRIBUTE_INFOPLIST_KEY_UISupportedInterfaceOrientations "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        XCODE_ATTRIBUTE_INFOPLIST_KEY_NSLocalNetworkUsageDescription "Connects to the game server on your network."
     )
 endif()
 

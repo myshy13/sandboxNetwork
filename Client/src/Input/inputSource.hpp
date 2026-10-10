@@ -11,6 +11,7 @@ class InputSource {
   virtual void poll(InputState&) = 0;
   virtual void setMouseLook(bool) = 0;
   virtual void draw(const AssetManager&) {};
+  virtual void drawCursor(const AssetManager&) {};
 };
 
 std::unique_ptr<InputSource> makeInputSource();

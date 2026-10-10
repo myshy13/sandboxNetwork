@@ -23,6 +23,8 @@ void Input::update() {
 
 void Input::draw() { source->draw(assets); }
 
+void Input::drawCursor() { source->drawCursor(assets); }
+
 void Input::setMouseLook(bool mouseLook) { source->setMouseLook(mouseLook); }
 
 Vector2 Input::getMove() const { return current.move; }

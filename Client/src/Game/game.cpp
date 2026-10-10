@@ -121,6 +121,8 @@ void Game::frame() {
   drawOverlays(dt);
 
   input.draw();
+  input.drawCursor();
+
   EndDrawing();
 }
 
@@ -344,10 +346,24 @@ void Game::handleActions(float dt) {
     target = makeTarget();
   }
   {
-    std::optional<int> hotbarSlot = input.getHotbarSlot();
-    if (hotbarSlot.has_value() && hotbarSlot >= 0 &&
-        hotbarSlot < blockTypesSize) {
-      activeBlockType = hotbarSlot.value();
+    // Hotbar: shoulder buttons step with a repeat delay, the number keys jump to a slot.
+    constexpr float HOTBAR_REPEAT_TIME = 0.4f;
+    hotbarMoveCooldown = std::max(0.0f, hotbarMoveCooldown - dt);
+
+    auto fires = [&](Action a) {
+      return input.pressed(a) || (input.down(a) && hotbarMoveCooldown <= 0);
+    };
+    int step = (fires(Action::UpHotbarSlot) ? 1 : 0) -
+               (fires(Action::DownHotbarSlot) ? 1 : 0);
+    if (step != 0) {
+      activeBlockType =
+          (activeBlockType + step + blockTypesSize) % blockTypesSize;
+      hotbarMoveCooldown = HOTBAR_REPEAT_TIME;
+    }
+
+    std::optional<int> slot = input.getHotbarSlot();
+    if (slot.has_value() && *slot >= 0 && *slot < blockTypesSize) {
+      activeBlockType = *slot;
     }
   }
   if (paused || inChat || !chunkUnderPlayerLoaded()) return;

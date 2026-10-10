@@ -22,6 +22,7 @@ class Input {
 
   void update();
   void draw();
+  void drawCursor();
 
   // ==== getters ==== //
   bool down(Action) const;
