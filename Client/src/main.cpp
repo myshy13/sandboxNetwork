@@ -67,7 +67,8 @@ static void ready() {
 
   InitWindow(1280, 720, ("Sandbox Network - " + env::VERSION).c_str());
 
-#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_IOS)
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_IOS) && \
+    !defined(PLATFORM_TVOS)
 
   // Native: preserve the existing fullscreen-ish monitor-sized behaviour.
   int mw = GetMonitorWidth(GetCurrentMonitor());
@@ -131,10 +132,10 @@ static void destroy() {
 
 // ==== entry point ==== //
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS) || defined(PLATFORM_TVOS)
 
-// iOS owns the main loop and calls these three (see rcore_ios.c); C linkage so
-// the C side finds them.
+// iOS/tvOS own the main loop and call these three (see rcore_ios.c,
+// rcore_tvos.c); C linkage so the C side finds them.
 extern "C" {
 void ios_ready() { ready(); }
 
