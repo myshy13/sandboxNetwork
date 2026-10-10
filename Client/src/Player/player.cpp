@@ -258,20 +258,19 @@ void Player::DrawBody(const Transform& transform, const bool outline) {
 
 void Player::DrawPlayer(const Transform& transform, const std::string& name,
                         const Vector3& localPos) {
+  Font font = GameState::shared().getMainFont();
   DrawBody(transform, true);
 
   Vector3 p = transform.translation + Vector3{0, transform.scale.y + 2.0f, 0};
   constexpr float FONT_SIZE = 2, SPACING = 0.05f;
-  float halfW =
-      MeasureTextEx(GetFontDefault(), name.c_str(), FONT_SIZE, SPACING).x *
-      0.5f;
+  float halfW = MeasureTextEx(font, name.c_str(), FONT_SIZE, SPACING).x * 0.5f;
   Vector3 d = Vector3Subtract(localPos, p);  // pos difference
 
   rlPushMatrix();
   rlTranslatef(p.x, p.y, p.z);
   rlRotatef(atan2f(d.x, d.z) * RAD2DEG, 0.0f, 1.0f, 0.0f);
   rlRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-  DrawText3D(GetFontDefault(), name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING,
-             1.0f, true, WHITE);
+  DrawText3D(font, name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING, 1.0f, true,
+             WHITE);
   rlPopMatrix();
 }

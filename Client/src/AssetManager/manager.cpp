@@ -21,8 +21,12 @@ constexpr const char* TEXTURE_PATHS[] = {
     "assets/icons/pause.png",        // pause icon
 };
 
-static_assert(std::size(TEXTURE_PATHS) == static_cast<size_t>(Tex::Count),
-              "Tex and TEXTURE_PATHS are out of sync");
+// Same order as Tex.
+constexpr const char* FONT_PATHS[] = {
+    "assets/fonts/pressStart2P.ttf",  // press start 2p
+};
+
+static_assert(std::size(TEXTURE_PATHS) == static_cast<size_t>(Tex::Count), "Tex and TEXTURE_PATHS are out of sync");
 
 AssetManager::AssetManager() {
   for (size_t i = 0; i < textures.size(); i++) {
@@ -38,14 +42,35 @@ AssetManager::AssetManager() {
       UnloadImage(placeholder);
     }
   }
+
+  for (size_t i = 0; i < fonts.size(); i++) {
+    fonts[i] = LoadFont(FONT_PATHS[i]);
+    if (!IsFontValid(fonts[i])) {
+      // A missing file becomes an obvious magenta square instead of an
+      // invisible bug.
+      TraceLog(LOG_WARNING, "AssetManager: failed to load %s",
+               TEXTURE_PATHS[i]);
+
+      // fallback font
+      fonts[i] = GetFontDefault();
+    }
+  }
 }
 
 AssetManager::~AssetManager() {
   for (const Texture2D& t : textures) {
     UnloadTexture(t);
   }
+
+  for (const Font& f : fonts) {
+    UnloadFont(f);
+  }
 }
 
 const Texture2D& AssetManager::get(Tex name) const {
   return textures[static_cast<size_t>(name)];
+}
+
+const Font& AssetManager::get(Fon name) const {
+  return fonts[static_cast<size_t>(name)];
 }

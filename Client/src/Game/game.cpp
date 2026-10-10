@@ -19,6 +19,7 @@
 #include "GameState/gameState.hpp"
 #include "Input/input.hpp"
 #include "Input/inputState.hpp"
+#include "Raylib/drawText.hpp"
 #include "Shaders/lighting.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
@@ -628,9 +629,9 @@ void Game::drawChat() {
                         255};  // red so system messages stand out from chat
     }
     DrawRectangle(
-        16, y - 2, MeasureText(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT,
+        16, y - 2, MeasureTextFont(line.c_str(), FONT_SIZE) + 8, LINE_HEIGHT,
         {0, 0, 0, 120});  // background behind the text for readability
-    DrawText(line.c_str(), 20, y, FONT_SIZE, textColor);
+    DrawTextFont(line.c_str(), 20, y, FONT_SIZE, textColor);
     y += LINE_HEIGHT *
          ((int)std::count(line.begin(), line.end(), '\n') +
           1);  // multi-line messages push the next line down further
@@ -645,7 +646,7 @@ void Game::drawChat() {
     int boxY = GetScreenHeight() - 20 - LINE_HEIGHT;
     DrawRectangle(16, boxY - 2, GetScreenWidth() - 32, LINE_HEIGHT + 4,
                   {0, 0, 0, 160});
-    DrawText(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
+    DrawTextFont(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
   }
 #endif
 }
@@ -665,17 +666,18 @@ void Game::drawScoreboard() {
   DrawRectangle(x, y, rowWidth,
                 ROW_HEIGHT * ((int)client.getKills().size() + 1),
                 {0, 0, 0, 160});
-  DrawText("Kills", x + 10, y + 4, FONT_SIZE, {200, 200, 200, 255});
+  DrawTextFont("Kills", x + 10, y + 4, FONT_SIZE, {200, 200, 200, 255});
   y += ROW_HEIGHT;
   for (const auto& [id, kills] : client.getKills()) {
     std::optional<std::string> name = client.idToName(id);
     if (!name.has_value()) {
       name = "Player " + std::to_string(id);
     }
-    DrawText(name->c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
+    DrawTextFont(name->c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
     std::string k = std::to_string(kills);
-    DrawText(k.c_str(), x + rowWidth - 10 - MeasureText(k.c_str(), FONT_SIZE),
-             y + 4, FONT_SIZE, WHITE);
+    DrawTextFont(k.c_str(),
+                 x + rowWidth - 10 - MeasureTextFont(k.c_str(), FONT_SIZE),
+                 y + 4, FONT_SIZE, WHITE);
     y += ROW_HEIGHT;
   }
 }
@@ -709,8 +711,9 @@ void Game::drawOverlays(float dt) {
   if (paused) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
 
-    DrawText("Paused", GetScreenWidth() / 2 - MeasureText("Paused", 50) / 2,
-             GetScreenHeight() / 2 - 25, 50, WHITE);
+    DrawTextFont("Paused",
+                 GetScreenWidth() / 2 - MeasureTextFont("Paused", 50) / 2,
+                 GetScreenHeight() / 2 - 25, 50, WHITE);
 
     Rectangle exitButton = {10, 10, 60, 60};
     if (CheckCollisionPointRec(input.getPointer(), exitButton)) {
@@ -723,7 +726,7 @@ void Game::drawOverlays(float dt) {
     } else {
       DrawRectangleRec(exitButton, GRAY);
     }
-    DrawText(" <", 10, 15, 50, WHITE);
+    DrawTextFont("<", 30 - MeasureText("<", 30) / 2, 25, 30, WHITE);
 
   } else if (gameState.damageFlashTimer > 0) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {100, 10, 10, 50});
@@ -738,11 +741,12 @@ void Game::drawOverlays(float dt) {
     const char* msg = client.getKickReason() ? client.getKickReason()->c_str()
                                              : "Connecting...";
     Color col = client.getKickReason() ? RED : WHITE;
-    DrawText(msg, GetScreenWidth() / 2 - MeasureText(msg, 30) / 2, 60, 30, col);
+    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 30) / 2, 60,
+                 30, col);
   } else if (!paused && !chunkUnderPlayerLoaded()) {
-    DrawText("Loading...",
-             GetScreenWidth() / 2 - MeasureText("Loading...", 50) / 2,
-             GetScreenHeight() / 2 - 25, 50, WHITE);
+    DrawTextFont("Loading...",
+                 GetScreenWidth() / 2 - MeasureTextFont("Loading...", 50) / 2,
+                 GetScreenHeight() / 2 - 25, 50, WHITE);
   } else if (!paused) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2,

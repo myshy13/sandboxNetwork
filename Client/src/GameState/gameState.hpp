@@ -2,14 +2,12 @@
 
 #include <raylib.h>
 
-enum class MenuState {
-  HOME,
-  SETTINGS,
-  PLAYING
-};
+#include <utility>
+
+enum class MenuState { HOME, SETTINGS, PLAYING };
 
 class GameState {
-private:
+ private:
   MenuState menu{MenuState::HOME};
 
   // ==== settings ==== //
@@ -21,47 +19,46 @@ private:
   int targetFps{DEFAULT_TARGET_FPS};
 
  public:
+  Font mainFont{};
   // How far around the player the sun's shadow map reaches (world units).
-  static constexpr int MIN_SHADOW_RADIUS     = 50;
-  static constexpr int MAX_SHADOW_RADIUS     = 400;
+  static constexpr int MIN_SHADOW_RADIUS = 50;
+  static constexpr int MAX_SHADOW_RADIUS = 400;
   static constexpr int DEFAULT_SHADOW_RADIUS = 200;
   static constexpr int DEFAULT_TARGET_FPS =
       TARGET_FPS_DEFAULT;  // 0 = uncapped, see CMakeLists.txt
 
   static constexpr int MIN_RENDER_DISTANCE = 200;
-  // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
+  // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of
+  // World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
   static constexpr int MAX_RENDER_DISTANCE = 640;
 
-  static GameState &shared() {
+  static GameState& shared() {
     static GameState instance;
     return instance;
   }
 
-  float damageFlashTimer    = 0.0f;
+  float damageFlashTimer = 0.0f;
   const float flashDuration = 0.1f;
 
   float greenFlashTimer = 0.0f;
 
-  void TriggerDamageFlash() {
-    damageFlashTimer = flashDuration;
-  }
-  void TriggerGreenFlash() {
-    greenFlashTimer = flashDuration;
-  }
+  void TriggerDamageFlash() { damageFlashTimer = flashDuration; }
+
+  void TriggerGreenFlash() { greenFlashTimer = flashDuration; }
+
+  const Font& getMainFont() { return mainFont; }
+
+  void setMainFont(const Font& f) { mainFont = std::move(f); }
 
   // ==== set and get ==== //
-  const MenuState &getMenu() const {
-    return menu;
-  }
-  void setMenuState(const MenuState &m) {
-    menu = m;
-  }
-  void setRenderDistance(int distance) {
-    renderDistance = distance;
-  }
-  const int &getRenderDistance() const {
-    return renderDistance;
-  }
+  const MenuState& getMenu() const { return menu; }
+
+  void setMenuState(const MenuState& m) { menu = m; }
+
+  void setRenderDistance(int distance) { renderDistance = distance; }
+
+  const int& getRenderDistance() const { return renderDistance; }
+
   void toggleInterpolation() { interpolation = !interpolation; }
 
   void toggleShadows() { shadows = !shadows; }
@@ -84,7 +81,4 @@ private:
   }
 
   int getTargetFps() const { return targetFps; }
-
- private:
-  GameState() = default;
 };

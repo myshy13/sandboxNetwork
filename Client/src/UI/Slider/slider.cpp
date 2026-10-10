@@ -6,6 +6,8 @@
 #include <cmath>
 #include <utility>
 
+#include "Raylib/drawText.hpp"
+
 constexpr float KNOB_WIDTH  = 20.0f;
 constexpr float KNOB_HEIGHT = 40.0f;
 constexpr int LABEL_SIZE    = 30;
@@ -34,7 +36,8 @@ void Slider::frame(Vector2 mousePos, bool pressed, bool down) {
   const Rectangle knob = {bar.x + t * bar.width - KNOB_WIDTH / 2, bar.y - (KNOB_HEIGHT - bar.height) / 2, KNOB_WIDTH,
                           KNOB_HEIGHT};
 
-  DrawText((label + format(value)).c_str(), bar.x, bar.y - 50, LABEL_SIZE, WHITE);
+  DrawTextFont((label + format(value)).c_str(), bar.x, bar.y - 50, LABEL_SIZE,
+               WHITE);
   DrawRectangleRec(bar, GRAY);
   DrawRectangleRec(knob, WHITE);
 }

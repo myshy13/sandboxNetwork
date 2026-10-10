@@ -34,10 +34,12 @@ void Home::frame() {
   BeginDrawing();
   ClearBackground({5, 5, 5, 255});
 
-  DrawText("Sandbox", (GetScreenWidth() - MeasureText("Sandbox", 60)) / 2, 100,
-           60, RED);
-  DrawText("Network", (GetScreenWidth() - MeasureText("Network", 50)) / 2, 170,
-           50, BLUE);
+  DrawTextFont("Sandbox",
+               (GetScreenWidth() - MeasureTextFont("Sandbox", 60)) / 2, 100, 60,
+               RED);
+  DrawTextFont("Network",
+               (GetScreenWidth() - MeasureTextFont("Network", 50)) / 2, 170, 50,
+               BLUE);
 
   Vector2 mouse = input.getPointer();
   bool clicked = input.pressed(Action::Click);

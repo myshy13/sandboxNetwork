@@ -88,7 +88,8 @@ static void ready() {
 
 #else
 
-  // The settings slider changes this later; FLAG_VSYNC_HINT paces presentation too.
+  // The settings slider changes this later; FLAG_VSYNC_HINT paces presentation
+  // too.
   SetTargetFPS(GameState::shared().getTargetFps());
 
 #endif
@@ -98,6 +99,8 @@ static void ready() {
   game = std::make_unique<Game>(*assets, *input);
   home = std::make_unique<Home>(*input);
   settings = std::make_unique<Settings>(*input);
+  
+  GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
   input->setMouseLook(false);
 }

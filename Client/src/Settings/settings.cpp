@@ -8,6 +8,7 @@
 
 #include "GameState/gameState.hpp"
 #include "Input/inputState.hpp"
+#include "Raylib/drawText.hpp"
 
 // Distances are stored in world units; show them in blocks (5 units each).
 static std::string inBlocks(int units) { return std::to_string(units / 5); }
@@ -27,13 +28,13 @@ Settings::Settings(Input& input)
               SetWindowState(FLAG_VSYNC_HINT);
             }
           },
-          "", Rectangle{0, 0, 100, 50}, 30),
+          "", Rectangle{0, 0, 120, 50}, 30),
       interpolationButton([] { GameState::shared().toggleInterpolation(); }, "",
-                          Rectangle{0, 0, 100, 50}, 30),
+                          Rectangle{0, 0, 120, 50}, 30),
       shadowsButton([] { GameState::shared().toggleShadows(); }, "",
-                    Rectangle{0, 0, 100, 50}, 30),
+                    Rectangle{0, 0, 120, 50}, 30),
       autoJumpButton([] { GameState::shared().toggleAutoJump(); }, "",
-                     Rectangle{0, 0, 100, 50}, 30),
+                    Rectangle{0, 0, 120, 50}, 30),
       renderDistanceSlider(
           "Render distance: ", GameState::MIN_RENDER_DISTANCE,
           GameState::MAX_RENDER_DISTANCE,
