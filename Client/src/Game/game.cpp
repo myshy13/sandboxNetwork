@@ -345,8 +345,8 @@ void Game::handleActions(float dt) {
   }
   {
     std::optional<int> hotbarSlot = input.getHotbarSlot();
-    if (hotbarSlot.has_value() && hotbarSlot >= 0 &&
-        hotbarSlot < blockTypesSize) {
+    if (hotbarSlot.has_value() && hotbarSlot.value() >= 0 &&
+        hotbarSlot.value() < blockTypesSize) {
       activeBlockType = hotbarSlot.value();
     }
   }
