@@ -5,6 +5,7 @@
 #include "GameState/gameState.hpp"
 #include "Input/input.hpp"
 #include "Input/inputState.hpp"
+#include "Raylib/drawText.hpp"
 #include "UI/Button/button.hpp"
 
 Home::Home(Input& input) : input(input) {

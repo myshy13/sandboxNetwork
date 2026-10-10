@@ -7,4 +7,5 @@ constexpr Vector3 SHARED_BLOCK_SIZE = {5, 5, 5}; // must be cubic
 constexpr int SHARED_PLAYER_HEALTH = 20;
 constexpr int SHARED_WATER_MAX_LEVEL =
     8; // weakest flowing water; server flow and client water height both use it
-constexpr std::string SHARED_VERSION = "0.7.3"; // Fixed bug: Shadow snapping
+constexpr std::string SHARED_VERSION =
+    "0.8.0"; // iOS support, touch controls, and a new font

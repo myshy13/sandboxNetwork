@@ -8,7 +8,6 @@
 
 #include "GameState/gameState.hpp"
 #include "Input/inputState.hpp"
-#include "Raylib/drawText.hpp"
 
 // Distances are stored in world units; show them in blocks (5 units each).
 static std::string inBlocks(int units) { return std::to_string(units / 5); }
