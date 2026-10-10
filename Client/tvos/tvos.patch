@@ -1,0 +1,126 @@
+--- a/rcore.c
++++ b/rcore.c
+@@ -517,6 +517,11 @@
+     #define PLATFORM_DESKTOP_GLFW
+ #endif
+ 
++#if defined(PLATFORM_TVOS) && defined(PLATFORM_IOS)
++    // mach-o/loader.h defines PLATFORM_IOS as a Mach-O constant, which would select the iOS backend
++    #undef PLATFORM_IOS
++#endif
++
+ // Include platform-specific submodules
+ #if defined(PLATFORM_DESKTOP_GLFW)
+     #include "platforms/rcore_desktop_glfw.c"
+@@ -534,6 +539,8 @@
+     #include "platforms/rcore_android.c"
+ #elif defined(PLATFORM_IOS)
+     #include "platforms/rcore_ios.c"
++#elif defined(PLATFORM_TVOS)
++    #include "platforms/rcore_tvos.c"
+ #elif defined(PLATFORM_MEMORY)
+     #include "platforms/rcore_memory.c"
+ #else
+@@ -612,6 +619,8 @@
+     TRACELOG(LOG_INFO, "Platform backend: ANDROID");
+ #elif defined(PLATFORM_IOS)
+     TRACELOG(LOG_INFO, "Platform backend: IOS");
++#elif defined(PLATFORM_TVOS)
++    TRACELOG(LOG_INFO, "Platform backend: TVOS");
+ #elif defined(PLATFORM_MEMORY)
+     TRACELOG(LOG_INFO, "Platform backend: MEMORY (No OS)");
+ #else
+--- a/rlgl.h
++++ b/rlgl.h
+@@ -674,6 +674,7 @@
+ // Framebuffer state
+ RLAPI void rlEnableFramebuffer(unsigned int id);        // Enable render texture (fbo)
+ RLAPI void rlDisableFramebuffer(void);                  // Disable render texture (fbo), return to default framebuffer
++RLAPI void rlSetDefaultFramebuffer(unsigned int id);    // Set the fbo that means "the screen" (0 unless the platform has no fbo 0)
+ RLAPI unsigned int rlGetActiveFramebuffer(void);        // Get the currently active render texture (fbo), 0 for default framebuffer
+ RLAPI void rlActiveDrawBuffers(int count);              // Activate multiple draw color buffers
+ RLAPI void rlBlitFramebuffer(int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, int bufferMask); // Blit active framebuffer to main framebuffer
+@@ -899,6 +900,14 @@
+     #include <libGLESv2/GLES2/gl2.h>
+     #include <libGLESv2/GLES2/gl2ext.h> // OpenGL ES 2.0 extensions library
+     #include <libGLESv2/GLES3/gl3.h>
++#elif defined(PLATFORM_TVOS)
++    // tvOS still ships a real OpenGLES.framework, so no ANGLE
++    #ifndef GRAPHICS_API_OPENGL_ES3
++        #error "GRAPHICS_API_OPENGL_ES3 required on PLATFORM_TVOS"
++    #endif
++    #include <OpenGLES/ES3/gl.h>
++    #include <OpenGLES/ES3/glext.h>
++    #include <OpenGLES/ES2/glext.h>     // depth/float texture tokens only in the ES2 header
+ #elif defined(GRAPHICS_API_OPENGL_ES3)
+     #include <GLES3/gl3.h>              // OpenGL ES 3.0 library
+     #define GL_GLEXT_PROTOTYPES
+@@ -1138,6 +1147,14 @@
+ static rlglData RLGL = { 0 };
+ #endif
+ 
++// The fbo that means "the screen"; 0 except where the platform has no default framebuffer (tvOS EAGL)
++static unsigned int rlDefaultFramebuffer = 0;
++
++void rlSetDefaultFramebuffer(unsigned int id)
++{
++    rlDefaultFramebuffer = id;
++}
++
+ #if defined(GRAPHICS_API_OPENGL_ES2) && !defined(GRAPHICS_API_OPENGL_ES3)
+ // VAO functions entry points
+ // NOTE: VAO functionality is exposed through extensions (OES)
+@@ -1878,7 +1895,7 @@
+ void rlDisableFramebuffer(void)
+ {
+ #if (defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2) || defined(GRAPHICS_API_OPENGL_SOFTWARE))
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer);
+ #endif
+ }
+ 
+@@ -3782,7 +3799,7 @@
+     glReadPixels(0, 0, width, height, glFormat, glType, pixels);
+ #endif
+ 
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer);
+ 
+     // Clean up temporal fbo
+     rlUnloadFramebuffer(fboId);
+@@ -3861,7 +3878,7 @@
+ 
+ #if (defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2) || defined(GRAPHICS_API_OPENGL_SOFTWARE))
+     glGenFramebuffers(1, &fboId);         // Create the framebuffer object
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind any framebuffer
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer); // Unbind any framebuffer
+ #endif
+ 
+     return fboId;
+@@ -3902,7 +3919,7 @@
+         default: break;
+     }
+ 
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer);
+ #endif
+ }
+ 
+@@ -3930,7 +3947,7 @@
+         }
+     }
+ 
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer);
+ 
+     result = (status == GL_FRAMEBUFFER_COMPLETE);
+ #endif
+@@ -3960,7 +3977,7 @@
+     // NOTE: If a texture object is deleted while its image is attached to the *currently bound* framebuffer,
+     // the texture image is automatically detached from the currently bound framebuffer
+ 
+-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
++    glBindFramebuffer(GL_FRAMEBUFFER, rlDefaultFramebuffer);
+     glDeleteFramebuffers(1, &id);
+ 
+     TRACELOG(RL_LOG_INFO, "FBO: [ID %i] Unloaded framebuffer from VRAM (GPU)", id);

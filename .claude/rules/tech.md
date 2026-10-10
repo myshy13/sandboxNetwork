@@ -10,7 +10,8 @@
   -DIOS_BUNDLE_ID=<id>` (see `iOS.md`). Same ENet transport as native; iOS owns the main loop (`ios_*` in `main.cpp`).
 - **tvOS** (experimental): same fork and generator with `-DCMAKE_SYSTEM_NAME=tvOS` (`-DCMAKE_OSX_SYSROOT=appletvsimulator` for the
   simulator). `BUILD_TVOS` implies `BUILD_IOS`. Native OpenGLES, no ANGLE (`PLATFORM_TVOS`, never alongside `PLATFORM_IOS`);
-  the fork needs the backend from `raylib-tvos/apply.sh` (kept outside this repo, next to the fork checkout). Input is
+  the backend (`Client/tvos/`: backend source, `tvos.patch`, `apply.sh`, see its README) is patched into a copy of the
+  fork's `src` in the build dir at configure time, so any stock checkout at `d1aedbd6` works. Input is
   `input_gamepad.cpp` over raylib's gamepad API, which the backend fills from GameController (extended gamepads only; the
   Siri Remote is not read). `-DUSE_GAMEPAD_INPUT=ON` compiles that backend on any platform, for testing; on macOS GLFW
   only treats a pad as a gamepad if its GUID is in its mapping table, so newer firmware reads as all zeros until
