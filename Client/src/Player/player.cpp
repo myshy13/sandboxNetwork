@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 
+#include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
 #include "Raylib/text3D.hpp"
 #include "env.hpp"
@@ -111,7 +112,7 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
 
   // Push and damp in one exact step, so top speed doesn't depend on frame rate.
   const float dampBase = inWater ? 0.6f : onGround ? 0.7f : 0.9f;  // per 1/60 s
-  const float damping  = powf(dampBase, dt * 60.0f);
+  const float damping = powf(dampBase, dt * 60.0f);
   // The speed the old per-frame version settled at when running at 60 fps.
   const float topSpeed = speed * multiplier * dampBase / (1.0f - dampBase);
   velocity.x = velocity.x * damping + moveDir.x * topSpeed * (1.0f - damping);
@@ -243,20 +244,19 @@ void Player::DrawBody(const Transform& transform, const bool outline) {
 
 void Player::DrawPlayer(const Transform& transform, const std::string& name,
                         const Vector3& localPos) {
+  Font font = GameState::shared().getMainFont();
   DrawBody(transform, true);
 
   Vector3 p = transform.translation + Vector3{0, transform.scale.y + 2.0f, 0};
   constexpr float FONT_SIZE = 2, SPACING = 0.05f;
-  float halfW =
-      MeasureTextEx(GetFontDefault(), name.c_str(), FONT_SIZE, SPACING).x *
-      0.5f;
+  float halfW = MeasureTextEx(font, name.c_str(), FONT_SIZE, SPACING).x * 0.5f;
   Vector3 d = Vector3Subtract(localPos, p);  // pos difference
 
   rlPushMatrix();
   rlTranslatef(p.x, p.y, p.z);
   rlRotatef(atan2f(d.x, d.z) * RAD2DEG, 0.0f, 1.0f, 0.0f);
   rlRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-  DrawText3D(GetFontDefault(), name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING,
-             1.0f, true, WHITE);
+  DrawText3D(font, name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING, 1.0f, true,
+             WHITE);
   rlPopMatrix();
 }

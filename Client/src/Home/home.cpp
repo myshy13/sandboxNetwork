@@ -1,8 +1,10 @@
 #include "home.hpp"
-#include "GameState/gameState.hpp"
-#include "UI/Button/button.hpp"
 
 #include <raylib.h>
+
+#include "GameState/gameState.hpp"
+#include "Raylib/drawText.hpp"
+#include "UI/Button/button.hpp"
 
 Home::Home() {
   // play button
@@ -28,8 +30,12 @@ void Home::frame() {
   BeginDrawing();
   ClearBackground({5, 5, 5, 255});
 
-  DrawText("Sandbox", (GetScreenWidth() - MeasureText("Sandbox", 60)) / 2, 100, 60, RED);
-  DrawText("Network", (GetScreenWidth() - MeasureText("Network", 50)) / 2, 170, 50, BLUE);
+  DrawTextFont("Sandbox",
+               (GetScreenWidth() - MeasureTextFont("Sandbox", 60)) / 2, 100, 60,
+               RED);
+  DrawTextFont("Network",
+               (GetScreenWidth() - MeasureTextFont("Network", 50)) / 2, 170, 50,
+               BLUE);
 
   Vector2 mouse = GetMousePosition();
   bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);

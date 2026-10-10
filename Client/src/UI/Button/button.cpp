@@ -1,5 +1,8 @@
 #include "UI/Button/button.hpp"
+
 #include <raylib.h>
+
+#include "Raylib/drawText.hpp"
 
 Button::Button(std::function<void(void)> click, std::string text, float yPos) : text(text), handler(click) {
   rec.height = BUTTON_HEIGHT;
@@ -16,7 +19,10 @@ void Button::frame(Vector2 mousePos, bool clicked) {
     rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
   bool hovered = CheckCollisionPointRec(mousePos, rec);
   DrawRectangleRec(rec, hovered ? LIGHTGRAY : Color(150, 150, 150, 255));
-  DrawText(text.c_str(), rec.x + rec.width / 2 - MeasureText(text.c_str(), fontSize) / 2, rec.y + (rec.height / 2) - (float)fontSize / 2, fontSize, WHITE);
+  DrawTextFont(text.c_str(),
+               rec.x + rec.width / 2 -
+                   (float)MeasureTextFont(text.c_str(), fontSize) / 2,
+               rec.y + (rec.height / 2) - (float)fontSize / 2, fontSize, WHITE);
   if (hovered && clicked) {
     handler();
   }

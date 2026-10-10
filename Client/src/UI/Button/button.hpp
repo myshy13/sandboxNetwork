@@ -5,7 +5,7 @@
 #include <string>
 
 // constants
-constexpr int BUTTON_WIDTH  = 400;
+constexpr int BUTTON_WIDTH = 450;
 constexpr int BUTTON_HEIGHT = 80;
 constexpr int FONT_SIZE     = 50;
 

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "GameState/gameState.hpp"
+#include "Raylib/drawText.hpp"
 
 // Distances are stored in world units; show them in blocks (5 units each).
 static std::string inBlocks(int units) { return std::to_string(units / 5); }
@@ -24,11 +25,11 @@ Settings::Settings()
               SetWindowState(FLAG_VSYNC_HINT);
             }
           },
-          "", Rectangle{0, 0, 100, 50}, 30),
+          "", Rectangle{0, 0, 120, 50}, 30),
       interpolationButton([] { GameState::shared().toggleInterpolation(); }, "",
-                          Rectangle{0, 0, 100, 50}, 30),
+                          Rectangle{0, 0, 120, 50}, 30),
       shadowsButton([] { GameState::shared().toggleShadows(); }, "",
-                    Rectangle{0, 0, 100, 50}, 30),
+                    Rectangle{0, 0, 120, 50}, 30),
       renderDistanceSlider(
           "Render distance: ", GameState::MIN_RENDER_DISTANCE,
           GameState::MAX_RENDER_DISTANCE,
@@ -75,11 +76,11 @@ void Settings::frame() {
     targetFpsSlider.frame(mouse, pressed, down);
 
   // ==== toggles ==== //
-  DrawText("VSync:", left, 475, 30, WHITE);
+  DrawTextFont("VSync:", left, 475, 30, WHITE);
   vsyncButton.frame(mouse, pressed);
-  DrawText("Interpolation:", left, 545, 30, WHITE);
+  DrawTextFont("Interpolation:", left, 545, 30, WHITE);
   interpolationButton.frame(mouse, pressed);
-  DrawText("Shadows:", left, 615, 30, WHITE);
+  DrawTextFont("Shadows:", left, 615, 30, WHITE);
   shadowsButton.frame(mouse, pressed);
 
   EndDrawing();

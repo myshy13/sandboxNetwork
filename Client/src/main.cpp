@@ -76,7 +76,8 @@ int main() {
 
 #else
 
-  // The settings slider changes this later; FLAG_VSYNC_HINT paces presentation too.
+  // The settings slider changes this later; FLAG_VSYNC_HINT paces presentation
+  // too.
   SetTargetFPS(GameState::shared().getTargetFps());
 
 #endif
@@ -88,6 +89,8 @@ int main() {
     Game game(assets);
     Home home;
     Settings settings;
+    ;
+    gameState.setMainFont(assets.get(Fon::PressStart2P));
 
     EnableCursor();
 
