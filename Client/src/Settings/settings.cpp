@@ -101,5 +101,7 @@ void Settings::frame() {
   DrawText("Auto jump:", left, 685 - scroll, 30, WHITE);
   autoJumpButton.frame(mouse, pressed);
 
+  input.drawCursor();
+
   EndDrawing();
 }

@@ -40,6 +40,8 @@ constexpr Bind BINDS[] = {
     {false, KEY_F7},  // ChangeClipping
     {false, KEY_R},   // Reconnect
     {false, KEY_C},   // Zoom
+    {false, KEY_NULL},
+    {false, KEY_NULL},
 };
 
 static_assert(std::size(BINDS) == static_cast<size_t>(Action::Count),

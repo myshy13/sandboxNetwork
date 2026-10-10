@@ -23,6 +23,8 @@ enum class Action {
   ChangeClipping,
   Reconnect,
   Zoom,
+  DownHotbarSlot,
+  UpHotbarSlot,
 
   Count
 };

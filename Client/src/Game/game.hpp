@@ -65,6 +65,7 @@ class Game {
   std::string chatInput;
   float playerPosCooldown = Client::POS_UPDATE_INTERVAL;
   float bulletCooldown = 0.0f;
+  float hotbarMoveCooldown = 0.0f;
   int sentViewRadius =
       -1;  // chunks the server was last told; -1 = nothing sent this session
   float placeCooldown = 0.0f;
