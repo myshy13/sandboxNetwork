@@ -57,4 +57,6 @@ constexpr float DAY_LENGTH_SECONDS =
 constexpr float DAY_DEFAULT_TIME = 0.5f;
 constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 
+constexpr bool debug{false};
+
 } // namespace env
