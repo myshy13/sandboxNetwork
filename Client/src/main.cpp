@@ -1,22 +1,34 @@
 #include <raylib.h>
 
 #include <iostream>
+#include <memory>
 
 #include "AssetManager/manager.hpp"
 #include "Game/game.hpp"
 #include "GameState/gameState.hpp"
 #include "Home/home.hpp"
+#include "Input/input.hpp"
+#include "Input/inputSource.hpp"
 #include "Protocol/protocol.hpp"
 #include "Settings/settings.hpp"
 #include "env.hpp"
 
-int main() {
+// ==== state ==== //
+
+// File scope so update() and destroy() can reach what ready() built.
+static std::unique_ptr<AssetManager> assets;
+static std::unique_ptr<Game> game;
+static std::unique_ptr<Home> home;
+static std::unique_ptr<Settings> settings;
+static std::unique_ptr<Input> input;
+
+// ==== lifecycle ==== //
+
+static void ready() {
 #ifndef __EMSCRIPTEN__
   // Native: asset paths are relative to the binary, not the shell.
   ChangeDirectory(GetApplicationDirectory());
 #endif
-
-  GameState& gameState = GameState::shared();
 
   // Suppress raylib's unnecessary logging levels.
   SetTraceLogLevel(LOG_WARNING);
@@ -55,7 +67,7 @@ int main() {
 
   InitWindow(1280, 720, ("Sandbox Network - " + env::VERSION).c_str());
 
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_IOS)
 
   // Native: preserve the existing fullscreen-ish monitor-sized behaviour.
   int mw = GetMonitorWidth(GetCurrentMonitor());
@@ -82,32 +94,69 @@ int main() {
 
 #endif
 
-  // Own GPU resources, so this scope ends (and they unload) before
-  // CloseWindow() destroys the GL context.
-  {
-    AssetManager assets;
-    Game game(assets);
-    Home home;
-    Settings settings;
-    ;
-    gameState.setMainFont(assets.get(Fon::PressStart2P));
+  assets = std::make_unique<AssetManager>();
+  input = std::make_unique<Input>(makeInputSource(), *assets);
+  game = std::make_unique<Game>(*assets, *input);
+  home = std::make_unique<Home>(*input);
+  settings = std::make_unique<Settings>(*input);
+  
+  GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
-    EnableCursor();
+  input->setMouseLook(false);
+}
 
-    while (!WindowShouldClose()) {
-      if (gameState.getMenu() == MenuState::PLAYING) {
-        game.frame();
-      } else if (gameState.getMenu() == MenuState::HOME) {
-        home.frame();
-      } else {
-        settings.frame();
-      }
-    }
+static void update() {
+  GameState& gameState = GameState::shared();
+  input->update();
+
+  if (gameState.getMenu() == MenuState::PLAYING) {
+    game->frame();
+  } else if (gameState.getMenu() == MenuState::HOME) {
+    home->frame();
+  } else {
+    settings->frame();
   }
+}
+
+static void destroy() {
+  // Reverse order, and before CloseWindow() destroys the GL context.
+  settings.reset();
+  home.reset();
+  game.reset();
+  input.reset();
+  assets.reset();
 
   CloseWindow();
+}
+
+// ==== entry point ==== //
+
+#ifdef PLATFORM_IOS
+
+// iOS owns the main loop and calls these three (see rcore_ios.c); C linkage so
+// the C side finds them.
+extern "C" {
+void ios_ready() { ready(); }
+
+void ios_update() { update(); }
+
+void ios_destroy() { destroy(); }
+}
+
+#else
+
+int main() {
+  ready();
+
+  while (!WindowShouldClose()) {
+    update();
+  }
+
+  destroy();
   return 0;
 }
+
+#endif
 
 #ifdef __EMSCRIPTEN__
 

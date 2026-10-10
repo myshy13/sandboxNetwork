@@ -19,6 +19,11 @@ Client/src/env.hpp
 .claude/settings.local.json
 .env*
 context.md
+Client/ios/Signing.xcconfig
+*.mobileprovision
+*.p12
+*.cer
+*.pem
 
 # ==== server runtime ==== #
 *.bin

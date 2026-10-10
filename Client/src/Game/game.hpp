@@ -7,6 +7,7 @@
 
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
+#include "Input/input.hpp"
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
@@ -16,19 +17,20 @@ constexpr float lightUpdateCooldownTime = 0.1f;
 
 class Game {
  public:
-  Game(const AssetManager& a);
+  Game(const AssetManager& a, Input& input);
   ~Game();
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
   void frame();
 
- private:
   // Hotbar slots, selected with the number keys.
   static constexpr BlockType blockTypes[] = {
       BlockType::Dirt,   BlockType::Grass, BlockType::Leaves, BlockType::Wood,
       BlockType::Planks, BlockType::Water, BlockType::Glass};
   static constexpr int blockTypesSize = std::size(blockTypes);
+
+ private:
   int activeBlockType = 0;
 
   // Vertical field of view in degrees; holding C narrows it to zoom.
@@ -46,6 +48,7 @@ class Game {
   Player player;
   World world;
   Renderer renderer;
+  Input& input;
 
   int sunLights[4] = {-1, -1, -1, -1};
   float lightUpdateCooldown{lightUpdateCooldownTime};

@@ -7,7 +7,8 @@
 #include <cstdlib>
 
 #include "GameState/gameState.hpp"
-#include "Models/Object.hpp"
+#include "Input/input.hpp"
+#include "Input/inputState.hpp"
 #include "Raylib/text3D.hpp"
 #include "env.hpp"
 
@@ -15,12 +16,11 @@
 
 constexpr float GRAVITY = 140.0f;
 
-void Player::Update(float dt, Camera3D& camera, const World& world) {
-  if (inputEnabled && IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
-      !IsCursorHidden()) {
-    DisableCursor();
+void Player::Update(float dt, Camera3D& camera, const World& world,
+                    Input& input) {
+  if (inputEnabled && input.pressed(Action::Click) && !IsCursorHidden()) {
+    input.setMouseLook(true);
   }
-
   // ==== player movement ====
   Vector3 lookForward =
       Vector3RotateByQuaternion({0.0f, 0.0f, -1.0f}, transform.rotation);
@@ -77,29 +77,30 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
   Vector3 moveDir = Vector3Zero();
 
   if (inputEnabled) {
-    if (IsKeyDown(KEY_W)) moveDir = Vector3Add(moveDir, moveForward);
-    if (IsKeyDown(KEY_S)) moveDir = Vector3Subtract(moveDir, moveForward);
-    if (IsKeyDown(KEY_D)) moveDir = Vector3Add(moveDir, moveRight);
-    if (IsKeyDown(KEY_A)) moveDir = Vector3Subtract(moveDir, moveRight);
+    Vector2 move = input.getMove();
+
+    moveDir = Vector3Add(moveDir, Vector3Scale(moveForward, move.y));
+    moveDir = Vector3Add(moveDir, Vector3Scale(moveRight, move.x));
   }
 
   float multiplier = onGround ? 1.0f : inWater ? 0.5f : 0.05f;
-  if (IsKeyDown(KEY_LEFT_SHIFT)) {
+  if (input.down(Action::Sneak)) {
     multiplier *= 0.2f;
   }
 
-  if (Vector3Length(moveDir) > 0.0f) {
-    moveDir =
-        Vector3Normalize(moveDir);  // prevents diagonal movement being faster
+  // Cap at 1, don't force it: diagonals can't be faster, a half-tilted stick
+  // stays slower.
+  if (Vector3Length(moveDir) > 1.0f) {
+    moveDir = Vector3Normalize(moveDir);
   }
 
-  if (!inWater && inputEnabled && (onGround) && IsKeyDown(KEY_SPACE)) {
+  if (!inWater && inputEnabled && (onGround) && input.down(Action::Jump)) {
     onGround = false;
     velocity.y = jumpPower;
   }
 
   waterMoveCooldown -= dt;
-  if (inputEnabled && inWater && IsKeyDown(KEY_SPACE) &&
+  if (inputEnabled && inWater && input.down(Action::Jump) &&
       waterMoveCooldown <= 0) {
     onGround = false;
     // if they're moving slow enough, use full swim power
@@ -146,6 +147,8 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
   Vector3 pos = transform.translation;
   Vector3 step = Vector3Scale(velocity, dt);
 
+  bool autoJump = GameState::shared().getAutoJump();
+
   pos.x += step.x;
   if (blocked(pos)) {
     pos.x -= step.x;
@@ -167,10 +170,23 @@ void Player::Update(float dt, Camera3D& camera, const World& world) {
     velocity.y = 0.0f;
   }
 
+  constexpr int autoJumpPrediction = 15;
+  if (autoJump && onGround && !inWater && !input.down(Action::Sneak) &&
+      inputEnabled && moveDir != Vector3Zero()) {
+    Vector3 newPos = Vector3Add(
+        pos, {step.x * autoJumpPrediction, 0, step.z * autoJumpPrediction});
+    if (blocked(newPos) &&
+        !blocked(Vector3Add(
+            newPos, {0, env::BLOCKSIZE.y * 1.2, 0}))) {  // 1.2 for a small gap
+      onGround = false;
+      velocity.y = jumpPower;
+    }
+  }
+
   transform.translation = pos;
 
   // ==== mouse rotaton =====
-  Vector2 mouseDelta = GetMouseDelta();
+  Vector2 mouseDelta = input.getLook();
   if (!inputEnabled) mouseDelta = {0.0f, 0.0f};
 
   float mouseSensitivity = 0.00301f;
@@ -216,8 +232,6 @@ Player::Player() {
   transform.scale = env::PLAYER_SCALE;
   transform.translation = spawnPos;
   onGround = false;
-
-  DisableCursor();
 }
 
 void Player::DrawBody(const Transform& transform, const bool outline) {

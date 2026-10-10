@@ -1,13 +1,17 @@
 #pragma once
 
-#include "UI/Button/button.hpp"
 #include <raylib.h>
+
 #include <vector>
+
+#include "Input/input.hpp"
+#include "UI/Button/button.hpp"
 
 class Home {
   std::vector<Button> buttons;
+  Input& input;
 
-public:
+ public:
+  Home(Input& input);
   void frame();
-  Home();
 };

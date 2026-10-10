@@ -14,6 +14,7 @@ class GameState {
   int renderDistance{500};
   bool interpolation{true};
   bool shadows{SHADOWS_DEFAULT != 0};  // set per platform in CMakeLists.txt
+  bool autoJump{AUTO_JUMP_DEFAULT != 0};  // set per platform in CMakeLists.txt
   int shadowRadius{DEFAULT_SHADOW_RADIUS};
   int targetFps{DEFAULT_TARGET_FPS};
 
@@ -62,9 +63,13 @@ class GameState {
 
   void toggleShadows() { shadows = !shadows; }
 
+  void toggleAutoJump() { autoJump = !autoJump; }
+
   bool getInterpolation() const { return interpolation; }
 
   bool getShadows() const { return shadows; }
+
+  bool getAutoJump() const { return autoJump; }
 
   void setShadowRadius(int radius) { shadowRadius = radius; }
 

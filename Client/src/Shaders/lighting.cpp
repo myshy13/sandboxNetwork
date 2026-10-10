@@ -12,7 +12,7 @@
 #include "Shaders/rlights.h"
 
 static int glslVersion() {
-  return rlGetVersion() == RL_OPENGL_ES_20 ? 100 : 330;
+  return rlGetVersion() >= RL_OPENGL_ES_20 ? 100 : 330;
 }
 
 Lighting::Lighting() {

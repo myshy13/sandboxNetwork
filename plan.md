@@ -1,4 +1,6 @@
-# Block registry (so a new block is a row, not a hunt)
+# Plans
+
+## Block registry (so a new block is a row, not a hunt)
 
 Goal: the enum stays each block's identity (one byte, on the wire and in saves); everything else about a block is a
 lookup on it. Today `== BlockType::Water` is tested about 17 times across the renderer, world, server and `FluidSim`,
@@ -6,7 +8,7 @@ and one `solid` flag has to mean both "players collide" and "hides the face behi
 part. Per-block behaviour hooks wait for a second block that has logic (sand, lava), so they are designed from two real
 cases, not from water alone. `Object` stays small: ~843,000 live, so no per-block pointers or virtuals.
 
-## Stage 1 steps
+### Stage 1 steps
 
 1. **A row can't be misordered or misread.** In `Shared/Models/Object.hpp`: give `BlockInfo` a `type` field and use
    designated fields with defaults, so a row names only what differs (`.type = Water, .fluid = true, .translucent = true`).
@@ -29,46 +31,46 @@ cases, not from water alone. `Object` stays small: ~843,000 live, so no per-bloc
 Tricky: step 2 (an `opaque` that disagrees with the renderer's cull shows as holes in the world); step 3 (a missed site
 keeps treating the new block as plain). Stage 1 changes nothing on the wire or on disk, so no version bump.
 
-## Then: glass
+### Then: glass
 
 - [ ] enum value + row: `solid`, `placeable`, `translucent`, **not** `opaque` (needs step 2); a 16x16 texture with a
       `Tex` entry, path row and `BLOCK_TEX` row (planks, already wired by the creator, is the worked example)
 - [ ] decide whether glass casts a shadow (the shadow pass skips translucent blocks today, so it casts none)
 - [ ] bump `PROTOCOL_VERSION` (a new block value on the wire; old saves still load)
 
-## Stage 2 (when a second block has logic)
+### Stage 2 (when a second block has logic)
 
 A server-side table of optional function pointers per block (`onTick`, `onNeighbourChange`, `onPlace`, `onBreak`,
 `nullptr` = nothing); water's flow becomes its entry. A client-side shape per block (cube, or water's variable height).
 
-# Day time and lighting
+## Day time and lighting
 
-## Steps
+### Steps
 
 1. Add a time variable to the meta.bin file and the server
 2. send that to the client in the handshake (During server connection handler) Bump `PROTOCOL_VERSION` by 1
 3. create the handler in the client. **Optional:** Add it to the debug menu
 4. move the lights and change the light color based on the time in client
 
-# Lighting prerequisites and shadows
+## Lighting prerequisites and shadows
 
 Builds on the day time steps above: shadows need a sun direction that follows the time, and the shader's light and the
 shadow rays must read the same direction or lit and shaded sides will disagree.
 
-## Before the time steps (so the look is right first)
+### Before the time steps (so the look is right first)
 
 - [x] Gamma: convert the texture's rgb to linear right after sampling it in `assets/shaders/glsl330/lighting.fs` and
       `glsl100/lighting.fs` (`pow` by 2.2, alpha untouched). The final `pow(1/2.2)` already exists; this is its other half
 - [x] One sun: keep a single `addDirectional` in `Game::Game` instead of three (two overhead lights stack to ~1.7x on top
       faces and clip). Raise ambient (the `ambient / 10.0` in the shader) so shaded faces stay visible but dark
 
-## Time-of-day lighting (step 4 above, in detail)
+### Time-of-day lighting (step 4 above, in detail)
 
 - [x] `Lighting` gets an update call that moves the sun's direction and colour each frame from the synced time, since the
       lights are only created once today **Revision:** Every 0.1 seconds, not every frame
 - [x] One function turns time into a sun direction; both the shader light and the shadow rays call it **After:** `Lighting.cpp` Owns the function
 
-## Shadows (client only, cosmetic)
+### Shadows (client only, cosmetic)
 
 One sun shadow map, not per block (per-block rays can't reach 1/8-block accuracy and cost far too much on the CPU).
 `Renderer::shadowMap` draws every opaque, exposed face within the render distance from the sun into a 2048x2048 depth
@@ -107,3 +109,65 @@ Later: ambient occlusion (darken corners where blocks meet, same neighbour-looku
 
 Maybe later: cascaded shadow maps (2-3 maps of growing size around the player; the shader picks the smallest that
 contains the pixel). Not wanted yet; do it only after the single map is snapped, cached and has its own radius.
+
+## iOS client (`ghera/raylib-ios`)
+
+Branch `feature/ios-support`. The fork replaces raylib and runs through ANGLE (OpenGL ES on Metal); iOS owns the main loop, so
+the game is driven by three callbacks (`ios_ready`, `ios_update`, `ios_destroy`) instead of a `while` loop. Setup and device
+signing for someone new: `iOS.md`. Nothing here touches the server or the protocol.
+
+Status: the game runs on the phone (iPhone 15, iOS 27.2) with textures and blocks. The `Input/` class is in and every caller
+uses it; the touch backend exists (stick, look drag, five buttons). Next is tuning it on the device.
+
+### Done
+
+1. [x] **Run the fork's example.** Needs `ghera/raylib-ios` PR #1 "Support iOS27" (plain `release/5.5` crashes at launch on
+       iOS 27: UIKit needs the UIScene lifecycle). Fetch it with `git fetch origin pull/1/head:ios27`. `ios_ready()` runs after
+       the window and root view controller exist. Multitouch works (5 fingers).
+2. [x] **`main.cpp` split** into `ready()` / `update()` / `destroy()` (file-scope `unique_ptr`s, reverse-order teardown), with
+       `ios_*` wrappers (`extern "C"`) under `#ifdef PLATFORM_IOS` and the monitor-size `SetWindowSize` skipped on iOS.
+       **Known compromise:** this is a platform `#ifdef` in game code, against the `tech.md` rule. Move the wrappers into their
+       own file (`main_ios.cpp`, picked in CMake like the transports) before merging.
+3. [x] **CMake generates the Xcode project** instead of a hand-written one:
+       `cmake -S Client -B Client/build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DRAYLIB_IOS_DIR=<fork clone on PR #1>
+       -DIOS_TEAM=<team id> -DIOS_BUNDLE_ID=<unique id>`, then open `Client/build-ios/sandboxNetwork.xcodeproj` (re-run `cmake`
+       after any change; edits made in Xcode are lost). `BUILD_IOS` compiles the fork's sources as a `raylib` target:
+       `rcore.c` and `raudio.c` as Objective-C, Clang modules on (ANGLE's `glext.h` only compiles as a module import), ANGLE
+       xcframeworks linked and embedded, runpath `@executable_path/Frameworks`, landscape Info.plist keys, Local Network text.
+       Shadows off and FPS uncapped by default (display link paces). Pin the fork's commit: PR #1 is unmerged.
+6. [x] **Shader folder:** `glslVersion()` in `Shaders/lighting.cpp` is now `rlGetVersion() >= RL_OPENGL_ES_20` (ES 3 contexts
+       picked `glsl330`, which fails, so only raylib's default shader drew and no blocks showed). Relies on the enum order
+       `..._43, ES_20, ES_30`. A real `glsl300es` set would be the later upgrade.
+7. [x] **Networking:** `env::SERVER_IP` is a LAN address; the Local Network key is set by CMake.
+4. [x] **`Input/` class.** `Input` owns an `InputSource` (one interface, one backend file per platform, picked in CMake like
+       `Transport`) and is polled once per frame at the top of `update()` in `main.cpp`. Backends only fill a per-frame
+       `InputState`: a bitset of held `Action`s plus `move` (stick-space Vector2: x right, y forward), `look` (this frame's
+       delta), `scroll`, `pointer`, `newHotBarSlot`. `Input` keeps last frame's state, so `pressed(a)` is "held now, not
+       last frame" and `down(a)` is "held now". Keyboard + mouse backend (`input_kbm.cpp`): a bind table, one row per
+       `Action` (a `static_assert` catches a missing row, not a swapped one). Converted: Home, Settings, Game, Player. Chat
+       typing (`GetCharPressed`, backspace, enter) stays raw. `Player` caps the move length at 1 instead of normalising, so a
+       half-tilted stick walks slower.
+5. [x] **Touch backend** (`input_touch.cpp`, compiled only for iOS): left half is a floating stick, right half drags to look;
+       fingers are tracked by touch id so a second finger can't steal a role; `pointer` and `Click` come from raylib's
+       touch-to-mouse mapping (menus only, never for `Shoot` or `look`). On-screen buttons (rebuilt from the screen size):
+       Jump, Shoot, Place, Sneak, Pause. **Dropped on the phone:** Zoom, Scores (`TabKills`), chat and the debug keys: not
+       enough room. `Input::draw()` draws the controls; `Game` calls it at the end of the frame.
+
+### Left
+
+8. [ ] **Tune on the device:** button size and labels (the fixed 50 px buttons, the Pause glyph `⏸` is not in raylib's default
+       font), `STICK_RADIUS`, `DEAD_ZONE`, `LOOK_SCALE`; shadows and `RENDER_SCALE`; check the depth-texture extension (same
+       open item as the web shadow check).
+10. [ ] **Not on touch yet:** chat (needs an on-screen keyboard), safe-area insets (`IOSBridge`), and moving the `ios_*`
+       wrappers out of `main.cpp` into their own file (platform `#ifdef` rule).
+11. [ ] **Make the controls look good:** replace the plain grey rectangles with icons (jump, fire, place, sneak, pause),
+       a clear pressed state, translucent so the world shows through, sized and placed for thumbs (and safe areas).
+       Tricky: the touch backend has no `AssetManager`, so it can't load icon textures today. Pick one: `draw()` takes the
+       `AssetManager`, or the backend loads its own textures (then they must unload before `CloseWindow()`).
+12. [ ] **Hotbar on touch:** tap a slot to select it (sets `newHotBarSlot`, like the number keys). Tricky: `Game` draws the
+       hotbar, so something has to share the slot rectangles between the drawing and the hit test, or they drift apart
+       (the `faceMatrix` idea): have `Game` hand its slot rectangles to `Input` each frame. Also decide where it sits so it
+       doesn't collide with the control buttons.
+9. [x] **Docs:** `arch.md` (`Input/`), `tech.md` (iOS build) and `iOS.md` (build command).
+
+Tricky: an `ios27` fork checkout is required; re-run cmake after changing settings; touch ids, not touch positions.

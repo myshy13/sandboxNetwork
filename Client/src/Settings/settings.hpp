@@ -1,5 +1,6 @@
 #pragma once
 #include "GameState/gameState.hpp"
+#include "Input/input.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/Slider/slider.hpp"
 
@@ -10,11 +11,15 @@ class Settings {
     Button vsyncButton;
     Button interpolationButton;
     Button shadowsButton;
+    Button autoJumpButton;
     Slider renderDistanceSlider;
     Slider shadowRadiusSlider;
     Slider targetFpsSlider;
+    Input& input;
+
+    float scroll{0.0f};
 
    public:
-    Settings();
+    Settings(Input& input);
     void frame();
 };

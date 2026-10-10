@@ -1,7 +1,8 @@
 #include "manager.hpp"
 
-#include <iterator>
 #include <raylib.h>
+
+#include <iterator>
 
 // Same order as Tex.
 constexpr const char* TEXTURE_PATHS[] = {
@@ -14,6 +15,10 @@ constexpr const char* TEXTURE_PATHS[] = {
     "assets/images/grass_side.png",  // grass side
     "assets/images/planks.png",      // wooden planks
     "assets/images/glass.png",       // glass
+    "assets/icons/jump.png",         // jump icon
+    "assets/icons/shoot.png",        // shoot icon
+    "assets/icons/place.png",        // place icon
+    "assets/icons/pause.png",        // pause icon
 };
 
 // Same order as Tex.

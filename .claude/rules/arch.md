@@ -14,6 +14,10 @@ Client/src/
   Shaders/     Lighting: owns the lighting shader, its lights and ambient; timeToLight/skyColor turn the clock into the
                sun and sky; setShadow hands the sun's view-projection matrix + depth map to the shader
   Raylib/      small helpers around raylib's own API (shadowMap.hpp: depth-only render target)
+  Input/       Input (polled once per frame in main.cpp's update(); owns an InputSource) + InputState (Action bitset, move,
+               look, scroll, pointer, hotbar slot). InputSources/: one backend per platform, CMake compiles exactly one
+               (input_kbm.cpp desktop + web, input_touch.cpp iOS: stick, look drag, on-screen buttons). Game code never
+               calls raylib's input functions, except chat typing
   Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
   UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler; menu or any-rectangle
                buttons. Slider/: int range tied to a value by a getter and a setter)
