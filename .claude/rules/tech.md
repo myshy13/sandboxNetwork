@@ -58,6 +58,8 @@
   `RENDER_SCALE_DEFAULT` (2.0 desktop, 1.0 tvOS) follows the same pattern for the scene render-target scale. On tvOS the
   Xcode Debug configuration is built `-O3` too (`CMAKE_*_FLAGS_DEBUG`), since `-O0` is unusable on an Apple TV HD.
 - Shaders live in `Client/assets/shaders/glsl330` and `glsl100` (web); a change to one needs the same change in the other.
+- Web raylib is built with `OPENGL_VERSION="ES 3.0"` (`Client/CMakeLists.txt`): the default GLES2 rlgl calls null
+  instancing/VAO extension pointers inside the WebGL2 context the link flags ask for. The web shaders are still GLSL ES 1.00.
 
 ## Testing
 

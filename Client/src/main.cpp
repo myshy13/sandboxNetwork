@@ -1,5 +1,9 @@
 #include <raylib.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <iostream>
 #include <memory>
 
@@ -149,9 +153,14 @@ void ios_destroy() { destroy(); }
 int main() {
   ready();
 
+#ifdef __EMSCRIPTEN__
+  // The browser owns the loop (never returns); a blocking loop needs ASYNCIFY.
+  emscripten_set_main_loop(update, 0, 1);
+#else
   while (!WindowShouldClose()) {
     update();
   }
+#endif
 
   destroy();
   return 0;
