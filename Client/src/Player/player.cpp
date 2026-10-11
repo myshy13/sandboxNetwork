@@ -17,7 +17,7 @@
 constexpr float GRAVITY = 140.0f;
 
 void Player::Update(float dt, Camera3D& camera, const World& world,
-                    Input& input) {
+                    Input& input, bool zoomed) {
   if (inputEnabled && input.pressed(Action::Click) && !IsCursorHidden()) {
     input.setMouseLook(true);
   }
@@ -190,6 +190,9 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
   if (!inputEnabled) mouseDelta = {0.0f, 0.0f};
 
   float mouseSensitivity = 0.00301f;
+  if (zoomed) {
+    mouseSensitivity /= 2;
+  }
 
   yaw -= mouseDelta.x * mouseSensitivity;
   pitch -= mouseDelta.y * mouseSensitivity;

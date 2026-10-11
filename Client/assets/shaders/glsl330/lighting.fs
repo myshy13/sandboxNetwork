@@ -133,6 +133,6 @@ void main() {
   // Gamma correction
   finalColor = pow(finalColor, vec4(1.0/2.2));
 
-  // Noise keyed to world position so the grain sticks to surfaces; 0.04 = strength
-  finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.04;
+  // Noise keyed to world position so the grain sticks to surfaces; 0.02 = strength
+  finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.02;
 }

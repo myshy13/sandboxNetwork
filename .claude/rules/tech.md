@@ -55,6 +55,8 @@
   `constexpr` tunables (tick rate, bullet speed/lifetime, save period, day length).
 - `SHADOWS_DEFAULT` (1 native, 0 web) is a compile definition set next to the native/web switch in
   `Client/CMakeLists.txt` and read as a plain value in `GameState`, so no platform `#ifdef` reaches game code.
+  `RENDER_SCALE_DEFAULT` (2.0 desktop, 1.0 tvOS) follows the same pattern for the scene render-target scale. On tvOS the
+  Xcode Debug configuration is built `-O3` too (`CMAKE_*_FLAGS_DEBUG`), since `-O0` is unusable on an Apple TV HD.
 - Shaders live in `Client/assets/shaders/glsl330` and `glsl100` (web); a change to one needs the same change in the other.
 
 ## Testing

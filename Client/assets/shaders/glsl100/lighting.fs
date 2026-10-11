@@ -96,8 +96,7 @@ void main()
 
     // NOTE: Implement here your fragment shader code
 
-    for (int i = 0; i < MAX_LIGHTS; i++)
-    {
+    for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].enabled == 1)
         {
             vec3 light = vec3(0.0);
@@ -118,6 +117,8 @@ void main()
             float specCo = 0.0;
             if (NdotL > 0.0) specCo = pow(max(0.0, dot(viewD, reflect(-(light), normal))), 48.0); // exponent = tightness of the highlight
             specular += specCo*0.15*reflectivity; // overall sheen strength - lower = more matte
+        } else {
+            break;
         }
     }
 
@@ -128,7 +129,7 @@ void main()
     // Gamma correction
     finalColor = pow(finalColor, vec4(1.0/2.2));
 
-    // Noise keyed to world position so the grain sticks to surfaces; 0.04 = strength
-    finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.04;
+    // Noise keyed to world position so the grain sticks to surfaces; 0.02 = strength
+    finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.02;
     gl_FragColor = finalColor;
 }

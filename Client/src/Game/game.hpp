@@ -55,7 +55,7 @@ class Game {
 
   // The scene renders into a texture RENDER_SCALE times the window size, then
   // is scaled down to the window (supersampling: smoother edges, more cost).
-  static constexpr float RENDER_SCALE = 2.0f;
+  static constexpr float RENDER_SCALE{RENDER_SCALE_DEFAULT};
   static RenderTexture makeTarget();
   RenderTexture target = makeTarget();
 
