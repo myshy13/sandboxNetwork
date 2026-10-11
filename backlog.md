@@ -53,7 +53,7 @@ Each is an enum value + `BLOCK_INFO` row (see "Adding a block" in `arch.md`). Gr
 
 Just a row and a texture (flags only):
 
-- [ ] glass (see `plan.md`, "Then: glass"): solid, translucent, not opaque
+- [x] glass (see `plan.md`, "Then: glass"): solid, translucent, not opaque
 - [ ] stone, gravel, snow, brick: plain solid cubes, for terrain variety and building
 - [ ] ice: solid + translucent, a good cold-biome block
 - [ ] cactus / bush: solid, could hurt on touch later (needs a damage hook, so wait)
