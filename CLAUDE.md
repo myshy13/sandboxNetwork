@@ -42,8 +42,10 @@ Do not do any code unless you have concrete evidence that they already would kno
 
 ## Git
 
-- Branch names are `type/what-it-is` in kebab-case: `feature/block-registry`, `bug/shadow-hop`. Never commit on `main`;
-  make a branch first.
+- Branch names are `type/what-it-is` in kebab-case: `feature/block-registry`, `bug/shadow-hop`.
+- Small changes (docs, backlog/plan/context updates, a typo or one-line fix, tuning a constant) may be committed straight
+  on `main`. Anything medium or bigger (what would need a minor version bump) and any change to gameplay mechanics gets
+  its own branch. If unsure whether it's small, use a branch.
 - When committing, omit the "Co-Authored-By: Claude" trailer unless the
   amount that you contributed is over ~50% of the code in that 1 commit.
 - After making 3 or more commits in a session that haven't been pushed
