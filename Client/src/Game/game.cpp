@@ -299,7 +299,8 @@ void Game::updatePlayer(float dt) {
 #ifdef DEBUG
   double t0 = GetTime();
 #endif
-  player.Update(dt, camera, world, input);
+  player.Update(dt, camera, world, input,
+                (!inChat && input.down(Action::Zoom)));
 #ifdef DEBUG
   playerUpdateMs = (GetTime() - t0) * 1000.0;
 #endif
@@ -859,6 +860,10 @@ void Game::drawDebug() {
 
     DrawText(TextFormat("Objects: %zu", world.getObjects().size()), 10, rowPos,
              FONTSIZE, RED);
+    rowPos += ROWSIZE;
+
+    DrawText(TextFormat("Render scale: %f", RENDER_SCALE), 10, rowPos, FONTSIZE,
+             RED);
     rowPos += ROWSIZE;
 
     DrawText(TextFormat("Faces drawn: %zu", renderer.getLastDrawnCount()), 10,

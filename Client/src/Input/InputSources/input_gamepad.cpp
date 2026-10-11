@@ -25,16 +25,20 @@ struct Bind {
 // several actions. Unbound: chat, commands, debug, chunk borders, collision,
 // clipping, reconnect (no keyboard on the TV).
 constexpr Bind BINDS[] = {
-    {Action::Shoot, GAMEPAD_BUTTON_RIGHT_TRIGGER_2},   // RT
-    {Action::Place, GAMEPAD_BUTTON_LEFT_TRIGGER_2},    // LT
-    {Action::Jump, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},    // A
-    {Action::Sneak, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT},  // B
-    {Action::Pause, GAMEPAD_BUTTON_MIDDLE_RIGHT},      // Menu
-    {Action::TabKills, GAMEPAD_BUTTON_MIDDLE_LEFT},    // View
-    {Action::Zoom, GAMEPAD_BUTTON_RIGHT_THUMB},        // R3
-    {Action::Click, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},   // A, same as Jump: menus
+    {Action::Shoot, GAMEPAD_BUTTON_RIGHT_TRIGGER_2},  // RT
+    {Action::Place, GAMEPAD_BUTTON_LEFT_TRIGGER_2},   // LT
+    {Action::Jump, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT},  // B
+    {Action::Sneak, GAMEPAD_BUTTON_RIGHT_FACE_LEFT},  // X
+    {Action::Pause, GAMEPAD_BUTTON_MIDDLE_RIGHT},     // Menu
+    {Action::TabKills, GAMEPAD_BUTTON_MIDDLE_LEFT},   // View
+    {Action::Zoom, GAMEPAD_BUTTON_RIGHT_THUMB},       // R3
+    {Action::Click, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},  // A: menus only
     {Action::DownHotbarSlot, GAMEPAD_BUTTON_LEFT_TRIGGER_1},  // LB
     {Action::UpHotbarSlot, GAMEPAD_BUTTON_RIGHT_TRIGGER_1},   // RB
+    {Action::OpenDebug, GAMEPAD_BUTTON_LEFT_FACE_DOWN},       // Left DPad down
+    {Action::ShowCollision, GAMEPAD_BUTTON_LEFT_FACE_LEFT},   // Left DPad Left
+    {Action::ShowChunkBorders,
+     GAMEPAD_BUTTON_LEFT_FACE_RIGHT},  // Left DPad Right
 };
 }  // namespace
 
@@ -46,7 +50,8 @@ class InputGamepad : public InputSource {
 
  public:
   InputGamepad() {
-    // GLFW's built-in table lacks newer firmware GUIDs, so such a pad reads as all zeros without this
+    // GLFW's built-in table lacks newer firmware GUIDs, so such a pad reads as
+    // all zeros without this
     if (char* db = LoadFileText(MAPPINGS_FILE)) {
       SetGamepadMappings(db);
       UnloadFileText(db);
@@ -89,8 +94,8 @@ class InputGamepad : public InputSource {
     float dt = GetFrameTime();
     if (cursorVisible) {
       cursor += leftMovement * (CURSOR_SPEED * dt);
-      cursor = Vector2Clamp(cursor, {0, 0},
-                            {(float)GetScreenWidth(), (float)GetScreenHeight()});
+      cursor = Vector2Clamp(
+          cursor, {0, 0}, {(float)GetScreenWidth(), (float)GetScreenHeight()});
     }
 
     state.pointer = cursor;
@@ -104,7 +109,10 @@ class InputGamepad : public InputSource {
     }
   }
 
-  void setMouseLook(bool mouseLook) override { cursorVisible = !mouseLook; }
+  void setMouseLook(bool mouseLook) override {
+    cursorVisible = !mouseLook;
+    cursor = {(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2};
+  }
 };
 
 std::unique_ptr<InputSource> makeInputSource() {

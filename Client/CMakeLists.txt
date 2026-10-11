@@ -38,6 +38,10 @@ set(IOS_BUNDLE_ID "com.sandboxnetwork.client" CACHE STRING "Bundle id for iOS (m
 if(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
     set(BUILD_IOS ON)
     set(BUILD_TVOS ON)
+    # Xcode's Debug configuration is -O0 (the generator derives it from these flags), far too slow on an Apple TV
+    set(CMAKE_C_FLAGS_DEBUG "-g -O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O3")
+    set(CMAKE_OBJC_FLAGS_DEBUG "-g -O3")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -192,6 +196,16 @@ if(BUILD_WEB OR BUILD_IOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=0)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
+endif()
+
+if(BUILD_TVOS)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=2.0f)
+endif()
+
+if(BUILD_TVOS)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_TVOS=1)
 endif()
 
 # Auto-jump (hop up one-block ledges while walking into them) starts on for phones, which have too few
