@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -187,10 +188,22 @@ void Client::handleMessage(const std::string& data) {
         ChatEntry deathMessage;
         deathMessage.id = -1;
         deathMessage.receivedAt = GetTime();
-        deathMessage.text = "Player " + std::to_string(msg.shooterId) +
-                            " killed Player " + std::to_string(msg.id);
+        std::optional<std::string> name = idToName(msg.id);
+        if (msg.shooterId != -1) {
+          deathMessage.text =
+              "Player " + std::to_string(msg.shooterId) + " killed Player " +
+              (name.has_value() ? name.value()
+                                : "Player " + std::to_string(msg.id));
+        } else {
+          deathMessage.text =
+              (name.has_value() ? name.value()
+                                : "Player " + std::to_string(msg.id)) +
+              " fell from a height";
+        }
         chat.push_back(deathMessage);
-        kills[msg.shooterId] += 1;
+        if (msg.shooterId != -1) {
+          kills[msg.shooterId] += 1;  // a fall has no killer
+        }
       }
       break;
     }

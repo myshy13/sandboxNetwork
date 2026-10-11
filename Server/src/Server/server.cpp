@@ -443,6 +443,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
   newPlayer.id = id;
   Vector3 spawnPos = randomSpawn();
   newPlayer.pos = spawnPos;
+  newPlayer.resetFall();
   players.push_back(newPlayer);
   views.emplace(id, ClientView{}); // now, so a SetViewRadius that arrives
                                    // before the first tick has a view to set
@@ -481,6 +482,81 @@ void Server::handleDisconnect(int playerId) {
       true);
 }
 
+bool Server::footprintHas(Vector3 pos, float y,
+                          bool (*pred)(const Object &)) const {
+  // floorf, not an int cast: the cast rounds toward zero, so negative x/z pick
+  // the wrong cell (same as randomSpawn).
+  int cellY = (int)floorf(y / BLOCK_SIZE);
+  int minX = (int)floorf((pos.x - PLAYER_SCALE.x / 2) / BLOCK_SIZE);
+  int maxX = (int)floorf((pos.x + PLAYER_SCALE.x / 2) / BLOCK_SIZE);
+  int minZ = (int)floorf((pos.z - PLAYER_SCALE.z / 2) / BLOCK_SIZE);
+  int maxZ = (int)floorf((pos.z + PLAYER_SCALE.z / 2) / BLOCK_SIZE);
+
+  for (int cellX = minX; cellX <= maxX; cellX++) {
+    for (int cellZ = minZ; cellZ <= maxZ; cellZ++) {
+      auto it = occupiedCells.find(cellKey(cellX, cellY, cellZ));
+      if (it != occupiedCells.end() && pred(objects[it->second])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void Server::updateFall(Player *player) {
+  // The same thin slab under the feet the client uses for "grounded"
+  // (Player::Update), so both sides agree on what standing means.
+  constexpr float FOOT_SLAB = 0.2f;
+  constexpr float GROUND_Y = 0.0f; // the floor plane, as on the client
+
+  const Vector3 pos = player->pos;
+  auto isSolidBlock = [](const Object &o) { return o.isSolid(); };
+  auto isFluidBlock = [](const Object &o) { return o.isFluid(); };
+
+  bool supported = pos.y - FOOT_SLAB <= GROUND_Y ||
+                   footprintHas(pos, pos.y - FOOT_SLAB, isSolidBlock);
+  // Feet or mid-body in a fluid: a player wading to the waist is in water, so
+  // check both heights.
+  bool inWater = footprintHas(pos, pos.y, isFluidBlock) ||
+                 footprintHas(pos, pos.y + PLAYER_SCALE.y / 2, isFluidBlock);
+
+  if (supported || inWater) {
+    if (player->airborne && !inWater) {
+      // Whole blocks only, so the threshold isn't twitchy.
+      int blocksFallen = (int)floorf((player->peakY - pos.y) / BLOCK_SIZE);
+      int excess = blocksFallen - env::FALL_SAFE_BLOCKS;
+      if (excess > 0) {
+        damagePlayer(*player, (int)(excess * env::FALL_DAMAGE_PER_BLOCK), -1);
+      }
+    }
+    player->resetFall();
+    return;
+  }
+
+  player->airborne = true;
+  player->peakY = std::max(player->peakY, pos.y);
+}
+
+void Server::damagePlayer(Player &p, int amount, int attackerId) {
+  p.health -= amount;
+  // Before any reset below, so clients see health <= 0 and count the kill.
+  broadcast(proto::pack(proto::Type::PlayerHit,
+                        proto::PlayerHit{p.health, p.id, attackerId}),
+            true);
+
+  if (p.health <= 0) {
+    Vector3 spawnPos = randomSpawn();
+    p.health = env::PLAYER_MAX_HEALTH;
+    p.pos = spawnPos;
+    p.resetFall();
+    sendTo(p.id, proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}),
+           true);
+    if (attackerId >= 0) {
+      kills[attackerId] += 1;
+    }
+  }
+}
+
 void Server::handleReceive(int playerId, const std::string &data) {
   if (data.empty()) {
     return;
@@ -499,6 +575,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
       Player *player = findPlayer(playerId);
       if (player != nullptr) {
         player->pos = msg.pos;
+        updateFall(player);
         player->pitch = msg.pitch;
         player->yaw = msg.yaw;
       }
@@ -924,22 +1001,7 @@ void Server::tick(float dt) {
 
       if (SegmentIntersectsBox(prevPos, b.pos, player)) {
         b.deathCountdown = 0.0f;
-        p.health--;
-        // Before any reset below, so clients see health <= 0 and count the
-        // kill.
-        broadcast(proto::pack(proto::Type::PlayerHit,
-                              proto::PlayerHit{p.health, p.id, b.playerId}),
-                  true);
-
-        if (p.health <= 0) {
-          Vector3 spawnPos = randomSpawn();
-          p.health = env::PLAYER_MAX_HEALTH;
-          p.pos = spawnPos;
-          sendTo(p.id,
-                 proto::pack(proto::Type::Respawn, proto::Respawn{spawnPos}),
-                 true);
-          kills[b.playerId] += 1;
-        }
+        damagePlayer(p, 1, b.playerId);
         break;
       }
     }

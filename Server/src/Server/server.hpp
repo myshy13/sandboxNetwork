@@ -35,6 +35,15 @@ struct Player {
   std::optional<std::string> displayName;
   float shotBudget{
       env::SHOT_BURST}; // refills one shot per SHOT_INTERVAL, up to SHOT_BURST
+  // Fall tracking, derived from position updates (see Server::updateFall).
+  bool airborne{false};
+  float peakY{0.0f}; // highest feet height since the player last stood or swam
+
+  // Call whenever pos is set by the server (spawn, respawn): a teleport isn't a fall.
+  void resetFall() {
+    airborne = false;
+    peakY = pos.y;
+  }
 };
 
 struct ClientView {
@@ -130,7 +139,15 @@ class Server {
   void sendChunk(int playerId, int cx, int cz);
   // Index of the nearest block the segment from -> to passes through, or -1.
   int findBlockHit(Vector3 from, Vector3 to) const;
-
+  // True if any block under the player's footprint (every cell the box
+  // overlaps in x and z) at height y satisfies pred.
+  bool footprintHas(Vector3 pos, float y, bool (*pred)(const Object &)) const;
+  // Tracks the highest point of a fall from position updates and applies damage
+  // when the player lands on something solid. Water cancels the fall.
+  void updateFall(Player *player);
+  // The one place health drops: broadcasts PlayerHit and handles death and
+  // respawn. attackerId < 0 means no attacker (a fall), so no kill credit.
+  void damagePlayer(Player &p, int amount, int attackerId);
   // Interest management: unloads chunks that are too far from the player and
   // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
   void updateView(const Player &p);

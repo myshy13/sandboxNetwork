@@ -119,7 +119,6 @@ the client's debug chunk borders and (later) chunk loading rely on them agreeing
 `GameState::MAX_RENDER_DISTANCE` (`Client/src/GameState/gameState.hpp`) must equal the server's `env::MAX_VIEW_RADIUS`
 (`Server/src/env.hpp`) times `World::STREAM_CHUNK_SIZE`: the slider can't ask for more chunks than the server will send.
 
-Likewise `env::MAX_HEALTH` (`Client/src/env.hpp`, template in
-`env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH`
-(`Server/src/env.hpp`): the client sizes its health bar from its copy while the
-server decides when you die from its own.
+Player health is `SHARED_PLAYER_HEALTH` in `Shared/sharedEnv.hpp`; the client's `env::MAX_HEALTH` (`Client/src/env.hpp`,
+template in `env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH` (`Server/src/env.hpp`) both alias it, so the
+client's health bar and the server's death threshold can't disagree. Change it in `sharedEnv.hpp` only.
