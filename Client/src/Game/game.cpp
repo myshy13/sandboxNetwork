@@ -84,7 +84,9 @@ void Game::frame() {
   // The setting, and a valid clock (it isn't until the handshake finishes).
   const bool shadowsOn =
       GameState::shared().getShadows() && std::isfinite(world.getTime());
-  if (shadowsOn) {
+  bool runShadows = shadowsOn && world.dayTime();
+  // don't render at night
+  if (runShadows) {
     renderer.shadowMap(
         world.getObjects(), camera, lighting,
         Vector3Normalize(lighting.timeToLight(world.getTime()).pos),
@@ -92,10 +94,10 @@ void Game::frame() {
         {client.getPlayerId(), player.getTransform().translation,
          player.getPitch(), player.getYaw(), ""});
   }
-  lighting.setShadowsEnabled(shadowsOn);
+  lighting.setShadowsEnabled(runShadows);
 
   BeginTextureMode(target);
-  if (shadowsOn) {
+  if (runShadows) {
     lighting.setShadow(renderer.getLightMatrix(), renderer.getShadowDepth().id,
                        renderer.getShadowDepth().width);
   }
@@ -347,7 +349,8 @@ void Game::handleActions(float dt) {
     target = makeTarget();
   }
   {
-    // Hotbar: shoulder buttons step with a repeat delay, the number keys jump to a slot.
+    // Hotbar: shoulder buttons step with a repeat delay, the number keys jump
+    // to a slot.
     constexpr float HOTBAR_REPEAT_TIME = 0.4f;
     hotbarMoveCooldown = std::max(0.0f, hotbarMoveCooldown - dt);
 

@@ -95,6 +95,10 @@ class World {
 
   float getTime() const { return timeOfDay; }
 
+  bool dayTime() const {
+    return timeOfDay > 0.24f && timeOfDay < 0.76f;
+  }  // small margin
+
   void setDayLength(float seconds) { dayLengthSecs = seconds; }
 
   float getDayLength() const { return dayLengthSecs; }
