@@ -1,6 +1,6 @@
 #version 100
 
-precision mediump float;
+precision highp float;
 
 // Input vertex attributes (from vertex shader)
 varying vec3 fragPosition;
