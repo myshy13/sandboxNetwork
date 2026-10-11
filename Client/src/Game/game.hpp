@@ -81,6 +81,9 @@ class Game {
       0.0;  // Renderer::drawObjects, incl. frustum cull + instancing
 #endif
 
+  // disconnects, shows the cursor, and goes to Home
+  void exit();
+
   // ==== update ==== //
   void applyNetworkUpdates();
   void syncViewRadius();

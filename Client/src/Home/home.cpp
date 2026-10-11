@@ -12,7 +12,7 @@ Home::Home(Input& input) : input(input) {
   // play button
   Button playButton = Button(
       [&input](void) {
-        GameState::shared().setMenuState(MenuState::PLAYING);
+        GameState::shared().setMenuState(MenuState::Playing);
         input.setMouseLook(true);
       },
       "Play", (float)GetScreenHeight() / 2);
@@ -22,7 +22,7 @@ Home::Home(Input& input) : input(input) {
 
   Button settingsButton = Button(
       [&input](void) {
-        GameState::shared().setMenuState(MenuState::SETTINGS);
+        GameState::shared().setMenuState(MenuState::Settings);
         input.setMouseLook(false);
       },
       "Settings", (float)GetScreenHeight() / 2 + 100);

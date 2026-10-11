@@ -4,7 +4,6 @@
 #include <iterator>
 #include <memory>
 
-#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
@@ -30,18 +29,19 @@ constexpr Bind BINDS[] = {
     {false, KEY_SLASH},          // OpenChatCommands
     {false, KEY_TAB},            // TabKills
     {true, MOUSE_BUTTON_LEFT},   // Click
+    {false, KEY_ESCAPE},         // Exit
 #ifdef __EMSCRIPTEN__
     {false, KEY_K},  // OpenDebug (browsers keep F3 for find)
 #else
     {false, KEY_F3},  // OpenDebug
 #endif
-    {false, KEY_F4},  // Show chunk borders
-    {false, KEY_F5},  // ShowCollision
-    {false, KEY_F7},  // ChangeClipping
-    {false, KEY_R},   // Reconnect
-    {false, KEY_C},   // Zoom
-    {false, KEY_NULL},
-    {false, KEY_NULL},
+    {false, KEY_F4},    // Show chunk borders
+    {false, KEY_F5},    // ShowCollision
+    {false, KEY_F7},    // ChangeClipping
+    {false, KEY_R},     // Reconnect
+    {false, KEY_C},     // Zoom
+    {false, KEY_NULL},  // DownHotbarSlot (gamepad only)
+    {false, KEY_NULL},  // UpHotbarSlot (gamepad only)
 };
 
 static_assert(std::size(BINDS) == static_cast<size_t>(Action::Count),
@@ -54,8 +54,9 @@ class InputKbm : public InputSource {
     inputState = {};
     for (size_t i = 0; i < std::size(BINDS); i++) {
       const Bind& bind = BINDS[i];
-      inputState.actions.set(
-          i, bind.mouse ? IsMouseButtonDown(bind.code) : IsKeyDown(bind.code));
+      bool down =
+          bind.mouse ? IsMouseButtonDown(bind.code) : IsKeyDown(bind.code);
+      inputState.actions.set(i, down);
     }
 
     inputState.look = GetMouseDelta();

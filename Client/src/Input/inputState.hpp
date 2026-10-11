@@ -16,6 +16,7 @@ enum class Action {
   OpenChatCommands,
   TabKills,
   Click,
+  Exit,
 
   OpenDebug,
   ShowChunkBorders,
