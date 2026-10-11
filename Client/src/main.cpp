@@ -110,9 +110,9 @@ static void update() {
   GameState& gameState = GameState::shared();
   input->update();
 
-  if (gameState.getMenu() == MenuState::PLAYING) {
+  if (gameState.getMenu() == MenuState::Playing) {
     game->frame();
-  } else if (gameState.getMenu() == MenuState::HOME) {
+  } else if (gameState.getMenu() == MenuState::Home) {
     home->frame();
   } else {
     settings->frame();

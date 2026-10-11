@@ -191,7 +191,7 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
 
   float mouseSensitivity = 0.00301f;
   if (zoomed) {
-    mouseSensitivity /= 2;
+    mouseSensitivity /= 4;
   }
 
   yaw -= mouseDelta.x * mouseSensitivity;

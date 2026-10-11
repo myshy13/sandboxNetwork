@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 14; // Added the Glass block type
+constexpr int PROTOCOL_VERSION = 15; // Added fall damage
 
 enum class Type : uint8_t {
   // player
@@ -81,10 +81,12 @@ struct NewBullet { // server telling clients
   Vector3 vel;
   template <class A> void serialize(A &ar) { ar(playerId, bulletId, pos, vel); }
 };
+enum class PlayerHitReason { FallDamage, Shot };
 struct PlayerHit {
   int health;
   int id;
   int shooterId;
+  PlayerHitReason hitReason{PlayerHitReason::Shot};
   template <class A> void serialize(A &ar) { ar(health, id, shooterId); }
 };
 struct Respawn {

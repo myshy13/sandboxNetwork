@@ -15,7 +15,7 @@ static std::string inBlocks(int units) { return std::to_string(units / 5); }
 static std::string inUnits(int units) { return std::to_string(units); }
 
 Settings::Settings(Input& input)
-    : exitButton([] { GameState::shared().setMenuState(MenuState::HOME); }, "<",
+    : exitButton([] { GameState::shared().setMenuState(MenuState::Home); }, "<",
                  Rectangle{10, 10, 60, 60}, 50),
       vsyncButton(
           [] {
@@ -33,7 +33,7 @@ Settings::Settings(Input& input)
       shadowsButton([] { GameState::shared().toggleShadows(); }, "",
                     Rectangle{0, 0, 120, 50}, 30),
       autoJumpButton([] { GameState::shared().toggleAutoJump(); }, "",
-                    Rectangle{0, 0, 120, 50}, 30),
+                     Rectangle{0, 0, 120, 50}, 30),
       renderDistanceSlider(
           "Render distance: ", GameState::MIN_RENDER_DISTANCE,
           GameState::MAX_RENDER_DISTANCE,
@@ -51,6 +51,10 @@ Settings::Settings(Input& input)
       input(input) {}
 
 void Settings::frame() {
+  if (input.down(Action::Exit)) {
+    gameState.setMenuState(MenuState::Home);
+    input.setMouseLook(false);  // reset to centre on a gamepad
+  }
   // Bottom edge of the last row plus a margin; scrolling stops when it meets
   // the window's bottom.
   constexpr float contentBottom = 740;

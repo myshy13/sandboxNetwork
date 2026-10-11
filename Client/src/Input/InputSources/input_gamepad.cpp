@@ -25,20 +25,21 @@ struct Bind {
 // several actions. Unbound: chat, commands, debug, chunk borders, collision,
 // clipping, reconnect (no keyboard on the TV).
 constexpr Bind BINDS[] = {
-    {Action::Shoot, GAMEPAD_BUTTON_RIGHT_TRIGGER_2},  // RT
-    {Action::Place, GAMEPAD_BUTTON_LEFT_TRIGGER_2},   // LT
-    {Action::Jump, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT},  // B
-    {Action::Sneak, GAMEPAD_BUTTON_RIGHT_FACE_LEFT},  // X
-    {Action::Pause, GAMEPAD_BUTTON_MIDDLE_RIGHT},     // Menu
-    {Action::TabKills, GAMEPAD_BUTTON_MIDDLE_LEFT},   // View
-    {Action::Zoom, GAMEPAD_BUTTON_RIGHT_THUMB},       // R3
-    {Action::Click, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},  // A: menus only
+    {Action::Shoot, GAMEPAD_BUTTON_RIGHT_TRIGGER_2},          // RT
+    {Action::Place, GAMEPAD_BUTTON_LEFT_TRIGGER_2},           // LT
+    {Action::Jump, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},           // A
+    {Action::Sneak, GAMEPAD_BUTTON_RIGHT_FACE_LEFT},          // X
+    {Action::Pause, GAMEPAD_BUTTON_MIDDLE_RIGHT},             // Menu
+    {Action::TabKills, GAMEPAD_BUTTON_MIDDLE_LEFT},           // View
+    {Action::Zoom, GAMEPAD_BUTTON_RIGHT_THUMB},               // R3
+    {Action::Click, GAMEPAD_BUTTON_RIGHT_FACE_DOWN},          // A: menus only
     {Action::DownHotbarSlot, GAMEPAD_BUTTON_LEFT_TRIGGER_1},  // LB
     {Action::UpHotbarSlot, GAMEPAD_BUTTON_RIGHT_TRIGGER_1},   // RB
     {Action::OpenDebug, GAMEPAD_BUTTON_LEFT_FACE_DOWN},       // Left DPad down
     {Action::ShowCollision, GAMEPAD_BUTTON_LEFT_FACE_LEFT},   // Left DPad Left
-    {Action::ShowChunkBorders,
-     GAMEPAD_BUTTON_LEFT_FACE_RIGHT},  // Left DPad Right
+    {Action::Openchat, GAMEPAD_BUTTON_LEFT_FACE_RIGHT},  // Left DPad  Right
+    {Action::Reconnect, GAMEPAD_BUTTON_LEFT_FACE_UP},    // Left DPad Up
+    {Action::Exit, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT},     // B
 };
 }  // namespace
 

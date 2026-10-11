@@ -593,6 +593,10 @@ void Game::drawHealthBar() {
 }
 
 void Game::drawChat() {
+  if (input.down(Action::Exit)) {
+    inChat = false;
+    return;
+  }
 #ifdef CHAT
   constexpr int VISIBLE_CHAT_MESSAGES = 8;
   constexpr double CHAT_MESSAGE_LIFETIME = 10.0;  // seconds
@@ -620,8 +624,9 @@ void Game::drawChat() {
   if (inChat) {
     inputHeight = LINE_HEIGHT + 6;
   }
-  int y =
-      GetScreenHeight() - 20 - inputHeight - LINE_HEIGHT * (int)visible.size();
+  // 30 for the health indicators
+  int y = GetScreenHeight() - 20 - 30 - inputHeight -
+          LINE_HEIGHT * (int)visible.size();
   for (auto it = visible.rbegin(); it != visible.rend();
        ++it) {  // reverse again to draw oldest-to-newest top-to-bottom
     const ChatEntry& entry = chat[*it];
@@ -699,6 +704,13 @@ void Game::drawScoreboard() {
   }
 }
 
+void Game::exit() {
+  client.disconnect();
+  GameState::shared().setMenuState(MenuState::Home);
+  input.setMouseLook(false);
+  paused = false;
+}
+
 // Pause / damage flashes, the connection status line and the crosshair.
 void Game::drawOverlays(float dt) {
   GameState& gameState = GameState::shared();
@@ -726,6 +738,9 @@ void Game::drawOverlays(float dt) {
   }
 
   if (paused) {
+    if (input.down(Action::Exit)) {
+      exit();
+    }
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
 
     DrawTextFont("Paused",
@@ -736,9 +751,7 @@ void Game::drawOverlays(float dt) {
     if (CheckCollisionPointRec(input.getPointer(), exitButton)) {
       DrawRectangleRec(exitButton, LIGHTGRAY);
       if (input.pressed(Action::Click)) {
-        client.disconnect();
-        paused = false;
-        gameState.setMenuState(MenuState::HOME);
+        exit();
       }
     } else {
       DrawRectangleRec(exitButton, GRAY);

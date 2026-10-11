@@ -4,11 +4,11 @@
 
 #include <utility>
 
-enum class MenuState { HOME, SETTINGS, PLAYING };
+enum class MenuState { Home, Settings, Playing };
 
 class GameState {
  private:
-  MenuState menu{MenuState::HOME};
+  MenuState menu{MenuState::Home};
 
   // ==== settings ==== //
   int renderDistance{500};

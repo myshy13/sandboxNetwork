@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "sharedEnv.hpp"
+
 // ==== server tunables ==== //
 // Gameplay/config constants in one place. Compile-time only, like the client's
 // env.hpp.
@@ -35,7 +37,7 @@ constexpr float MAX_TICK_DT =
     0.1f; // a stalled tick simulates at most this much time
 
 constexpr int PLAYER_MAX_HEALTH =
-    20; // must match the client's env::MAX_HEALTH (Client/src/env.hpp)
+    SHARED_PLAYER_HEALTH; // the client's env::MAX_HEALTH aliases it too
 
 constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
 constexpr int DEFAULT_VIEW_RADIUS = 4; // default
@@ -58,5 +60,8 @@ constexpr float DAY_DEFAULT_TIME = 0.5f;
 constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
 
 constexpr bool debug{false};
+
+constexpr float FALL_DAMAGE_PER_BLOCK = 1.0f;
+constexpr int FALL_SAFE_BLOCKS = 3;
 
 } // namespace env
