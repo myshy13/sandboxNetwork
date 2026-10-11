@@ -53,8 +53,8 @@ set(FETCHCONTENT_QUIET FALSE)
 FetchContent_Declare(
     raylib
     GIT_REPOSITORY https://github.com/raysan5/raylib.git
-    GIT_TAG        5.5
-    GIT_SHALLOW    TRUE
+    GIT_TAG 5.5
+    GIT_SHALLOW TRUE
 )
 
 # Don't build raylib's examples/games, we only want the library.
@@ -63,6 +63,8 @@ set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
 if(BUILD_WEB)
     set(PLATFORM "Web" CACHE STRING "" FORCE)
+    # Web defaults to GLES2 rlgl, whose instancing/VAO extension pointers are null in a WebGL2 context
+    set(OPENGL_VERSION "ES 3.0" CACHE STRING "" FORCE)
 endif()
 
 if(BUILD_IOS)
@@ -136,8 +138,8 @@ if(NOT BUILD_WEB)
     FetchContent_Declare(
         enet
         GIT_REPOSITORY https://github.com/lsalzman/enet.git
-        GIT_TAG        v1.3.18
-        GIT_SHALLOW    TRUE
+        GIT_TAG v1.3.18
+        GIT_SHALLOW TRUE
     )
 
     FetchContent_MakeAvailable(enet)
@@ -148,10 +150,10 @@ endif()
 # ---------------------------------------------------------------------------
 
 FetchContent_Declare(
-  cereal
-  GIT_REPOSITORY https://github.com/USCiLab/cereal.git
-  GIT_TAG        v1.3.2
-  GIT_SHALLOW    TRUE
+    cereal
+    GIT_REPOSITORY https://github.com/USCiLab/cereal.git
+    GIT_TAG v1.3.2
+    GIT_SHALLOW TRUE
 )
 set(JUST_INSTALL_CEREAL ON CACHE BOOL "" FORCE) # skip building cereal's tests/docs
 FetchContent_MakeAvailable(cereal)
@@ -200,8 +202,11 @@ endif()
 
 if(BUILD_TVOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
+elseif(BUILD_WEB)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f) 
 else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=2.0f)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
+
 endif()
 
 if(BUILD_TVOS)
@@ -252,7 +257,7 @@ if(APPLE AND NOT BUILD_WEB)
         # Post-build runs after copy_assets (a dependency), so the seal covers them
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND codesign --force --deep ${SIGN_FLAGS}
-                    --sign "${SIGN_IDENTITY}" "${APP_BUNDLE}"
+            --sign "${SIGN_IDENTITY}" "${APP_BUNDLE}"
             COMMAND codesign --verify --deep --strict "${APP_BUNDLE}"
             VERBATIM
         )
@@ -262,7 +267,7 @@ if(APPLE AND NOT BUILD_WEB)
             add_custom_target(notarize
                 COMMAND ditto -c -k --keepParent "${APP_BUNDLE}" "${CMAKE_BINARY_DIR}/notarize.zip"
                 COMMAND xcrun notarytool submit "${CMAKE_BINARY_DIR}/notarize.zip"
-                        --keychain-profile "${NOTARY_PROFILE}" --wait
+                --keychain-profile "${NOTARY_PROFILE}" --wait
                 COMMAND xcrun stapler staple "${APP_BUNDLE}"
                 DEPENDS ${PROJECT_NAME}
                 VERBATIM
@@ -342,8 +347,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 # A target with no OUTPUT is always out of date, so this runs every build (even shader-only edits).
 add_custom_target(copy_assets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-            "${CMAKE_SOURCE_DIR}/assets"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    "${CMAKE_SOURCE_DIR}/assets"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
 )
 add_dependencies(${PROJECT_NAME} copy_assets)
 
@@ -361,8 +366,10 @@ if(BUILD_WEB)
         "-O3"
         "-sUSE_GLFW=3"
         "-sWASM=1"
-        "-sASYNCIFY"
         "-sALLOW_MEMORY_GROWTH=1"
+        # TEMP debugging: function names in stack traces + runtime checks; remove once the web freeze is fixed
+        "-sASSERTIONS=2"
+        "--profiling-funcs"
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2"
         "-sEXPORTED_FUNCTIONS=['_main','_resize']"

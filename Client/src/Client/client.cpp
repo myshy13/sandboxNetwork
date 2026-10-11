@@ -191,7 +191,7 @@ void Client::handleMessage(const std::string& data) {
         std::optional<std::string> name = idToName(msg.id);
         if (msg.shooterId != -1) {
           deathMessage.text =
-              "Player " + std::to_string(msg.shooterId) + " killed Player " +
+              "Player " + std::to_string(msg.shooterId) + " killed " +
               (name.has_value() ? name.value()
                                 : "Player " + std::to_string(msg.id));
         } else {
