@@ -41,7 +41,7 @@ contains the pixel). Not wanted yet; do it only after the single map is snapped,
 
 ## Accounts (`sandboxNetworkAuth`)
 
-Goal: an always-on server (AWS, maybe an Oracle VPS later) needs a banlist, real names instead of "player <n>", and a
+Goal: an always-on server (AWS, maybe an Oracle VPS later) needs a banlist, real names instead of "player \<n>", and a
 persistent identity. Not started; branch `feature/accounts`, merged by PR (it changes who may play and build).
 
 Decisions:
@@ -58,7 +58,7 @@ Decisions:
   comes from the connection, never from a later payload.
 - Bans sit on the account (`banned`, reason, optional expiry). Registration is rate-limited per IP so a ban sticks.
 - Guests are configurable per game server: `--allow-guests` plus a few bools in `Server/src/env.hpp` for what a guest
-  may do (build, chat, ...). Guests are named "Guest <n>".
+  may do (build, chat, ...). Guests are named "Guest \<n>".
 - Some accounts are admins (a flag in the ticket); a CLI script on the auth box does bans until something better is needed.
 - Client: a Login / Register / Guest screen on first launch, and a small "Sign out" button on the Home screen.
 
