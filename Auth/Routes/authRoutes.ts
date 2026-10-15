@@ -10,10 +10,7 @@ const bannedNames: string[] = ["guest", "admin", "staff", "owner", " "];
 
 function checkName(name: string) {
   name = name.toLowerCase();
-  bannedNames.forEach((bannedName) => {
-    if (name.includes(bannedName)) return false;
-  });
-  return true;
+  return !bannedNames.some((bannedName) => name.includes(bannedName));
 }
 
 class AuthRoutes {
@@ -48,6 +45,7 @@ class AuthRoutes {
       async (req, res) => {
         if (!checkName(req.body.name)) {
           res.status(400).send({ error: "Name not allowed" });
+          return;
         }
         const hash = await this.#passwords.hash(req.body.password);
         const id = this.#db.createAccount(req.body.name, hash);
