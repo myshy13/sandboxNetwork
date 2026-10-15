@@ -62,7 +62,7 @@ Decisions:
 - Some accounts are admins (a flag in the ticket); a CLI script on the auth box does bans until something better is needed.
 - Client: a Login / Register / Guest screen on first launch, and a small "Sign out" button on the Home screen.
 
-Stages (each ends in something runnable):
+Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth/routes-backlog.md`.
 
 1. [ ] Auth service on its own (`Auth/`, Node, outside the CMake build): `db.js` (accounts table, prepared statements
        only), `passwords.js` (Argon2id; run a dummy verify for unknown names so timing doesn't reveal which exist),

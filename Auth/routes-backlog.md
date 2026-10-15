@@ -11,7 +11,7 @@ Bigger picture and decisions: `plan.md` at the repo root, "Accounts".
 
 ## AuthRoutes (`Routes/authRoutes.ts`)
 
-1. [ ] `POST /register`
+1. [~] `POST /register`
    - [x] Body schema (TypeBox), per-IP rate limit 5/hour, hash, `createAccount`, `409` when taken, `201` + ticket.
    - [ ] Wire `new AuthRoutes(...).register(app)` into `buildApp.ts`.
    - [ ] Reserved names (contains `guest` or `admin`, case-insensitive): `400 { error: "Name not allowed" }`.
