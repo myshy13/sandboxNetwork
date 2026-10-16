@@ -60,9 +60,11 @@ test("passwords outside 8..128 characters are 400", async (t) => {
 });
 
 test("names that break the pattern are 400", async (t) => {
-  const { app } = await setup(t);
-  for (const name of ["ab", "a".repeat(17), "bad name", "bad-name", "naïve", ""])
+  // One app per name: every request counts towards the 5/hour limit, even a rejected one.
+  for (const name of ["ab", "a".repeat(17), "bad name", "bad-name", "naïve", ""]) {
+    const { app } = await setup(t);
     assert.equal((await register(app, { name, password: goodPassword })).statusCode, 400, `name: ${name}`);
+  }
 });
 
 test("reserved names are 400 and no account is created", async (t) => {
@@ -74,11 +76,15 @@ test("reserved names are 400 and no account is created", async (t) => {
   }
 });
 
-test("unknown body fields are rejected, so isAdmin cannot be smuggled in", async (t) => {
+// Fastify's default Ajv has removeAdditional on, so an unknown field is dropped, not rejected (status stays 201).
+test("isAdmin in the body cannot make an admin", async (t) => {
   const { app, db } = await setup(t);
   const res = await register(app, { name: "hamish", password: goodPassword, isAdmin: true });
-  assert.equal(res.statusCode, 400);
-  assert.equal(db.getByName("hamish"), undefined);
+
+  const claims = signer.verify(res.json().ticket, Math.floor(Date.now() / 1000));
+  assert.ok(claims);
+  assert.equal(claims.isAdmin, false);
+  assert.equal(db.getByName("hamish")?.isAdmin, 0);
 });
 
 test("missing fields are 400", async (t) => {
