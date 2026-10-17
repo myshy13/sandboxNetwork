@@ -724,23 +724,39 @@ void Game::drawOverlays(float dt) {
   GameState& gameState = GameState::shared();
 
   {
-    constexpr float BOXSIZE = 50.0f;  // square
-    constexpr float BORDER = 5.0f;
-    const float left = (GetScreenWidth() - BOXSIZE * blockTypesSize) / 2;
-    const float top = GetScreenHeight() - BOXSIZE;
+    constexpr float SLOT = 64.0f;  // multiple of 8 keeps it on the pixel grid
+    constexpr float GAP = 4.0f;
+    constexpr float MARGIN =
+        8.0f;  // space under the bar, so the shadow isn't cut off
+    constexpr float DEPTH =
+        4.0f;  // smaller shadow than the buttons, suits a small widget
+    constexpr float INSET =
+        Theme::Border + 4.0f;  // border plus a little padding around the icon
+
+    const float totalW = blockTypesSize * SLOT + (blockTypesSize - 1) * GAP;
+    const float left = std::roundf((GetScreenWidth() - totalW) / 2);
+    const float top = GetScreenHeight() - SLOT - MARGIN;
+
     for (int i = 0; i < blockTypesSize; i++) {
-      const float x = left + i * BOXSIZE;
-      DrawRectangle(x, top, BOXSIZE, BOXSIZE,
-                    activeBlockType == i ? WHITE : GRAY);
-      const Rectangle inner = {x + BORDER, top + BORDER, BOXSIZE - 2 * BORDER,
-                               BOXSIZE - 2 * BORDER};
-      // The block's colour, with its texture drawn over it once it has one.
-      DrawRectangleRec(inner, blockColor(blockTypes[i]));
+      const bool active = (activeBlockType == i);
+      const Rectangle slot = {left + i * (SLOT + GAP), top, SLOT, SLOT};
+
+      // Selected slot: lifted, white border, blue shadow. Others: flat slate.
+      const Rectangle face =
+          Theme::DrawBlock(slot, active ? Theme::PanelHi : Theme::Panel,
+                           active ? Theme::Text : Theme::PanelBorder,
+                           active ? Theme::BlueDark : Theme::PanelShadow,
+                           /*hovered=*/active, /*down=*/false, DEPTH);
+
+      // The block icon, inset inside the border
+      const Rectangle icon = {face.x + INSET, face.y + INSET, SLOT - INSET * 2,
+                              SLOT - INSET * 2};
+      DrawRectangleRec(icon, blockColor(blockTypes[i]));
       if (std::optional<Tex> tex = blockTex(blockTypes[i], BlockFace::Side)) {
         const Texture2D& texture = assets.get(*tex);
         DrawTexturePro(texture,
                        {0, 0, (float)texture.width, (float)texture.height},
-                       inner, {0, 0}, 0, WHITE);
+                       icon, {0, 0}, 0, WHITE);
       }
     }
   }
