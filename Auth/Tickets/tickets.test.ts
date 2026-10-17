@@ -13,7 +13,8 @@ const signer = new TicketSigner(newPem());
 // Flip one bit of the byte at index (negative = from the end), return as base64.
 const flip = (ticket: string, index: number): string => {
   const buf = Buffer.from(ticket, "base64");
-  buf[index < 0 ? buf.length + index : index] ^= 1;
+  const at = index < 0 ? buf.length + index : index;
+  buf[at] = buf[at]! ^ 1;
   return buf.toString("base64");
 };
 
