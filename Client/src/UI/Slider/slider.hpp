@@ -1,8 +1,11 @@
 #pragma once
 
-#include <functional>
 #include <raylib.h>
+
+#include <functional>
 #include <string>
+
+#include "Input/input.hpp"
 
 // A horizontal slider over an int range, tied to its value by a getter and a setter.
 class Slider {
@@ -23,5 +26,5 @@ public:
   void setBar(Rectangle r) { bar = r; }
 
   // pressed: the button went down this frame; down: it is held.
-  void frame(Vector2 mousePos, bool pressed, bool down);
+  void frame(Input& input, bool pressed, bool down);
 };
