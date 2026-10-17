@@ -104,7 +104,7 @@ static void ready() {
   game = std::make_unique<Game>(*assets, *input);
   home = std::make_unique<Home>(*input);
   settings = std::make_unique<Settings>(*input);
-  
+
   GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
   input->setMouseLook(false);
@@ -157,7 +157,7 @@ int main() {
   // The browser owns the loop (never returns); a blocking loop needs ASYNCIFY.
   emscripten_set_main_loop(update, 0, 1);
 #else
-  while (!WindowShouldClose()) {
+  while (!WindowShouldClose() && !GameState::shared().shouldClose()) {
     update();
   }
 #endif

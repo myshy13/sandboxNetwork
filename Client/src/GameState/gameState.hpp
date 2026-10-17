@@ -13,6 +13,7 @@ class GameState {
   MenuState menu{MenuState::Home};
 
   Background background;
+  bool windowCloseRequested{false};
 
   // ==== settings ==== //
   int renderDistance{500};
@@ -87,4 +88,8 @@ class GameState {
   int getTargetFps() const { return targetFps; }
 
   Background& getBackground() { return background; }
+
+  void closeWindow() { windowCloseRequested = true; }
+
+  bool shouldClose() const { return windowCloseRequested; }
 };

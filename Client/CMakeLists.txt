@@ -238,6 +238,8 @@ if(APPLE AND NOT BUILD_WEB)
         MACOSX_BUNDLE_BUNDLE_NAME "${PROJECT_NAME}"
     )
 
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DESKTOP)
+
     # Opt-in signing: cmake -DSIGN_MACOS=ON -DSIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
     # or SIGN_IDENTITY="-" for an ad-hoc seal (no account; can't be notarized)
     option(SIGN_MACOS "Sign the .app on Release builds" OFF)

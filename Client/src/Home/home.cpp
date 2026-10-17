@@ -32,6 +32,15 @@ Home::Home(Input& input)
       "Settings", (float)GetScreenHeight() / 2 + 100, ButtonStyles::Secondary);
   buttons.push_back(settingsButton);
 
+  // only desktop builds support a clean quit
+#ifdef DESKTOP
+  // quit button
+  Button quitButton =
+      Button([](void) { GameState::shared().closeWindow(); }, "Quit",
+             (float)GetScreenHeight() / 2 + 200, ButtonStyles::Ghost);
+  buttons.push_back(quitButton);
+#endif
+
   // ==== init particles ==== //
   int particleCount = 10 + rand() % 10;
   const int sizes[3] = {16, 24, 32};
