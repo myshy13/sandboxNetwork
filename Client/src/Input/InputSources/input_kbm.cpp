@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 
+#include "AssetManager/manager.hpp"
 #include "Input/inputSource.hpp"
 #include "Input/inputState.hpp"
 
@@ -50,6 +51,21 @@ static_assert(std::size(BINDS) == static_cast<size_t>(Action::Count),
 }  // namespace
 
 class InputKbm : public InputSource {
+  MouseCursor pendingCursor = MOUSE_CURSOR_DEFAULT;
+  bool styleChanged;
+
+  void setCursorStyle(MouseCursor style) override {
+    styleChanged = true;
+    pendingCursor = style;
+  };
+
+  void drawCursor(const AssetManager&) override {
+    if (styleChanged) {
+      SetMouseCursor(pendingCursor);
+    }
+    pendingCursor = MOUSE_CURSOR_DEFAULT;
+  };
+
   void poll(InputState& inputState) override {
     inputState = {};
     for (size_t i = 0; i < std::size(BINDS); i++) {

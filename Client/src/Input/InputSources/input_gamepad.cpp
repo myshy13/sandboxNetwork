@@ -49,6 +49,8 @@ class InputGamepad : public InputSource {
   bool cursorVisible{true};
   bool windowResized{true};
 
+  MouseCursor pendingCursor = MOUSE_CURSOR_DEFAULT;
+
  public:
   InputGamepad() {
     // GLFW's built-in table lacks newer firmware GUIDs, so such a pad reads as
@@ -104,10 +106,28 @@ class InputGamepad : public InputSource {
     state.move = {leftMovement.x, -leftMovement.y};
   };
 
-  void drawCursor(const AssetManager&) override {
+  void setCursorStyle(MouseCursor style) override { pendingCursor = style; }
+
+  void drawCursor(const AssetManager& assets) override {
+    static const Texture2D& cursorHoverIcon = assets.get(Tex::HoveredIcon);
     if (cursorVisible) {
-      DrawRectangle(cursor.x, cursor.y, 5, 5, WHITE);
+      switch (pendingCursor) {
+        case MOUSE_CURSOR_POINTING_HAND:
+          DrawTexturePro(cursorHoverIcon,
+                         {0, 0, (float)cursorHoverIcon.width,
+                          (float)cursorHoverIcon.height},
+                         {cursor.x - ((float)cursorHoverIcon.width / 2 * 2),
+                          cursor.y - ((float)cursorHoverIcon.height / 2 * 2),
+                          (float)cursorHoverIcon.width * 2,
+                          (float)cursorHoverIcon.height * 2},
+                         {0, 0}, 0.0f, WHITE);
+          break;
+        default:
+          DrawRectangle(cursor.x - 5, cursor.y - 5, 10, 10, WHITE);
+          break;
+      }
     }
+    pendingCursor = MOUSE_CURSOR_DEFAULT;
   }
 
   void setMouseLook(bool mouseLook) override {

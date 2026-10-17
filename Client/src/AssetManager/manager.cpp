@@ -19,14 +19,18 @@ constexpr const char* TEXTURE_PATHS[] = {
     "assets/icons/shoot.png",        // shoot icon
     "assets/icons/place.png",        // place icon
     "assets/icons/pause.png",        // pause icon
+    "assets/icons/hoverCursor.png",  // cursor hovered icon (gamepad only)
 };
 
-// Same order as Tex.
+// Same order as Fon.
 constexpr const char* FONT_PATHS[] = {
     "assets/fonts/pressStart2P.ttf",  // press start 2p
 };
 
-static_assert(std::size(TEXTURE_PATHS) == static_cast<size_t>(Tex::Count), "Tex and TEXTURE_PATHS are out of sync");
+static_assert(std::size(TEXTURE_PATHS) == static_cast<size_t>(Tex::Count),
+              "Tex and TEXTURE_PATHS are out of sync");
+static_assert(std::size(FONT_PATHS) == static_cast<size_t>(Fon::Count),
+              "Fon and FONTS_PATHS are out of sync");
 
 AssetManager::AssetManager() {
   for (size_t i = 0; i < textures.size(); i++) {

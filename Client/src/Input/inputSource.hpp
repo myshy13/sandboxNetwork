@@ -1,5 +1,7 @@
 #pragma once
 
+#include <raylib.h>
+
 #include <memory>
 
 #include "AssetManager/manager.hpp"
@@ -12,6 +14,7 @@ class InputSource {
   virtual void setMouseLook(bool) = 0;
   virtual void draw(const AssetManager&) {};
   virtual void drawCursor(const AssetManager&) {};
+  virtual void setCursorStyle(MouseCursor){};
 };
 
 std::unique_ptr<InputSource> makeInputSource();
