@@ -21,6 +21,7 @@
 #include "Input/inputState.hpp"
 #include "Raylib/drawText.hpp"
 #include "Shaders/lighting.hpp"
+#include "UI/Button/button.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
 #ifdef CHEATS
@@ -29,7 +30,11 @@
 
 // ==== setup / teardown ==== //
 Game::Game(const AssetManager& a, Input& input)
-    : assets(a), renderer(a), input(input) {
+    : assets(a),
+      renderer(a),
+      input(input),
+      exitButton(Button([&]() { exit(); }, "<", Rectangle{10, 10, 50, 50}, 40,
+                        ButtonStyles::Primary)) {
   // ==== lighting ==== //
   DirectionalLight light = lighting.timeToLight(world.getTime());
   sunLights[0] = lighting.addDirectional(Vector3Add(light.pos, {0, 0, 0}),
@@ -741,25 +746,13 @@ void Game::drawOverlays(float dt) {
   }
 
   if (paused) {
-    if (input.down(Action::Exit)) {
-      exit();
-    }
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
 
     DrawTextFont("Paused",
                  GetScreenWidth() / 2 - MeasureTextFont("Paused", 50) / 2,
                  GetScreenHeight() / 2 - 25, 50, WHITE);
 
-    Rectangle exitButton = {10, 10, 60, 60};
-    if (CheckCollisionPointRec(input.getPointer(), exitButton)) {
-      DrawRectangleRec(exitButton, LIGHTGRAY);
-      if (input.pressed(Action::Click)) {
-        exit();
-      }
-    } else {
-      DrawRectangleRec(exitButton, GRAY);
-    }
-    DrawTextFont("<", 30 - MeasureText("<", 30) / 2, 25, 30, WHITE);
+    exitButton.frame(input, input.pressed(Action::Click));
 
   } else if (gameState.damageFlashTimer > 0) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {100, 10, 10, 50});
