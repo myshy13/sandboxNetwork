@@ -28,7 +28,7 @@ Bigger picture and decisions: `plan.md` at the repo root, "Accounts".
    - Re-read the account (`getById`) so a ban takes effect, then reply with a new ticket.
    - Rotation (decided): every use replaces the refresh token with a new 30-day one; the old one stops working.
      Two requests with the same token must not both succeed.
-4. [ ] `POST /logout`: `deleteSession`; always reply `204`, even for an unknown token.
+4. [x] `POST /logout`: `deleteSession`; always reply `204`, even for an unknown token.
 
 ## Scripts (not routes)
 

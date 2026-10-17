@@ -79,3 +79,20 @@ its ticket expires, and on launch if it has a stored token.
 - The old token is deleted when the new one is issued, so each token works once; the new one lasts 30 days from now.
   Two simultaneous requests with the same token: exactly one gets `200`.
 - Ticket claims (`id`, `name`, `isAdmin`) come from the account row, not from the client.
+
+## POST /logout
+
+Ends one login session by deleting its refresh token. Used by the client's Sign out button.
+
+- **Rate limit:** 10 per minute per IP.
+- **Body** (`#logoutBody`): `{ refreshToken }`, exactly 43 base64url characters (`^[A-Za-z0-9_-]{43}$`).
+- **Responses:**
+
+  | Status | Body | When                                                                                  |
+  | ------ | ---- | ------------------------------------------------------------------------------------- |
+  | `204`  | none | always: a live token, an unknown one, or one already logged out (identical on purpose) |
+
+- It removes only that one session; the account's other devices stay logged in.
+- No ticket or password is needed, only the token.
+- A ticket already issued keeps working until its `exp` (up to 1 hour). Logging out cannot recall it; the client
+  should just discard it.

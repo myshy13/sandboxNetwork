@@ -372,3 +372,74 @@ test("the 31st refresh from one IP in a minute is 429", async (t) => {
   for (let i = 0; i < 30; i++) assert.equal((await refresh(app, "A".repeat(43))).statusCode, 401);
   assert.equal((await refresh(app, "A".repeat(43))).statusCode, 429);
 });
+
+// ==== logout ====
+// Written before the route, from its contract: always 204 with no body, removes only that one session.
+
+const logout = (app: App, refreshToken: string, remoteAddress?: string) =>
+  app.inject({ method: "POST", url: "/logout", payload: { refreshToken }, remoteAddress });
+
+test("logout answers 204 with no body, and the token stops working", async (t) => {
+  const { app, db } = await setup(t);
+  const { token } = withSession(db);
+
+  const res = await logout(app, token);
+  assert.equal(res.statusCode, 204);
+  assert.equal(res.body, "");
+  assert.equal((await refresh(app, token)).statusCode, 401, "a logged-out token cannot refresh");
+});
+
+test("logout answers the same 204 for a token that was never valid, and for one used twice", async (t) => {
+  const { app, db } = await setup(t);
+  const { token } = withSession(db);
+  await logout(app, token);
+
+  for (const tok of [token, "A".repeat(43)]) {
+    const res = await logout(app, tok);
+    assert.equal(res.statusCode, 204, "must not reveal whether the token existed");
+    assert.equal(res.body, "");
+  }
+});
+
+test("logout removes only that session, not the account's others", async (t) => {
+  const { app, db } = await setup(t);
+  const { id, token: phone } = withSession(db);
+  const pc = db.createSession(id, now(), now() + 1000);
+
+  await logout(app, phone);
+  assert.equal((await refresh(app, phone)).statusCode, 401);
+  assert.equal((await refresh(app, pc)).statusCode, 200, "the other device stays logged in");
+});
+
+test("logout works for a banned account too", async (t) => {
+  const { app, db } = await setup(t);
+  const { token } = withSession(db);
+  db.setBan("hamish", "cheating", null);
+
+  assert.equal((await logout(app, token)).statusCode, 204);
+  db.clearBan("hamish");
+  assert.equal((await refresh(app, token)).statusCode, 401, "the session really was deleted");
+});
+
+test("logout needs no ticket or password, only the token", async (t) => {
+  const { app, db } = await setup(t);
+  const { token } = withSession(db);
+  const res = await app.inject({ method: "POST", url: "/logout", payload: { refreshToken: token } });
+  assert.equal(res.statusCode, 204);
+});
+
+test("a body that is not a 43-character base64url token is 400", async (t) => {
+  const { app } = await setup(t);
+  for (const token of ["", "a".repeat(42), "a".repeat(44), "a".repeat(42) + "+"])
+    assert.equal((await logout(app, token)).statusCode, 400, JSON.stringify(token));
+  assert.equal((await app.inject({ method: "POST", url: "/logout", payload: {} })).statusCode, 400);
+});
+
+test("logout is rate limited per IP", async (t) => {
+  const { app } = await setup(t);
+  // The exact number is the route's choice; it must kick in well before a thousand requests.
+  let limited = false;
+  for (let i = 0; i < 1000 && !limited; i++)
+    limited = (await logout(app, "A".repeat(43))).statusCode === 429;
+  assert.ok(limited, "no 429 after 1000 logouts from one IP");
+});

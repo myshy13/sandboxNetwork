@@ -40,6 +40,12 @@ class AuthRoutes {
     },
     { additionalProperties: false },
   );
+  readonly #logoutBody = Type.Object(
+    {
+      refreshToken: Type.String({ pattern: "^[A-Za-z0-9_-]{43}$" }),
+    },
+    { additionalProperties: false },
+  );
   constructor(db: Db, passwords: Passwords, signer: TicketSigner) {
     this.#db = db;
     this.#signer = signer;
@@ -192,7 +198,26 @@ class AuthRoutes {
           return;
         }
 
-        res.status(200).send({ ticket: this.#ticketFor(account, now), refreshToken: rotated.token });
+        res
+          .status(200)
+          .send({ ticket: this.#ticketFor(account, now), refreshToken: rotated.token });
+      },
+    );
+
+    typed.post(
+      "/logout",
+      {
+        schema: {
+          body: this.#logoutBody,
+        },
+        config: {
+          rateLimit: { max: 10, timeWindow: "1 minute" },
+        },
+      },
+      async (req, res) => {
+        const token = req.body.refreshToken;
+        this.#db.deleteSession(token);
+        return res.status(204).send();
       },
     );
   }
