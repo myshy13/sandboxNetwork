@@ -35,4 +35,5 @@ class Input {
 
   // ==== setters ==== //
   void setMouseLook(bool mouseLook);
+  void setCursorStyle(MouseCursor style);
 };

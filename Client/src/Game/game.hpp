@@ -11,6 +11,7 @@
 #include "Player/player.hpp"
 #include "Renderer/renderer.hpp"
 #include "Shaders/lighting.hpp"
+#include "UI/Button/button.hpp"
 #include "World/world.hpp"
 
 constexpr float lightUpdateCooldownTime = 0.1f;
@@ -58,6 +59,8 @@ class Game {
   static constexpr float RENDER_SCALE{RENDER_SCALE_DEFAULT};
   static RenderTexture makeTarget();
   RenderTexture target = makeTarget();
+
+  Button exitButton;
 
   // ==== per-frame state ==== //
   bool paused = false;

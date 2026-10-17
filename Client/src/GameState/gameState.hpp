@@ -4,16 +4,20 @@
 
 #include <utility>
 
+#include "UI/Background/background.hpp"
+
 enum class MenuState { Home, Settings, Playing };
 
 class GameState {
  private:
   MenuState menu{MenuState::Home};
 
+  Background background;
+
   // ==== settings ==== //
   int renderDistance{500};
   bool interpolation{true};
-  bool shadows{SHADOWS_DEFAULT != 0};  // set per platform in CMakeLists.txt
+  bool shadows{SHADOWS_DEFAULT != 0};     // set per platform in CMakeLists.txt
   bool autoJump{AUTO_JUMP_DEFAULT != 0};  // set per platform in CMakeLists.txt
   int shadowRadius{DEFAULT_SHADOW_RADIUS};
   int targetFps{DEFAULT_TARGET_FPS};
@@ -81,4 +85,6 @@ class GameState {
   }
 
   int getTargetFps() const { return targetFps; }
+
+  Background& getBackground() { return background; }
 };

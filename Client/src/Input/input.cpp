@@ -27,6 +27,8 @@ void Input::drawCursor() { source->drawCursor(assets); }
 
 void Input::setMouseLook(bool mouseLook) { source->setMouseLook(mouseLook); }
 
+void Input::setCursorStyle(MouseCursor style) { source->setCursorStyle(style); }
+
 Vector2 Input::getMove() const { return current.move; }
 
 Vector2 Input::getLook() const { return current.look; }

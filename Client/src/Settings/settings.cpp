@@ -8,6 +8,8 @@
 
 #include "GameState/gameState.hpp"
 #include "Input/inputState.hpp"
+#include "Raylib/drawText.hpp"
+#include "UI/Theme/theme.hpp"
 
 // Distances are stored in world units; show them in blocks (5 units each).
 static std::string inBlocks(int units) { return std::to_string(units / 5); }
@@ -66,8 +68,7 @@ void Settings::frame() {
 
   const float left = GetScreenWidth() / 5.0f;
   const float width = left * 3;
-  const float toggleX = left * 4 - 100;
-  const Vector2 mouse = input.getPointer();
+  const float toggleX = left * 4 - 120;
   const bool pressed = input.pressed(Action::Click);
   const bool down = input.down(Action::Click);
 
@@ -75,10 +76,10 @@ void Settings::frame() {
   renderDistanceSlider.setBar({left, 200 - scroll, width, 20});
   shadowRadiusSlider.setBar({left, 290 - scroll, width, 20});
   targetFpsSlider.setBar({left, 380 - scroll, width, 20});
-  vsyncButton.setRec({toggleX, 460 - scroll, 100, 50});
-  interpolationButton.setRec({toggleX, 530 - scroll, 100, 50});
-  shadowsButton.setRec({toggleX, 600 - scroll, 100, 50});
-  autoJumpButton.setRec({toggleX, 670 - scroll, 100, 50});
+  vsyncButton.setRec({toggleX, 460 - scroll, 120, 50});
+  interpolationButton.setRec({toggleX, 530 - scroll, 120, 50});
+  shadowsButton.setRec({toggleX, 600 - scroll, 120, 50});
+  autoJumpButton.setRec({toggleX, 670 - scroll, 120, 50});
 
   vsyncButton.setText(IsWindowState(FLAG_VSYNC_HINT) ? "On" : "Off");
   interpolationButton.setText(gameState.getInterpolation() ? "On" : "Off");
@@ -86,24 +87,26 @@ void Settings::frame() {
   autoJumpButton.setText(gameState.getAutoJump() ? "On" : "Off");
 
   BeginDrawing();
-  ClearBackground(BLACK);
+  ClearBackground(Theme::Ground);
 
-  exitButton.frame(mouse, pressed);
-  renderDistanceSlider.frame(mouse, pressed, down);
-  shadowRadiusSlider.frame(mouse, pressed, down);
+  gameState.getBackground().frame();
+
+  exitButton.frame(input, pressed);
+  renderDistanceSlider.frame(input, pressed, down);
+  shadowRadiusSlider.frame(input, pressed, down);
   // Hidden on web, where the browser paces the loop (default 0 = uncapped).
   if (GameState::DEFAULT_TARGET_FPS > 0)
-    targetFpsSlider.frame(mouse, pressed, down);
+    targetFpsSlider.frame(input, pressed, down);
 
   // ==== toggles ==== //
-  DrawText("VSync:", left, 475 - scroll, 30, WHITE);
-  vsyncButton.frame(mouse, pressed);
-  DrawText("Interpolation:", left, 545 - scroll, 30, WHITE);
-  interpolationButton.frame(mouse, pressed);
-  DrawText("Shadows:", left, 615 - scroll, 30, WHITE);
-  shadowsButton.frame(mouse, pressed);
-  DrawText("Auto jump:", left, 685 - scroll, 30, WHITE);
-  autoJumpButton.frame(mouse, pressed);
+  DrawTextFont("VSync:", left, 475 - scroll, 30, WHITE);
+  vsyncButton.frame(input, pressed);
+  DrawTextFont("Interpolation:", left, 545 - scroll, 30, WHITE);
+  interpolationButton.frame(input, pressed);
+  DrawTextFont("Shadows:", left, 615 - scroll, 30, WHITE);
+  shadowsButton.frame(input, pressed);
+  DrawTextFont("Auto jump:", left, 685 - scroll, 30, WHITE);
+  autoJumpButton.frame(input, pressed);
 
   input.drawCursor();
 

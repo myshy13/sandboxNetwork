@@ -22,6 +22,7 @@ enum class Tex {
   ShootIcon,
   PlaceIcon,
   PauseIcon,
+  HoveredIcon,  // mouse cursor (used in the gamepad)
 
   Count  // keep last: sizes the array and the path table
 };
