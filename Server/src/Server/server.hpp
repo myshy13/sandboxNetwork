@@ -102,6 +102,7 @@ class Server {
   float saveCountdownTime = saveTime;
   float saveCountdown{saveCountdownTime};
   float timeBroadcastCountdown{env::TIME_BROADCAST_INTERVAL};
+  float ticketCheckCountdown{env::EXPIRY_CHECK_INTERVAL};
 
   // ==== World saving ==== //
   // Periodic saves write on another thread; `saving` is that write in flight.

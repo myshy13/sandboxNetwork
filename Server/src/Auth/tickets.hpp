@@ -12,6 +12,16 @@ struct Claim {
   bool isAdmin;
 };
 
+inline bool refreshAccepted(std::optional<uint32_t> accountId,
+                            std::optional<Claim> claim) {
+  return accountId.has_value() && claim.has_value() &&
+         claim.value().id == accountId.value();
+}
+
+inline bool ticketExpired(int64_t exp, int64_t now, int grace) {
+  return exp + grace <= now;
+}
+
 class Tickets {
 private:
   std::array<uint8_t, 32> publicKey;

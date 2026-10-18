@@ -229,6 +229,11 @@ void Server::saveWorldAsync() {
         return failed;
       });
 }
+long long getSeconds() {
+  return std::chrono::duration_cast<std::chrono::seconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
 
 // Diagnostic: occupiedCells keeps one index per cell, so duplicates hide in
 // `objects`.
@@ -262,7 +267,7 @@ bool nameValid(const std::string &name) {
   // [A-Za-z0-9_ ]
   for (char l : name) {
     if (!((l >= 'a' && l <= 'z') || (l >= 'A' && l <= 'Z') ||
-          (l >= '0' && l <= '9') || l == ' ')) {
+          (l >= '0' && l <= '9') || l == ' ' || l == '_' || l == '-')) {
       return false;
     }
   }
@@ -271,7 +276,6 @@ bool nameValid(const std::string &name) {
   }
   return true;
 }
-
 void Server::ensureChunk(int cx, int cz) {
   int64_t key = chunkKey(cx, cz);
   if (generatedChunks.contains(key))
@@ -621,6 +625,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
     return;
   }
   try {
+    const auto seconds = getSeconds();
     Player *p = findPlayer(playerId);
     if (p == nullptr) {
       return;
@@ -737,6 +742,27 @@ void Server::handleReceive(int playerId, const std::string &data) {
       break;
     }
 
+    case proto::Type::TicketRefresh: {
+      // no auth needed
+      if (!tickets.has_value()) {
+        break;
+      }
+      auto msg = proto::unpack<proto::TicketRefresh>(data);
+      std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
+      if (refreshAccepted(p->accountId, claim)) {
+        p->ticketExp = claim->exp;
+        p->isAdmin = claim->isAdmin;
+        // update name if it has changed since the last ticket
+        if (p->displayName != claim->name) {
+          p->displayName = claim->name;
+          broadcast(proto::pack(proto::Type::SetName,
+                                proto::SetName{claim->name, p->id}),
+                    true);
+        }
+      }
+      break;
+    }
+
     case proto::Type::SetViewRadius: {
       auto msg = proto::unpack<proto::SetViewRadius>(data);
       // Identity comes from the connection; the radius is client-supplied, so
@@ -769,11 +795,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
              ". Server version: " + std::to_string(proto::PROTOCOL_VERSION));
         break;
       }
-      // ==== player auth
-      const auto now = std::chrono::system_clock::now();
-      const auto duration = now.time_since_epoch();
-      const auto seconds =
-          std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+      // ==== player auth === //
 
       if (msg.ticket.size() > 0) {
         if (!tickets.has_value()) {
@@ -1070,6 +1092,7 @@ void Server::tick(float dt) {
       timeOfDay -= 1;
   }
   timeBroadcastCountdown -= dt;
+  ticketCheckCountdown -= dt;
   if (timeBroadcastCountdown <= 0) {
     timeBroadcastCountdown = env::TIME_BROADCAST_INTERVAL;
     broadcast(proto::pack(proto::Type::SetTime,
@@ -1087,7 +1110,19 @@ void Server::tick(float dt) {
   for (Player &p : players) {
     p.shotBudget =
         std::min(env::SHOT_BURST, p.shotBudget + dt / env::SHOT_INTERVAL);
+    if (ticketCheckCountdown <= 0 && p.accountId.has_value()) {
+      auto seconds = getSeconds();
+      if (ticketExpired(p.ticketExp, seconds, env::EXPIRY_GRACE_WINDOW)) {
+        auto kickBytes = proto::pack(proto::Type::kick,
+                                     proto::kick{p.id, "Account expired"});
+        sendTo(p.id, kickBytes, true);
+        disconnectPlayer(p.id);
+        p.handshaken = false;
+      }
+    }
   }
+  if (ticketCheckCountdown <= 0)
+    ticketCheckCountdown = env::EXPIRY_CHECK_INTERVAL;
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;

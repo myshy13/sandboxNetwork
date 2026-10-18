@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 16; // Added ticket to clientHandshake
+constexpr int PROTOCOL_VERSION = 17; // Added ticket refresh packet type
 
 enum class Type : uint8_t {
   // player
@@ -27,15 +27,11 @@ enum class Type : uint8_t {
   NewBullet,
   DeleteBullet,
   Respawn,
-  // handshakes and chat
+  // chat
   ChatMessage,
-  PlaceObject,
-  GivenId,
-  clientHandshake,
-  SetName,
   kick,
-  // kickPlayer
   // world
+  PlaceObject,
   NewObject,
   RemoveObject,
   DamageObject,
@@ -45,7 +41,12 @@ enum class Type : uint8_t {
   ChunkUnload,
   SetViewRadius,
 
-  SetTime
+  // accounts and players
+  SetTime,
+  TicketRefresh,
+  clientHandshake,
+  SetName,
+  GivenId,
 };
 
 struct PlayerUpdate {
@@ -154,6 +155,11 @@ struct SetTime {
   template <class A> void serialize(A &ar) {
     ar(timeOfDay, dayLengthSecs, freezeTime);
   }
+};
+struct TicketRefresh {
+  std::string ticket;
+
+  template <class A> void serialize(A &ar) { ar(ticket); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //

@@ -58,6 +58,9 @@ constexpr float DAY_LENGTH_SECONDS =
 #endif
 constexpr float DAY_DEFAULT_TIME = 0.5f;
 constexpr float TIME_BROADCAST_INTERVAL = 30.0f; // seconds between resyncs
+constexpr int EXPIRY_CHECK_INTERVAL =
+    30;                                 // seconds between ticket expiry checks
+constexpr int EXPIRY_GRACE_WINDOW = 30; // grace window for clients
 
 constexpr bool debug{false};
 
