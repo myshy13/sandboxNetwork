@@ -45,6 +45,9 @@ public:
   // Thread-safe, and a no-op if that client has already gone away.
   void sendTo(const std::string &socketId, const std::string &bytes);
 
+  // Same rules as sendTo; the game thread still sees a normal Disconnect event.
+  void disconnect(const std::string &socketId);
+
 private:
   std::unique_ptr<ix::WebSocketServer> server;
   bool listening{false};

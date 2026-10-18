@@ -1,4 +1,5 @@
 #include "Server/server.hpp"
+#include "Auth/tickets.hpp"
 #include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
@@ -9,6 +10,7 @@
 #include "raylib.h"
 #include "sharedEnv.hpp"
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <chrono>
 #include <cmath>
@@ -17,6 +19,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <future>
 #include <optional>
 #include <raymath.h>
@@ -54,6 +57,12 @@ public:
     enet_peer_send(peer, 0, packet);
   }
 
+  void disconnect() override {
+    if (peer != nullptr) {
+      enet_peer_disconnect_later(peer, 0); // after queued packets are sent
+    }
+  }
+
 private:
   ENetPeer *peer;
 };
@@ -63,16 +72,37 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers, float time, bool freezeTime)
-    : freezeTime(freezeTime), savePath(std::move(savePath)),
-      maxPlayers(maxPlayers), saveTime(saveTime), timeOfDay(time),
-      nextObjectId(nextObjectId), terrain(seed) {
+               int nextObjectId, int maxPlayers, float time, bool freezeTime,
+               bool allowGuests, const std::string &pubkeyPath)
+    : freezeTime(freezeTime), allowGuests(allowGuests),
+      savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
+      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
     std::exit(EXIT_FAILURE);
   }
   std::printf("ENet initialized\n");
+
+  std::ifstream pubKeyFile(pubkeyPath, std::ios::binary);
+  bool authFailure = false;
+  if (pubKeyFile.is_open()) {
+    std::array<uint8_t, 32> key;
+    pubKeyFile.read(reinterpret_cast<char *>(key.data()), key.size());
+    if (pubKeyFile.gcount() == 32 && pubKeyFile.peek() == EOF) {
+      tickets.emplace(key);
+    } else {
+      authFailure = true;
+    }
+  } else {
+    authFailure = true;
+  }
+
+  if (authFailure) {
+    std::cerr << "Failed to initialise auth.\n Make sure the "
+                 "public key is valid and the path is correct\n";
+    std::exit(EXIT_FAILURE);
+  }
 
   // Bind to the listen port - a null address makes a client-only host that
   // never accepts connections.
@@ -384,6 +414,13 @@ void Server::broadcast(const std::string &bytes, bool reliable) {
   }
 }
 
+void Server::disconnectPlayer(int playerId) {
+  auto it = connections.find(playerId);
+  if (it != connections.end()) {
+    it->second->disconnect(); // cleanup happens in handleDisconnect, not here
+  }
+}
+
 void Server::broadcastToChunk(int64_t key, const std::string &bytes,
                               bool reliable) {
   for (const auto &[id, view] : views) {
@@ -403,9 +440,9 @@ void Server::deletePlayer(int id) {
 }
 
 // ==== Bullet handling ==== //
-std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
+std::optional<Bullet> Server::createBullet(Player *p, Vector3 origin,
                                            Vector3 dir) {
-  Player *player = findPlayer(playerId);
+  Player *player = findPlayer(p->id);
   if (player == nullptr) {
     return std::nullopt;
   }
@@ -473,6 +510,12 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
 void Server::handleDisconnect(int playerId) {
   std::printf("Client %d disconnected\n", playerId);
+  Player *p = findPlayer(playerId);
+  if (p != nullptr) {
+    std::optional<uint32_t> accountId = p->accountId;
+    if (accountId.has_value() && accountToPlayer[accountId.value()] == playerId)
+      accountToPlayer.erase(accountId.value());
+  }
   deletePlayer(playerId);
   connections.erase(playerId);
   views.erase(playerId);
@@ -562,7 +605,14 @@ void Server::handleReceive(int playerId, const std::string &data) {
     return;
   }
   try {
-    switch (proto::peekType(data)) {
+    Player *p = findPlayer(playerId);
+    if (p == nullptr) {
+      return;
+    }
+    auto type = proto::peekType(data);
+    if (type != proto::Type::clientHandshake && !p->handshaken)
+      return;
+    switch (type) {
     // ==== pos update handler ==== //
     case proto::Type::PlayerUpdate: {
       auto msg = proto::unpack<proto::PlayerUpdate>(data);
@@ -572,23 +622,22 @@ void Server::handleReceive(int playerId, const std::string &data) {
         break;
       }
 
-      Player *player = findPlayer(playerId);
-      if (player != nullptr) {
-        player->pos = msg.pos;
-        updateFall(player);
-        player->pitch = msg.pitch;
-        player->yaw = msg.yaw;
+      if (p != nullptr && p->handshaken == true) {
+        p->pos = msg.pos;
+        updateFall(p);
+        p->pitch = msg.pitch;
+        p->yaw = msg.yaw;
       }
       // ==== notify all peers ==== //
-      // Unreliable on purpose: a dropped position is superseded a frame later.
+      // Unreliable on purpose: a dropped position is superseded a frame
+      // later.
       broadcast(proto::pack(proto::Type::PlayerUpdate, msg), false);
       break;
     }
 
     case proto::Type::CreateBullet: {
       auto msg = proto::unpack<proto::CreateBullet>(data);
-      std::optional<Bullet> bullet =
-          createBullet(playerId, msg.origin, msg.dir);
+      std::optional<Bullet> bullet = createBullet(p, msg.origin, msg.dir);
       if (bullet.has_value()) {
         proto::NewBullet packetMsg;
         packetMsg.bulletId = bullet->bulletId;
@@ -608,14 +657,18 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::SetName: {
+      if (p != nullptr && p->accountId.has_value()) {
+        break;
+      }
       auto msg = proto::unpack<proto::SetName>(data);
       msg.id = playerId; // trust the connection, not the payload
+      msg.name = "Guest" + msg.name;
       const bool taken =
           std::any_of(players.begin(), players.end(), [&](const Player &p) {
             return p.id != playerId && p.displayName == msg.name;
           });
-      if (auto *player = findPlayer(playerId); player && !taken) {
-        player->displayName = msg.name;
+      if (p && !taken) {
+        p->displayName = msg.name;
         broadcast(proto::pack(proto::Type::SetName, msg), true);
       }
       break;
@@ -625,9 +678,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
       auto msg = proto::unpack<proto::PlaceObject>(data);
       const Vector3 sentPos = msg.object.getTransform().pos;
       const BlockType type = msg.object.getType();
-      const Player *player = findPlayer(playerId);
-      if (player == nullptr || !isValidPosition(sentPos) ||
-          !isPlaceable(type)) {
+      if (p == nullptr || !isValidPosition(sentPos) || !isPlaceable(type)) {
         break;
       }
       // Only the type is the client's choice: snap to the grid, no
@@ -636,7 +687,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
                            (floorf(sentPos.y / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
                            (floorf(sentPos.z / BLOCK_SIZE) + 0.5f) *
                                BLOCK_SIZE};
-      if (Vector3Distance(pos, player->pos) > env::PLACE_REACH) {
+      if (Vector3Distance(pos, p->pos) > env::PLACE_REACH) {
         break;
       }
       const int64_t chunk = chunkKeyAt(pos);
@@ -677,17 +728,78 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::clientHandshake: {
+      const auto kick = [&](const std::string &reason, int id = -1) -> void {
+        if (id == -1)
+          id = playerId;
+        auto kickBytes =
+            proto::pack(proto::Type::kick, proto::kick{id, reason});
+        sendTo(id, kickBytes, true);
+        disconnectPlayer(id);
+        p->handshaken = false; // to stop updating them
+      };
       auto msg = proto::unpack<proto::clientHandshake>(data);
       if (msg.ver != proto::PROTOCOL_VERSION) {
-        auto kickBytes = proto::pack(
-            proto::Type::kick,
-            proto::kick{playerId,
-                        "Mismatch Client version: " + std::to_string(msg.ver) +
-                            ". Server version: " +
-                            std::to_string(proto::PROTOCOL_VERSION)});
-        sendTo(playerId, kickBytes, true);
+        kick("Mismatch Client version: " + std::to_string(msg.ver) +
+             ". Server version: " + std::to_string(proto::PROTOCOL_VERSION));
         break;
       }
+      // ==== player auth
+      const auto now = std::chrono::system_clock::now();
+      const auto duration = now.time_since_epoch();
+      const auto seconds =
+          std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+
+      if (msg.ticket.size() > 0) {
+        if (!tickets.has_value()) {
+          kick("Auth is not enabled on this server");
+          break;
+        }
+
+        std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
+        if (!claim.has_value()) {
+          kick("Authentication failed");
+          break;
+        }
+        auto accountPlayerId = accountToPlayer.find(claim->id);
+        if (accountPlayerId != accountToPlayer.end() &&
+            accountPlayerId->second != playerId) {
+          kick("Another player with the same account joined the game",
+               accountPlayerId->second);
+        }
+        accountToPlayer[claim->id] = playerId;
+
+        if (p == nullptr) {
+          return;
+        }
+
+        p->accountId = claim->id;
+        p->handshaken = true;
+        p->isAdmin = claim->isAdmin;
+        p->ticketExp = claim->exp;
+        p->displayName = claim->name;
+
+        auto nameBytes = proto::pack(proto::Type::SetName,
+                                     proto::SetName{claim->name, playerId});
+        broadcast(nameBytes, true);
+
+      } else if (!allowGuests) {
+        kick("Guest accounts are not enabled on this server");
+        break;
+      } else if (allowGuests) {
+        if (p == nullptr) {
+          return;
+        }
+
+        p->handshaken = true;
+        p->isAdmin = false;
+        p->displayName = "Guest " + std::to_string(playerId);
+
+        auto nameBytes =
+            proto::pack(proto::Type::SetName,
+                        proto::SetName{p->displayName.value(), playerId});
+        broadcast(nameBytes, true);
+      }
+
       sendTo(playerId,
              proto::pack(proto::Type::SetTime,
                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS,

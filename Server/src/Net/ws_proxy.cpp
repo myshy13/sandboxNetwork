@@ -20,6 +20,8 @@ public:
     proxy.sendTo(socketId, bytes);
   }
 
+  void disconnect() override { proxy.disconnect(socketId); }
+
 private:
   WsProxy &proxy;
   std::string socketId;
@@ -113,5 +115,13 @@ void WsProxy::sendTo(const std::string &socketId, const std::string &bytes) {
   auto it = sockets.find(socketId);
   if (it != sockets.end()) {
     it->second->sendBinary(bytes);
+  }
+}
+
+void WsProxy::disconnect(const std::string &socketId) {
+  std::lock_guard<std::mutex> lock(mutex);
+  auto it = sockets.find(socketId);
+  if (it != sockets.end()) {
+    it->second->close(); // the Close callback queues the Disconnect event
   }
 }

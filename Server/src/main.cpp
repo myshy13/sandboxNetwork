@@ -23,12 +23,14 @@ int main(int argc, char **argv) {
   unsigned seed = std::chrono::duration_cast<std::chrono::milliseconds>(
                       std::chrono::system_clock::now().time_since_epoch())
                       .count();
-  int wsPort = 0;
-  std::string savePath = "save";
-  int saveTime = 30;
-  int maxPlayers = env::DEFAULT_MAX_PLAYERS;
-  float time = env::DAY_DEFAULT_TIME;
+  int wsPort{0};
+  std::string savePath{"save"};
+  int saveTime{30};
+  int maxPlayers{env::DEFAULT_MAX_PLAYERS};
+  float time{env::DAY_DEFAULT_TIME};
   bool freezeTime{false};
+  std::string publicKeyPath{"./keys.pub"};
+  bool allowGuests{false};
 
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "--ws-port") == 0 && i + 1 < argc) {
@@ -45,6 +47,10 @@ int main(int argc, char **argv) {
       maxPlayers = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 10));
     } else if (std::strcmp(argv[i], "--freeze-time") == 0) {
       freezeTime = true;
+    } else if (std::strcmp(argv[i], "--allow-guests") == 0) {
+      allowGuests = true;
+    } else if (std::strcmp(argv[i], "--auth-pubkey") == 0) {
+      publicKeyPath = argv[++i];
     } else if (std::strcmp(argv[i], "--help") == 0) {
       std::printf(
           "usage: %s [--ws-port <port>] [--save-path <path>] "
@@ -60,8 +66,10 @@ int main(int argc, char **argv) {
           "current time).\n"
           "  --time <n>  Starting time of day. (0-1)\n"
           "  --freeze-time Stops time from going on, useful for debugging\n"
-          "  --max-players <players> specifies a limit to the player "
-          "count.\n",
+          "  --max-players <players> specifies a limit to the player"
+          "count.\n"
+          "  --auth-pubkey <file> sets the public key for the player auth\n"
+          "  --allow-guests Allows clients without an account to join\n",
           argv[0]);
       return 0;
     } else {
@@ -104,7 +112,7 @@ int main(int argc, char **argv) {
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
   Server server(wsPort, savePath, saveTime, seed, nextObjectId, maxPlayers,
-                time, freezeTime);
+                time, freezeTime, allowGuests, publicKeyPath);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {

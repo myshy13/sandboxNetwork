@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Auth/tickets.hpp"
 #include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
@@ -7,6 +8,7 @@
 #include "Terrain/terrain.hpp"
 #include "env.hpp"
 
+#include <cstdint>
 #include <enet/enet.h>
 #include <future>
 #include <memory>
@@ -39,7 +41,13 @@ struct Player {
   bool airborne{false};
   float peakY{0.0f}; // highest feet height since the player last stood or swam
 
-  // Call whenever pos is set by the server (spawn, respawn): a teleport isn't a fall.
+  bool handshaken{false};
+  std::optional<uint32_t> accountId; // guest if empty
+  bool isAdmin{false};
+  uint32_t ticketExp{0};
+
+  // Call whenever pos is set by the server (spawn, respawn): a teleport isn't a
+  // fall.
   void resetFall() {
     airborne = false;
     peakY = pos.y;
@@ -53,6 +61,7 @@ struct ClientView {
 
 class Server {
   bool freezeTime{false};
+  bool allowGuests{false};
   const std::string savePath;
   const int maxPlayers = env::DEFAULT_MAX_PLAYERS;
   const int saveTime;
@@ -66,6 +75,10 @@ class Server {
   std::unordered_map<int, std::unique_ptr<Connection>> connections;
   std::unordered_map<int, ClientView> views;
   std::unordered_map<std::string, int> wsPlayerIds;
+
+  std::optional<Tickets> tickets;
+  std::unordered_map<uint32_t, int>
+      accountToPlayer; // acountId -> player id. (not guests)
 
   std::unordered_map<int, int> kills;
 
@@ -84,7 +97,6 @@ class Server {
   std::unordered_set<int64_t> dirtyChunks; // modified chunks since last save
 
   Terrain terrain;
-
   FluidSim fluidSim;
 
   float saveCountdownTime = saveTime;
@@ -104,7 +116,7 @@ class Server {
     return nullptr;
   }
   void deletePlayer(int id);
-  std::optional<Bullet> createBullet(int playerId, Vector3 origin, Vector3 dir);
+  std::optional<Bullet> createBullet(Player *p, Vector3 origin, Vector3 dir);
 
   // ==== transport-agnostic game logic ==== //
   int handleConnect(std::unique_ptr<Connection> connection);
@@ -114,6 +126,9 @@ class Server {
 
   void sendTo(int playerId, const std::string &bytes, bool reliable);
   void broadcast(const std::string &bytes, bool reliable);
+  // Asks the transport to close this player's connection once queued sends are
+  // out.
+  void disconnectPlayer(int playerId);
   // Sends to every player who currently holds chunk `key` (see
   // ClientView::loaded).
   void broadcastToChunk(int64_t key, const std::string &bytes, bool reliable);
@@ -171,7 +186,8 @@ public:
                   int nextObjectId = 1,
                   int MAX_PLAYERS = env::DEFAULT_MAX_PLAYERS,
                   float timeOfDay = env::DAY_DEFAULT_TIME,
-                  bool freezeTime = false);
+                  bool freezeTime = false, bool allowGuests = false,
+                  const std::string &pubkeyPath = "key.pub");
   ~Server();
 
   // ==== static consts ==== //

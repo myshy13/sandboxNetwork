@@ -14,4 +14,8 @@ public:
   // `reliable` is a hint. WebSocket rides on TCP and cannot drop a message,
   // so that backend ignores the flag and delivers everything reliably.
   virtual void send(const std::string &bytes, bool reliable) = 0;
+
+  // Closes after already-queued sends (e.g. a kick message) are out; the
+  // transport's own disconnect event then runs handleDisconnect.
+  virtual void disconnect() = 0;
 };

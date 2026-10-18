@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 15; // Added fall damage
+constexpr int PROTOCOL_VERSION = 16; // Added ticket to clientHandshake
 
 enum class Type : uint8_t {
   // player
@@ -126,6 +126,7 @@ struct UpdateWaterLevel {
 };
 struct clientHandshake {
   int ver; // client version
+  std::string ticket;
   template <class A> void serialize(A &ar) { ar(ver); }
 };
 struct kick { // server -> client
