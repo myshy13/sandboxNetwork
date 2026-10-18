@@ -20,7 +20,7 @@ Client/src/
                tvOS, or anywhere with -DUSE_GAMEPAD_INPUT=ON: raylib's gamepad API, stick-driven menu cursor). An
                InputSource draws its overlay in draw() and its cursor in drawCursor(); both run inside the screen's own
                Begin/EndDrawing (Game, Home, Settings), never after it. Game code never calls raylib's input functions,
-               except chat typing
+               except chat typing or in UI/TextBox/...
   Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
   UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler; menu or any-rectangle
                buttons. Slider/: int range tied to a value by a getter and a setter)

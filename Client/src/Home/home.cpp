@@ -8,11 +8,14 @@
 #include "Input/inputState.hpp"
 #include "Raylib/drawText.hpp"
 #include "UI/Button/button.hpp"
+#include "UI/TextBox/textbox.hpp"
 #include "UI/Theme/theme.hpp"
 #include "env.hpp"
 
 Home::Home(Input& input)
-    : input(input), background(GameState::shared().getBackground()) {
+    : input(input),
+      tempTextBox(content, 800, false, ButtonStyles::Primary, input),
+      background(GameState::shared().getBackground()) {
   // play button
   Button playButton = Button(
       [&input](void) {
@@ -105,6 +108,8 @@ void Home::frame() {
 
   DrawTextFont(("v" + env::VERSION).c_str(), 20, (float)GetScreenHeight() - 40,
                20, Theme::TextMuted);
+
+  tempTextBox.frame();
 
   EndDrawing();
 }
