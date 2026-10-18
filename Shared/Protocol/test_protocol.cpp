@@ -6,12 +6,14 @@
 int main() {
   // ==== PlayerUpdate ==== //
   {
-    auto bytes = proto::pack(proto::Type::PlayerUpdate,
-                             proto::PlayerUpdate{7, {1.5f, 2.5f, -3.0f}});
+    auto bytes =
+        proto::pack(proto::Type::PlayerUpdate,
+                    proto::PlayerUpdate{7, {1.5f, 2.5f, -3.0f}, 31.2f, -14.9f});
     assert(proto::peekType(bytes) == proto::Type::PlayerUpdate);
     auto msg = proto::unpack<proto::PlayerUpdate>(bytes);
     assert(msg.id == 7);
     assert(msg.pos.x == 1.5f && msg.pos.y == 2.5f && msg.pos.z == -3.0f);
+    assert(msg.pitch == 31.2f && msg.yaw == -14.9f);
   }
 
   // ==== GivenId ==== //
@@ -179,6 +181,32 @@ int main() {
     assert(proto::peekType(bytes) == proto::Type::SetViewRadius);
     auto msg = proto::unpack<proto::SetViewRadius>(bytes);
     assert(msg.radius == 6);
+  }
+
+  // ==== clientHandshake carries the version and the ticket (empty = guest)
+  // ==== //
+  {
+    auto bytes = proto::pack(
+        proto::Type::clientHandshake,
+        proto::clientHandshake{proto::PROTOCOL_VERSION, "dGlja2V0+/=="});
+    assert(proto::peekType(bytes) == proto::Type::clientHandshake);
+    auto msg = proto::unpack<proto::clientHandshake>(bytes);
+    assert(msg.ver == proto::PROTOCOL_VERSION);
+    assert(msg.ticket == "dGlja2V0+/==");
+
+    auto guest = proto::unpack<proto::clientHandshake>(
+        proto::pack(proto::Type::clientHandshake,
+                    proto::clientHandshake{proto::PROTOCOL_VERSION, ""}));
+    assert(guest.ticket.empty());
+  }
+
+  // ==== TicketRefresh ==== //
+  {
+    auto bytes = proto::pack(proto::Type::TicketRefresh,
+                             proto::TicketRefresh{"abc123=="});
+    assert(proto::peekType(bytes) == proto::Type::TicketRefresh);
+    auto msg = proto::unpack<proto::TicketRefresh>(bytes);
+    assert(msg.ticket == "abc123==");
   }
 
   std::printf("protocol tests passed\n");

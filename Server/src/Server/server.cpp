@@ -1,4 +1,5 @@
 #include "Server/server.hpp"
+#include "Auth/tickets.hpp"
 #include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
 #include "Protocol/protocol.hpp"
@@ -9,6 +10,7 @@
 #include "raylib.h"
 #include "sharedEnv.hpp"
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <chrono>
 #include <cmath>
@@ -17,6 +19,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <future>
 #include <optional>
 #include <raymath.h>
@@ -54,6 +57,12 @@ public:
     enet_peer_send(peer, 0, packet);
   }
 
+  void disconnect() override {
+    if (peer != nullptr) {
+      enet_peer_disconnect_later(peer, 0); // after queued packets are sent
+    }
+  }
+
 private:
   ENetPeer *peer;
 };
@@ -63,16 +72,39 @@ private:
 // ==== connection setup ==== //
 
 Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers, float time, bool freezeTime)
-    : freezeTime(freezeTime), savePath(std::move(savePath)),
-      maxPlayers(maxPlayers), saveTime(saveTime), timeOfDay(time),
-      nextObjectId(nextObjectId), terrain(seed) {
+               int nextObjectId, int maxPlayers, float time, bool freezeTime,
+               bool allowGuests, const std::string &pubkeyPath)
+    : freezeTime(freezeTime), allowGuests(allowGuests),
+      savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
+      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
     std::exit(EXIT_FAILURE);
   }
   std::printf("ENet initialized\n");
+
+  if (pubkeyPath != "") {
+    std::ifstream pubKeyFile(pubkeyPath, std::ios::binary);
+    bool authFailure = false;
+    if (pubKeyFile.is_open()) {
+      std::array<uint8_t, 32> key;
+      pubKeyFile.read(reinterpret_cast<char *>(key.data()), key.size());
+      if (pubKeyFile.gcount() == 32 && pubKeyFile.peek() == EOF) {
+        tickets.emplace(key);
+      } else {
+        authFailure = true;
+      }
+    } else {
+      authFailure = true;
+    }
+
+    if (authFailure) {
+      std::cerr << "Failed to initialise auth.\n Make sure the "
+                   "public key is valid and the path is correct\n";
+      std::exit(EXIT_FAILURE);
+    }
+  }
 
   // Bind to the listen port - a null address makes a client-only host that
   // never accepts connections.
@@ -197,6 +229,11 @@ void Server::saveWorldAsync() {
         return failed;
       });
 }
+long long getSeconds() {
+  return std::chrono::duration_cast<std::chrono::seconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
 
 // Diagnostic: occupiedCells keeps one index per cell, so duplicates hide in
 // `objects`.
@@ -226,6 +263,19 @@ int Server::checkOverlaps() const {
   return extra;
 }
 
+bool nameValid(const std::string &name) {
+  // [A-Za-z0-9_ ]
+  for (char l : name) {
+    if (!((l >= 'a' && l <= 'z') || (l >= 'A' && l <= 'Z') ||
+          (l >= '0' && l <= '9') || l == ' ' || l == '_' || l == '-')) {
+      return false;
+    }
+  }
+  if (name.front() == ' ' || name.back() == ' ') {
+    return false; // leading or trailing space
+  }
+  return true;
+}
 void Server::ensureChunk(int cx, int cz) {
   int64_t key = chunkKey(cx, cz);
   if (generatedChunks.contains(key))
@@ -384,6 +434,13 @@ void Server::broadcast(const std::string &bytes, bool reliable) {
   }
 }
 
+void Server::disconnectPlayer(int playerId) {
+  auto it = connections.find(playerId);
+  if (it != connections.end()) {
+    it->second->disconnect(); // cleanup happens in handleDisconnect, not here
+  }
+}
+
 void Server::broadcastToChunk(int64_t key, const std::string &bytes,
                               bool reliable) {
   for (const auto &[id, view] : views) {
@@ -403,9 +460,9 @@ void Server::deletePlayer(int id) {
 }
 
 // ==== Bullet handling ==== //
-std::optional<Bullet> Server::createBullet(int playerId, Vector3 origin,
+std::optional<Bullet> Server::createBullet(Player *p, Vector3 origin,
                                            Vector3 dir) {
-  Player *player = findPlayer(playerId);
+  Player *player = findPlayer(p->id);
   if (player == nullptr) {
     return std::nullopt;
   }
@@ -473,6 +530,12 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 
 void Server::handleDisconnect(int playerId) {
   std::printf("Client %d disconnected\n", playerId);
+  Player *p = findPlayer(playerId);
+  if (p != nullptr) {
+    std::optional<uint32_t> accountId = p->accountId;
+    if (accountId.has_value() && accountToPlayer[accountId.value()] == playerId)
+      accountToPlayer.erase(accountId.value());
+  }
   deletePlayer(playerId);
   connections.erase(playerId);
   views.erase(playerId);
@@ -562,7 +625,15 @@ void Server::handleReceive(int playerId, const std::string &data) {
     return;
   }
   try {
-    switch (proto::peekType(data)) {
+    const auto seconds = getSeconds();
+    Player *p = findPlayer(playerId);
+    if (p == nullptr) {
+      return;
+    }
+    auto type = proto::peekType(data);
+    if (type != proto::Type::clientHandshake && !p->handshaken)
+      return;
+    switch (type) {
     // ==== pos update handler ==== //
     case proto::Type::PlayerUpdate: {
       auto msg = proto::unpack<proto::PlayerUpdate>(data);
@@ -572,23 +643,22 @@ void Server::handleReceive(int playerId, const std::string &data) {
         break;
       }
 
-      Player *player = findPlayer(playerId);
-      if (player != nullptr) {
-        player->pos = msg.pos;
-        updateFall(player);
-        player->pitch = msg.pitch;
-        player->yaw = msg.yaw;
+      if (p != nullptr && p->handshaken == true) {
+        p->pos = msg.pos;
+        updateFall(p);
+        p->pitch = msg.pitch;
+        p->yaw = msg.yaw;
       }
       // ==== notify all peers ==== //
-      // Unreliable on purpose: a dropped position is superseded a frame later.
+      // Unreliable on purpose: a dropped position is superseded a frame
+      // later.
       broadcast(proto::pack(proto::Type::PlayerUpdate, msg), false);
       break;
     }
 
     case proto::Type::CreateBullet: {
       auto msg = proto::unpack<proto::CreateBullet>(data);
-      std::optional<Bullet> bullet =
-          createBullet(playerId, msg.origin, msg.dir);
+      std::optional<Bullet> bullet = createBullet(p, msg.origin, msg.dir);
       if (bullet.has_value()) {
         proto::NewBullet packetMsg;
         packetMsg.bulletId = bullet->bulletId;
@@ -601,6 +671,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::ChatMessage: {
+      // don't broadcast
+      if (!p->accountId.has_value() && !env::guest::CAN_CHAT) {
+        sendTo(playerId,
+               proto::pack(
+                   proto::Type::ChatMessage,
+                   proto::ChatMessage{
+                       "Guests aren't allowed to use chat on this server", -1}),
+               true);
+        break;
+      }
       auto msg = proto::unpack<proto::ChatMessage>(data);
       msg.id = playerId; // trust the connection, not the payload
       broadcast(proto::pack(proto::Type::ChatMessage, msg), true);
@@ -608,26 +688,42 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::SetName: {
+      if (p != nullptr && p->accountId.has_value()) {
+        break;
+      }
       auto msg = proto::unpack<proto::SetName>(data);
       msg.id = playerId; // trust the connection, not the payload
+      // name check
+      if (msg.name.size() > 16 || msg.name.size() < 3 || !nameValid(msg.name)) {
+        break;
+      }
+      msg.name = "Guest " + msg.name;
       const bool taken =
           std::any_of(players.begin(), players.end(), [&](const Player &p) {
             return p.id != playerId && p.displayName == msg.name;
           });
-      if (auto *player = findPlayer(playerId); player && !taken) {
-        player->displayName = msg.name;
+      if (p && !taken) {
+        p->displayName = msg.name;
         broadcast(proto::pack(proto::Type::SetName, msg), true);
       }
       break;
     }
 
     case proto::Type::PlaceObject: {
+      if (!p->accountId.has_value() && !env::guest::CAN_BUILD) {
+        sendTo(playerId,
+               proto::pack(
+                   proto::Type::ChatMessage,
+                   proto::ChatMessage{
+                       "Guests aren't allowed to place blocks on this server",
+                       -1}),
+               true);
+        break;
+      }
       auto msg = proto::unpack<proto::PlaceObject>(data);
       const Vector3 sentPos = msg.object.getTransform().pos;
       const BlockType type = msg.object.getType();
-      const Player *player = findPlayer(playerId);
-      if (player == nullptr || !isValidPosition(sentPos) ||
-          !isPlaceable(type)) {
+      if (p == nullptr || !isValidPosition(sentPos) || !isPlaceable(type)) {
         break;
       }
       // Only the type is the client's choice: snap to the grid, no
@@ -636,7 +732,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
                            (floorf(sentPos.y / BLOCK_SIZE) + 0.5f) * BLOCK_SIZE,
                            (floorf(sentPos.z / BLOCK_SIZE) + 0.5f) *
                                BLOCK_SIZE};
-      if (Vector3Distance(pos, player->pos) > env::PLACE_REACH) {
+      if (Vector3Distance(pos, p->pos) > env::PLACE_REACH) {
         break;
       }
       const int64_t chunk = chunkKeyAt(pos);
@@ -666,6 +762,27 @@ void Server::handleReceive(int playerId, const std::string &data) {
       break;
     }
 
+    case proto::Type::TicketRefresh: {
+      // no auth needed
+      if (!tickets.has_value()) {
+        break;
+      }
+      auto msg = proto::unpack<proto::TicketRefresh>(data);
+      std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
+      if (refreshAccepted(p->accountId, claim)) {
+        p->ticketExp = claim->exp;
+        p->isAdmin = claim->isAdmin;
+        // update name if it has changed since the last ticket
+        if (p->displayName != claim->name) {
+          p->displayName = claim->name;
+          broadcast(proto::pack(proto::Type::SetName,
+                                proto::SetName{claim->name, p->id}),
+                    true);
+        }
+      }
+      break;
+    }
+
     case proto::Type::SetViewRadius: {
       auto msg = proto::unpack<proto::SetViewRadius>(data);
       // Identity comes from the connection; the radius is client-supplied, so
@@ -677,17 +794,80 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::clientHandshake: {
+      // this case is useless if it is already done
+      if (!(p == nullptr || !p->handshaken))
+        break;
+      const auto kick = [&](const std::string &reason, int id = -1) -> void {
+        if (id == -1)
+          id = playerId;
+        auto kickBytes =
+            proto::pack(proto::Type::kick, proto::kick{id, reason});
+        sendTo(id, kickBytes, true);
+        disconnectPlayer(id);
+        Player *p = findPlayer(id);
+        if (p != nullptr) {
+          p->handshaken = false;
+        }
+      };
       auto msg = proto::unpack<proto::clientHandshake>(data);
       if (msg.ver != proto::PROTOCOL_VERSION) {
-        auto kickBytes = proto::pack(
-            proto::Type::kick,
-            proto::kick{playerId,
-                        "Mismatch Client version: " + std::to_string(msg.ver) +
-                            ". Server version: " +
-                            std::to_string(proto::PROTOCOL_VERSION)});
-        sendTo(playerId, kickBytes, true);
+        kick("Mismatch Client version: " + std::to_string(msg.ver) +
+             ". Server version: " + std::to_string(proto::PROTOCOL_VERSION));
         break;
       }
+      // ==== player auth === //
+
+      if (msg.ticket.size() > 0) {
+        if (!tickets.has_value()) {
+          kick("Auth is not enabled on this server");
+          break;
+        }
+
+        std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
+        if (!claim.has_value()) {
+          kick("Authentication failed");
+          break;
+        }
+        auto accountPlayerId = accountToPlayer.find(claim->id);
+        if (accountPlayerId != accountToPlayer.end() &&
+            accountPlayerId->second != playerId) {
+          kick("Another player with the same account joined the game",
+               accountPlayerId->second);
+        }
+        accountToPlayer[claim->id] = playerId;
+
+        if (p == nullptr) {
+          return;
+        }
+
+        p->accountId = claim->id;
+        p->handshaken = true;
+        p->isAdmin = claim->isAdmin;
+        p->ticketExp = claim->exp;
+        p->displayName = claim->name;
+
+        auto nameBytes = proto::pack(proto::Type::SetName,
+                                     proto::SetName{claim->name, playerId});
+        broadcast(nameBytes, true);
+
+      } else if (!allowGuests) {
+        kick("Guest accounts are not enabled on this server");
+        break;
+      } else if (allowGuests) {
+        if (p == nullptr) {
+          return;
+        }
+
+        p->handshaken = true;
+        p->isAdmin = false;
+        p->displayName = "Guest " + std::to_string(playerId);
+
+        auto nameBytes =
+            proto::pack(proto::Type::SetName,
+                        proto::SetName{p->displayName.value(), playerId});
+        broadcast(nameBytes, true);
+      }
+
       sendTo(playerId,
              proto::pack(proto::Type::SetTime,
                          proto::SetTime{timeOfDay, env::DAY_LENGTH_SECONDS,
@@ -932,6 +1112,7 @@ void Server::tick(float dt) {
       timeOfDay -= 1;
   }
   timeBroadcastCountdown -= dt;
+  ticketCheckCountdown -= dt;
   if (timeBroadcastCountdown <= 0) {
     timeBroadcastCountdown = env::TIME_BROADCAST_INTERVAL;
     broadcast(proto::pack(proto::Type::SetTime,
@@ -949,7 +1130,19 @@ void Server::tick(float dt) {
   for (Player &p : players) {
     p.shotBudget =
         std::min(env::SHOT_BURST, p.shotBudget + dt / env::SHOT_INTERVAL);
+    if (ticketCheckCountdown <= 0 && p.accountId.has_value()) {
+      auto seconds = getSeconds();
+      if (ticketExpired(p.ticketExp, seconds, env::EXPIRY_GRACE_WINDOW)) {
+        auto kickBytes = proto::pack(proto::Type::kick,
+                                     proto::kick{p.id, "Account expired"});
+        sendTo(p.id, kickBytes, true);
+        disconnectPlayer(p.id);
+        p.handshaken = false;
+      }
+    }
   }
+  if (ticketCheckCountdown <= 0)
+    ticketCheckCountdown = env::EXPIRY_CHECK_INTERVAL;
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;

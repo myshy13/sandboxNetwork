@@ -18,7 +18,7 @@ A server-side table of optional function pointers per block (`onTick`, `onNeighb
 What's left:
 
 - [-] Cache the map: redraw only when the snapped centre moves, the sun has moved a few degrees, or a chunk went
-      dirty (the pass costs ~6 ms every frame today) **Skipped:** Unnecessary
+  dirty (the pass costs ~6 ms every frame today) **Skipped:** Unnecessary
 - [x] Snap the map centre on a coarse world grid (`SHADOW_SNAP` 20 units on x and z, map padded by `SHADOW_SNAP * sqrt 2`),
       so the grid no longer turns with the sun. The once-a-second hop is much less noticeable but not gone; left as is
       (caching would cut it further)
@@ -64,7 +64,7 @@ Decisions:
 
 Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth/routes-backlog.md`.
 
-1. [ ] Auth service on its own (`Auth/`, Node, outside the CMake build): `db.js` (accounts table, prepared statements
+1. [x] Auth service on its own (`Auth/`, Node, outside the CMake build): `db.js` (accounts table, prepared statements
        only), `passwords.js` (Argon2id; run a dummy verify for unknown names so timing doesn't reveal which exist),
        `tickets.js` (sign a fixed byte layout, not JSON, so C++ can parse the same bytes), routes `/register` `/login`
        `/refresh`, `ban.js` / `unban.js`, one `node --test` file. Name rules start strict: ASCII `[A-Za-z0-9_]`, 3-16
@@ -87,5 +87,7 @@ game server; HTTPS only; logs never contain passwords or tickets; the game serve
 
 Host: AWS (decided). Start with one EC2 or Lightsail box running the game server, the auth service and Caddy (free
 Let's Encrypt cert, needs a domain); move HTTPS to an ALB + ACM only when there is more than one instance.
+
+Release: the full account system (all four stages, deployed) is what makes `v1.0.0`; until then it stays `0.x`.
 
 Open: the final name rules and reserved-name list, duplicate-login behaviour (recommend: kick the old session).
