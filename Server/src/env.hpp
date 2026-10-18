@@ -67,4 +67,9 @@ constexpr bool debug{false};
 constexpr float FALL_DAMAGE_PER_BLOCK = 1.0f;
 constexpr int FALL_SAFE_BLOCKS = 3;
 
+namespace guest {
+constexpr bool CAN_BUILD = true;
+constexpr bool CAN_CHAT = true;
+} // namespace guest
+
 } // namespace env

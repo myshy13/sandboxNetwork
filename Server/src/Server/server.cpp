@@ -671,6 +671,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::ChatMessage: {
+      // don't broadcast
+      if (!p->accountId.has_value() && !env::guest::CAN_CHAT) {
+        sendTo(playerId,
+               proto::pack(
+                   proto::Type::ChatMessage,
+                   proto::ChatMessage{
+                       "Guests aren't allowed to use chat on this server", -1}),
+               true);
+        break;
+      }
       auto msg = proto::unpack<proto::ChatMessage>(data);
       msg.id = playerId; // trust the connection, not the payload
       broadcast(proto::pack(proto::Type::ChatMessage, msg), true);
@@ -700,6 +710,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::PlaceObject: {
+      if (!p->accountId.has_value() && !env::guest::CAN_BUILD) {
+        sendTo(playerId,
+               proto::pack(
+                   proto::Type::ChatMessage,
+                   proto::ChatMessage{
+                       "Guests aren't allowed to place blocks on this server",
+                       -1}),
+               true);
+        break;
+      }
       auto msg = proto::unpack<proto::PlaceObject>(data);
       const Vector3 sentPos = msg.object.getTransform().pos;
       const BlockType type = msg.object.getType();
