@@ -34,6 +34,7 @@ export class Db {
   readonly #insert: Database.Statement<[string, string]>;
   readonly #insertRefreshToken: Database.Statement<[number, string, number, number]>;
   readonly #deleteRefreshToken: Database.Statement<[string]>;
+  readonly #deleteRefreshTokens: Database.Statement<[number]>;
   readonly #getRefreshToken: Database.Statement<[string]>;
   readonly #ban: Database.Statement<[string | null, number | null, string]>;
   readonly #unban: Database.Statement<[string]>;
@@ -75,6 +76,7 @@ export class Db {
       "INSERT INTO refresh_tokens (accountId, tokenHash, exp, created) VALUES (?, ?, ?, ?)",
     );
     this.#deleteRefreshToken = this.#db.prepare("DELETE FROM refresh_tokens WHERE tokenHash = ?");
+    this.#deleteRefreshTokens = this.#db.prepare("DELETE FROM refresh_tokens WHERE accountId = ?");
     this.#getRefreshToken = this.#db.prepare("SELECT * FROM refresh_tokens WHERE tokenHash = ?");
     this.#ban = this.#db.prepare(
       "UPDATE accounts SET banned = 1, banReason = ?, banExpires = ? WHERE name = ?",
@@ -113,7 +115,11 @@ export class Db {
 
   // expires is a unix time in seconds, null = permanent; false if no such account.
   setBan(name: string, reason: string | null, expires: number | null): boolean {
-    return this.#ban.run(reason, expires, name).changes > 0;
+    this.deleteSessions(name);
+    if (this.#ban.run(reason, expires, name).changes > 0) {
+      this.deleteSession(name);
+      return true;
+    } else return false;
   }
 
   clearBan(name: string): boolean {
@@ -126,6 +132,12 @@ export class Db {
     const tokenHash = hashToken(token);
     this.#insertRefreshToken.run(id, tokenHash, expires, nowSeconds);
     return token;
+  }
+
+  deleteSessions(name: string): boolean {
+    const userId = this.getByName(name)?.id;
+    if (userId === undefined) return false;
+    return this.#deleteRefreshTokens.run(userId).changes > 0;
   }
 
   deleteSession(token: string): boolean {

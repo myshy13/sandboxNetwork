@@ -32,8 +32,8 @@ Bigger picture and decisions: `plan.md` at the repo root, "Accounts".
 
 ## Scripts (not routes)
 
-1. [ ] `Admin/ban.ts`: `<name> "<reason>" [hours]`, over `Db.setBan`.
-2. [ ] `Admin/unban.ts`: `<name>`, over `Db.clearBan`.
+1. [x] `Admin/ban.ts`: `<name> "<reason>" [hours]`, over `Db.setBan`.
+2. [x] `Admin/unban.ts`: `<name>`, over `Db.clearBan`.
 
 ## Deliberately not routes (v1)
 
