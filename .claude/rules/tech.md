@@ -19,6 +19,12 @@
   `CMAKE_OSX_DEPLOYMENT_TARGET` is a cache variable: change it with `-D`, editing `CMakeLists.txt` alone won't take.
 - **Web transport**: Emscripten + WebSocket, proxied server-side through
   IXWebSocket 11.4.5.
+- **Ticket verification** (game server): Monocypher 4.0.2 via `FetchContent`, built as a small static library in
+  `Server/CMakeLists.txt` (which is why the project enables `C`). Only `crypto_ed25519_check` is used, from the
+  `optional/monocypher-ed25519` files: Monocypher's default `crypto_eddsa_*` hashes with BLAKE2b and rejects standard
+  Ed25519 signatures.
+- **Auth service** (`Auth/`): Node.js + TypeScript + Fastify, better-sqlite3, Argon2id (`argon2`), run with `pnpm tsx`
+  from `Auth/`. Outside the CMake build; it has its own rules in `Auth/CLAUDE.md`.
 - **Wire format**: cereal 1.3.2 (header-only binary serialisation) —
   message structs live in `Shared/Protocol/protocol.hpp`.
 
@@ -67,7 +73,10 @@
   (`cd Shared/Protocol && make test`) that needs no client or server
   running. It reuses headers already fetched into `Client/build`, so
   build the native client at least once first.
-- `cd Server && make test` runs the chunk-key and `SaveMeta` round-trip (`Server/src/Terrain/chunk.hpp`), terrain and
-  `FluidSim` tests.
+- `cd Server && make test` runs the chunk-key and `SaveMeta` round-trip (`Server/src/Terrain/chunk.hpp`), terrain,
+  `FluidSim` and ticket (`test_ticket.cpp`, with tickets signed by the Node signer) tests. The ticket test compiles
+  Monocypher from `Server/build/_deps/monocypher-src`, so configure Server's CMake once first.
   They need no ENet and no running server, but reuse cereal/raylib headers from `Client/build`. `FluidSim` is
   tested through a stand-in `FluidWorld` (`Server/test_fluid.cpp`); keep new server logic testable the same way.
+- Auth service: `cd Auth && pnpm tsx --test --test-timeout=15000 Routes/authRoutes.test.ts Db/db.test.ts
+  Tickets/tickets.test.ts` and `pnpm tsc --noEmit`.

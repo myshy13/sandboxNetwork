@@ -35,13 +35,19 @@ Server/src/
                (updateView / sendChunk / broadcastToChunk); blockHelpers.hpp = block size, cell keys
   Terrain/     chunk.hpp = chunk keys + chunk save files (tested), terrain.cpp = seeded terrain (tested)
   Fluid/       FluidSim: server-owned water flow, reaches the world only through FluidWorld (tested)
-  Net/         Connection interface + WsProxy (browser WebSocket bridge)
-main.cpp       CLI args (--ws-port, --save-path, --save-time, --seed, --time, --freeze-time, --max-players), owns the Server
+  Auth/        ticket verification: tickets.hpp/.cpp (Tickets::verify, Claim; refreshAccepted and ticketExpired are the
+               pure checks, tested), base64.hpp (strict decoder). No ENet, so `make test` reaches it
+  Net/         Connection interface (send, disconnect) + WsProxy (browser WebSocket bridge)
+main.cpp       CLI args (--ws-port, --save-path, --save-time, --seed, --time, --freeze-time, --max-players,
+               --allow-guests, --auth-pubkey <file>), owns the Server
+
+Auth/          the account service: its own Node + TypeScript + Fastify program, outside CMake (own CLAUDE.md, docs.md
+               route reference, tests). Holds the SQLite accounts db and the private key; signs tickets
 
 Shared/
   sharedEnv.hpp  constants both sides must agree on (SHARED_PLAYER_SCALE)
   Protocol/
-    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, SetTime, ...)
+    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, SetTime, clientHandshake (version + ticket), TicketRefresh, ...)
     protocol.cpp   pack/unpack, compiled directly into both Client and Server
 ```
 
@@ -90,6 +96,31 @@ the same camera-relative space as everything else. The lighting shaders sample i
 ambient. `GameState::getShadows()` turns the pass and the shader lookup off; its default comes from `SHADOWS_DEFAULT`
 in `Client/CMakeLists.txt`. The server never sees any of this.
 
+## Accounts and tickets
+
+The auth service (`Auth/`) owns accounts and passwords; the game server never sees a password and never calls the auth
+service. A client logs in over HTTPS and gets a ticket: fixed bytes (`accountId`, `exp`, `isAdmin`, name, then an
+Ed25519 signature), layout documented at the top of `Auth/Tickets/ticketSigner.ts`. The game server holds only the public
+key (`--auth-pubkey`, raw 32 bytes; given but unreadable or the wrong size means it refuses to start; none means no auth).
+
+- **Handshake**: `clientHandshake` carries the version and the ticket. Empty ticket = guest (only with `--allow-guests`);
+  a non-empty ticket that fails to verify is kicked, never downgraded to guest.
+- **Gate**: `Server::handleReceive` ignores every message except `clientHandshake` until `Player::handshaken`, and
+  ignores a second handshake. A new message type is protected by default.
+- **Identity** lives on `Player` (`accountId`, empty for a guest; `isAdmin`; `ticketExp`) and always comes from the
+  connection. `Server::accountToPlayer` maps an account to its player; a second login of the same account kicks the old
+  session, and `handleDisconnect` erases the entry only if it still points at the disconnecting player.
+- **Expiry**: tickets last an hour. The client sends `TicketRefresh` with a new ticket before it expires; it is accepted
+  only if it verifies and is for the same account (`refreshAccepted`). `Server::tick` kicks account players past
+  `ticketExp + env::EXPIRY_GRACE_WINDOW`, checked every `env::EXPIRY_CHECK_INTERVAL`. Guests never expire.
+- **Names**: an account's name comes from the ticket and cannot be changed with `SetName`. A guest's `SetName` is
+  validated (3-16 characters, `[A-Za-z0-9_ -]`, no leading/trailing space) and prefixed `"Guest "`; the space can't
+  appear in an account name, so a guest can never look like an account.
+- **Kicks**: a `kick` message is only a request (the client disconnects itself), so the server also closes the
+  connection with `Server::disconnectPlayer` (`Connection::disconnect`, after queued sends). Cleanup still happens in
+  `handleDisconnect`, off the transport's own disconnect event.
+- A ban does not recall tickets already issued; they stay valid until `exp` (see `Auth/docs.md`).
+
 ## Adding a new networked feature
 
 1. Add the message struct to `Shared/Protocol/protocol.hpp` (and register
@@ -118,6 +149,11 @@ the client's debug chunk borders and (later) chunk loading rely on them agreeing
 
 `GameState::MAX_RENDER_DISTANCE` (`Client/src/GameState/gameState.hpp`) must equal the server's `env::MAX_VIEW_RADIUS`
 (`Server/src/env.hpp`) times `World::STREAM_CHUNK_SIZE`: the slider can't ask for more chunks than the server will send.
+
+The ticket byte layout is defined by `Auth/Tickets/ticketSigner.ts` and parsed by `Server/src/Auth/tickets.cpp`, and the
+two are written by hand. `Server/test_ticket.cpp` holds tickets signed by the real Node signer; if you change the layout,
+regenerate them. The name limit (16) is also in both, and `PROTOCOL_VERSION` bumps with any change to `clientHandshake`
+or `TicketRefresh`.
 
 Player health is `SHARED_PLAYER_HEALTH` in `Shared/sharedEnv.hpp`; the client's `env::MAX_HEALTH` (`Client/src/env.hpp`,
 template in `env.example.hpp`) and the server's `env::PLAYER_MAX_HEALTH` (`Server/src/env.hpp`) both alias it, so the
