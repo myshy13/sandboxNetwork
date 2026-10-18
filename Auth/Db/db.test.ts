@@ -107,3 +107,38 @@ test("rotateSession leaves the account's other sessions alone", (t) => {
   db.rotateSession(a, now, now + 500);
   assert.ok(db.getSession(b, now));
 });
+
+test("setBan deletes every session of that account and no one else's", (t) => {
+  const { db, id } = setup(t);
+  const other = db.createAccount("someone", "not-a-real-hash");
+  assert.ok(other !== null);
+  const a = db.createSession(id, now, now + 100);
+  const b = db.createSession(id, now, now + 100);
+  const theirs = db.createSession(other, now, now + 100);
+
+  assert.equal(db.setBan("hamish", "cheating", null), true);
+  assert.equal(db.getSession(a, now), undefined);
+  assert.equal(db.getSession(b, now), undefined);
+  assert.ok(db.getSession(theirs, now), "other accounts keep their sessions");
+});
+
+test("setBan on an unknown name is false and touches nothing", (t) => {
+  const { db, id } = setup(t);
+  const token = db.createSession(id, now, now + 100);
+  assert.equal(db.setBan("nobody", "x", null), false);
+  assert.ok(db.getSession(token, now));
+});
+
+test("clearBan does not bring deleted sessions back", (t) => {
+  const { db, id } = setup(t);
+  const token = db.createSession(id, now, now + 100);
+  db.setBan("hamish", "cheating", null);
+  assert.equal(db.clearBan("hamish"), true);
+  assert.equal(db.getSession(token, now), undefined);
+});
+
+test("setBan is true for an account with no sessions, and the ban is set", (t) => {
+  const { db } = setup(t);
+  assert.equal(db.setBan("hamish", "cheating", null), true);
+  assert.equal(db.getByName("hamish")?.banned, 1);
+});

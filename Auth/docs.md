@@ -74,7 +74,7 @@ its ticket expires, and on launch if it has a stored token.
   | ------ | ---------------------------------------------- | ---------------------------------------------------------------------- |
   | `200`  | `{ ticket, refreshToken }`                     | token valid and the account is not banned                              |
   | `401`  | `{ error: "Invalid refresh token" }`           | unknown, expired **or already used** (identical for all three)         |
-  | `403`  | `{ error: "Account banned", reason, expires }` | valid token but the account is banned; the token is **not** used up    |
+  | `403`  | `{ error: "Account banned", reason, expires }` | valid token but the account is banned (only a token made after the ban; see below) |
 
 - The old token is deleted when the new one is issued, so each token works once; the new one lasts 30 days from now.
   Two simultaneous requests with the same token: exactly one gets `200`.
@@ -96,3 +96,15 @@ Ends one login session by deleting its refresh token. Used by the client's Sign 
 - No ticket or password is needed, only the token.
 - A ticket already issued keeps working until its `exp` (up to 1 hour). Logging out cannot recall it; the client
   should just discard it.
+
+## Bans (`Admin/ban.ts`, `Admin/unban.ts`)
+
+Run from `Auth/` (so dotenv finds `.env`): `pnpm tsx Admin/ban.ts <name> <reason> [hours]` and
+`pnpm tsx Admin/unban.ts <name>`. No hours means permanent. Both open the same db file as the server (`Db/dbPath.ts`:
+`AUTH_DB_PATH`, else `Auth/app.db`).
+
+- Banning sets the ban and deletes **all** of that account's refresh tokens in one transaction (`Db.setBan`), so every
+  device is signed out at once and `/refresh` answers `401`. Unbanning does not restore them; the player logs in again.
+- Login still answers `403` with the reason for a banned account that gives the right password.
+- A ticket already issued keeps working until its `exp` (up to 1 hour); a ban cannot recall it. Stage 2: the game server
+  should kick banned sessions (a ban list pushed to it).

@@ -56,7 +56,7 @@ Decisions:
   asks for a new one a minute before it expires.
 - The game server verifies the ticket once, in `clientHandshake`, and keeps `accountId` on the `Player`. Identity still
   comes from the connection, never from a later payload.
-- Bans sit on the account (`banned`, reason, optional expiry). Registration is rate-limited per IP so a ban sticks.
+- Bans sit on the account (`banned`, reason, optional expiry). Registration is rate-limited per IP so a ban sticks. A ban also deletes all the account's refresh tokens (`Db.setBan`, one transaction); tickets already issued stay valid until `exp`.
 - Guests are configurable per game server: `--allow-guests` plus a few bools in `Server/src/env.hpp` for what a guest
   may do (build, chat, ...). Guests are named "Guest \<n>".
 - Some accounts are admins (a flag in the ticket); a CLI script on the auth box does bans until something better is needed.

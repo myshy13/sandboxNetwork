@@ -349,8 +349,9 @@ test("a body that is not a 43-character base64url token is 400", async (t) => {
 
 test("a banned account gets 403 with the reason, and its token is not used up", async (t) => {
   const { app, db } = await setup(t);
-  const { token } = withSession(db);
+  const { id } = withSession(db);
   db.setBan("hamish", "cheating", null);
+  const token = db.createSession(id, now(), now() + 1000); // setBan deletes older tokens, so this one is made after it
 
   const res = await refresh(app, token);
   assert.equal(res.statusCode, 403);
@@ -362,8 +363,9 @@ test("a banned account gets 403 with the reason, and its token is not used up", 
 
 test("an expired ban does not block a refresh", async (t) => {
   const { app, db } = await setup(t);
-  const { token } = withSession(db);
+  const { id } = withSession(db);
   db.setBan("hamish", "spam", now() - 10);
+  const token = db.createSession(id, now(), now() + 1000);
   assert.equal((await refresh(app, token)).statusCode, 200);
 });
 
@@ -413,8 +415,9 @@ test("logout removes only that session, not the account's others", async (t) => 
 
 test("logout works for a banned account too", async (t) => {
   const { app, db } = await setup(t);
-  const { token } = withSession(db);
+  const { id } = withSession(db);
   db.setBan("hamish", "cheating", null);
+  const token = db.createSession(id, now(), now() + 1000);
 
   assert.equal((await logout(app, token)).statusCode, 204);
   db.clearBan("hamish");
@@ -442,4 +445,14 @@ test("logout is rate limited per IP", async (t) => {
   for (let i = 0; i < 1000 && !limited; i++)
     limited = (await logout(app, "A".repeat(43))).statusCode === 429;
   assert.ok(limited, "no 429 after 1000 logouts from one IP");
+});
+
+test("banning an account ends its sessions, so /refresh is 401, and unbanning does not bring them back", async (t) => {
+  const { app, db } = await setup(t);
+  const { token: phone } = withSession(db);
+  assert.equal(db.setBan("hamish", "cheating", null), true);
+
+  assert.equal((await refresh(app, phone)).statusCode, 401);
+  db.clearBan("hamish");
+  assert.equal((await refresh(app, phone)).statusCode, 401, "the tokens are gone for good");
 });
