@@ -106,6 +106,40 @@ Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
 - [ ] placement rules: min spacing, flat-ground check, never overlap water or
       chunk borders unless the table is clipped per chunk
 
+## Game mode: last one standing
+
+An arena where the last player alive wins. Two ways to drive it; the round loop is the safer first step.
+
+- [ ] round loop: a server-owned `Round` state machine (Lobby, Countdown, Playing, Ending), `RoundState` message,
+      per-player `alive` flag, arena regenerated per round. Watch: simultaneous deaths (draw), disconnects count as dead,
+      late joiners spectate, `--save-path` should not persist a per-round arena
+- [ ] rising tide (alternative to the phase machine): a `tide` 0-1 clock on the server beside `timeOfDay`, sent as
+      `SetTide` on connect and every `env::TIME_BROADCAST_INTERVAL`, clients tick it in between. A shared `levelAt(tide)`
+      (in `Shared/`, like `SHARED_PLAYER_SCALE`) turns it into a water height; a player whose head cell is below it takes
+      damage through the normal death path. Draw the water as a translucent plane, not real `FluidSim` blocks.
+      Needs an arena terrain mode with real high ground (a central mountain in a basin), and a respawn rule
+      (e.g. when the tide drops below spawn height)
+- [ ] shrinking safe zone: damage outside a closing boundary; pairs with the round loop to force fights
+
+## Different to Minecraft
+
+Same voxel look, different game. Pick a direction before building any of these: they pull different ways.
+
+- [ ] last one standing (see the section above): arena, no crafting or survival loop
+- [ ] sky islands: floating terrain with gaps, so falling is the hazard and bridges or jumps are the routes (pairs with
+      solid clouds in "Building & world")
+- [ ] capture the flag / king of the hill on the voxel map: blocks are cover and routes, not resources
+- [ ] destructible cover: bullets damage blocks (`Object` already carries damage), craters open lines of sight and
+      `FluidSim` floods them
+- [ ] tug-of-war: two bases, a front line that moves; the team that holds more ground drains the other's base
+- [ ] hide and seek: one hunter, many props that disguise as blocks; the server checks guesses, so nobody can cheat
+- [ ] time attack course: a parkour map with checkpoints and a server-kept best-time board, no combat
+- [ ] gravity or tide events: the server flips a rule on a timer (low gravity, rising water, night-only visibility) and
+      broadcasts it like `SetTime`
+- [ ] one-shot duels: a bracket of 1v1 matches in the arena, spectators watch the live fight
+- [ ] build-then-defend: a short build phase to wall in a base, then a siege where the other team shoots it down
+- [ ] map vote per match: the seed picks the terrain style (sky islands, canyon, flooded valley)
+
 ## Lighting & rendering
 
 - [ ] water look: transparency / animated surface instead of a flat colour
