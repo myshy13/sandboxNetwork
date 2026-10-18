@@ -56,6 +56,8 @@ Do not do any code unless you have concrete evidence that they already would kno
 - Never use git worktrees (no EnterWorktree, no `isolation: "worktree"`). Edit in the main checkout, on the current
   branch, after checking `git status`. If a tool forces a worktree, stop and tell the creator instead.
 - Before writing any code, you should check with the creator, but you should also check the git status for uncommited code.
+- If told to commit while the commit contains a bug already known (found in review or by a failing test), question it
+  before committing: name the bug and ask whether to fix it first or commit anyway. Don't commit it silently.
 - Remind the user of things before it is too late, for example, if they are in a branch and they made changes that shouldn't be in that branch. Or they made too many changes and forgot to commit.
   One or two small unrelated commits on a branch are fine; don't remind about those. At 3 or more, remind them to move
   the unrelated work: cherry-pick onto `main` if it is small, or its own branch if it is big enough (same small-vs-big
