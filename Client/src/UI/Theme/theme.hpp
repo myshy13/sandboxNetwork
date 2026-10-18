@@ -5,7 +5,7 @@ namespace Theme {
 // Palette
 inline constexpr Color Ground{13, 18, 38, 255};
 inline constexpr Color GridLine{21, 28, 58, 255};
-inline constexpr Color Blue{47, 107, 255, 255};
+inline constexpr Color Blue{30, 76, 194, 255};
 inline constexpr Color BlueHi{90, 140, 255, 255};
 inline constexpr Color BlueDark{27, 58, 158, 255};
 inline constexpr Color Red{230, 57, 70, 255};
@@ -16,7 +16,7 @@ inline constexpr Color Panel{26, 33, 66, 255};
 inline constexpr Color PanelHi{38, 47, 92, 255};
 inline constexpr Color PanelBorder{91, 102, 143, 255};
 inline constexpr Color PanelShadow{7, 10, 24, 255};
-inline constexpr Color Text{255, 255, 255, 255};
+inline constexpr Color Text{200, 230, 255, 255};
 inline constexpr Color TextMuted{141, 150, 189, 255};
 inline constexpr Color Focus{255, 216, 74, 255};
 

@@ -111,16 +111,20 @@ static void ready() {
 }
 
 static void update() {
-  GameState& gameState = GameState::shared();
+  const static GameState& gameState = GameState::shared();
+  static MenuState prevMenu = MenuState::Home;
+  const MenuState menu = gameState.getMenu();
   input->update();
 
-  if (gameState.getMenu() == MenuState::Playing) {
-    game->frame();
-  } else if (gameState.getMenu() == MenuState::Home) {
+  if (menu == MenuState::Playing) {
+    game->frame(prevMenu != menu);
+  } else if (menu == MenuState::Home) {
     home->frame();
   } else {
     settings->frame();
   }
+
+  prevMenu = menu;
 }
 
 static void destroy() {

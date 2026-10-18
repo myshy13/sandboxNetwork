@@ -22,6 +22,7 @@
 #include "Raylib/drawText.hpp"
 #include "Shaders/lighting.hpp"
 #include "UI/Button/button.hpp"
+#include "UI/Theme/theme.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
 #ifdef CHEATS
@@ -63,7 +64,11 @@ RenderTexture Game::makeTarget() {
 }
 
 // ==== one frame ==== //
-void Game::frame() {
+void Game::frame(bool first) {
+  if (first) {
+    initTime = GetTime();
+    activeBlockType = 0;
+  }
   // Caps how far a single frame can move physics forward - a chunk-rebuild
   // stall would otherwise report a huge dt and tunnel the player through the
   // floor (gravity integrated over the whole stall in one uncollided step).
@@ -371,7 +376,8 @@ void Game::handleActions(float dt) {
     }
 
     std::optional<int> slot = input.getHotbarSlot();
-    if (slot.has_value() && *slot >= 0 && *slot < blockTypesSize) {
+    if (slot.has_value() && *slot >= 0 && *slot < blockTypesSize && !paused &&
+        !inChat && client.isConnected()) {
       activeBlockType = *slot;
     }
   }
@@ -653,7 +659,7 @@ void Game::drawChat() {
     if (!isSystemMessage) {
       line = senderName + ": " + entry.text;
     }
-    Color textColor = WHITE;
+    Color textColor = Theme::Text;
     if (isSystemMessage) {
       textColor = Color{200, 74, 64,
                         255};  // red so system messages stand out from chat
@@ -676,7 +682,7 @@ void Game::drawChat() {
     int boxY = GetScreenHeight() - 20 - LINE_HEIGHT;
     DrawRectangle(16, boxY - 2, GetScreenWidth() - 32, LINE_HEIGHT + 4,
                   {0, 0, 0, 160});
-    DrawTextFont(prompt.c_str(), 20, boxY, FONT_SIZE, WHITE);
+    DrawTextFont(prompt.c_str(), 20, boxY, FONT_SIZE, Theme::Text);
   }
 #endif
 }
@@ -703,11 +709,11 @@ void Game::drawScoreboard() {
     if (!name.has_value()) {
       name = "Player " + std::to_string(id);
     }
-    DrawTextFont(name->c_str(), x + 10, y + 4, FONT_SIZE, WHITE);
+    DrawTextFont(name->c_str(), x + 10, y + 4, FONT_SIZE, Theme::Text);
     std::string k = std::to_string(kills);
     DrawTextFont(k.c_str(),
                  x + rowWidth - 10 - MeasureTextFont(k.c_str(), FONT_SIZE),
-                 y + 4, FONT_SIZE, WHITE);
+                 y + 4, FONT_SIZE, Theme::Text);
     y += ROW_HEIGHT;
   }
 }
@@ -723,7 +729,7 @@ void Game::exit() {
 void Game::drawOverlays(float dt) {
   GameState& gameState = GameState::shared();
 
-  {
+  if (!(paused || inChat)) {
     constexpr float SLOT = 64.0f;  // multiple of 8 keeps it on the pixel grid
     constexpr float GAP = 4.0f;
     constexpr float MARGIN =
@@ -761,34 +767,28 @@ void Game::drawOverlays(float dt) {
     }
   }
 
-  if (paused) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
-
-    DrawTextFont("Paused",
-                 GetScreenWidth() / 2 - MeasureTextFont("Paused", 50) / 2,
-                 GetScreenHeight() / 2 - 25, 50, WHITE);
-
-    exitButton.frame(input, input.pressed(Action::Click));
-
-  } else if (gameState.damageFlashTimer > 0) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {100, 10, 10, 50});
-    gameState.damageFlashTimer -= dt;
-  } else if (gameState.greenFlashTimer > 0) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {10, 100, 10, 50});
-    gameState.greenFlashTimer -= dt;
-  }
   if (!client.isConnected()) {
-    // Client::connect() retries on its own, so there's no separate "failed"
-    // state to show.
+    // // Client::connect() retries on its own, so there's no separate "failed"
+    // // state to show.
     const char* msg = client.getKickReason() ? client.getKickReason()->c_str()
                                              : "Connecting...";
-    Color col = client.getKickReason() ? RED : WHITE;
-    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 30) / 2, 60,
-                 30, col);
+    if (GetTime() - initTime < 0.3f || paused) {
+      msg = "";
+    }
+
+    DrawRectangleV({0, 0}, {(float)GetScreenWidth(), (float)GetScreenHeight()},
+                   Theme::Ground);
+
+    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 50) / 2 + 4,
+                 GetScreenHeight() / 2 - 25 + 4, 50,
+                 client.getKickReason() ? Theme::RedDark : Theme::Blue);
+    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 50) / 2,
+                 GetScreenHeight() / 2 - 25, 50,
+                 client.getKickReason() ? Theme::Red : Theme::Text);
   } else if (!paused && !chunkUnderPlayerLoaded()) {
     DrawTextFont("Loading...",
                  GetScreenWidth() / 2 - MeasureTextFont("Loading...", 50) / 2,
-                 GetScreenHeight() / 2 - 25, 50, WHITE);
+                 GetScreenHeight() / 2 - 25, 50, Theme::Text);
   } else if (!paused) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2,
@@ -804,6 +804,31 @@ void Game::drawOverlays(float dt) {
     DrawCircleLinesV(centre, (float)GetScreenHeight() / 200,
                      client.aimingAtPlayer(facing) ? Color{255, 50, 50, 100}
                                                    : Color{255, 255, 255, 100});
+  }
+
+  if (paused) {
+    if (client.isConnected()) {
+      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 90});
+    } else {
+      DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                    ColorAlpha(Theme::Ground, 90));
+    }
+
+    DrawTextFont("Paused",
+                 GetScreenWidth() / 2 - MeasureTextFont("Paused", 50) / 2 + 4,
+                 GetScreenHeight() / 2 - 25 + 4, 50, Theme::Blue);
+    DrawTextFont("Paused",
+                 GetScreenWidth() / 2 - MeasureTextFont("Paused", 50) / 2,
+                 GetScreenHeight() / 2 - 25, 50, Theme::Text);
+
+    exitButton.frame(input, input.pressed(Action::Click));
+
+  } else if (gameState.damageFlashTimer > 0) {
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {100, 10, 10, 50});
+    gameState.damageFlashTimer -= dt;
+  } else if (gameState.greenFlashTimer > 0) {
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {10, 100, 10, 50});
+    gameState.greenFlashTimer -= dt;
   }
 }
 

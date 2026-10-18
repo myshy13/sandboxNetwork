@@ -23,7 +23,7 @@ class Game {
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;
 
-  void frame();
+  void frame(bool first = false);
 
   // Hotbar slots, selected with the number keys.
   static constexpr BlockType blockTypes[] = {
@@ -32,6 +32,7 @@ class Game {
   static constexpr int blockTypesSize = std::size(blockTypes);
 
  private:
+  float initTime{(float)GetTime()};
   int activeBlockType = 0;
 
   // Vertical field of view in degrees; holding C narrows it to zoom.

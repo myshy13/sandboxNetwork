@@ -89,7 +89,7 @@ void Settings::frame() {
   BeginDrawing();
   ClearBackground(Theme::Ground);
 
-  gameState.getBackground().frame();
+  gameState.getBackground().frame(input);
 
   exitButton.frame(input, pressed);
   renderDistanceSlider.frame(input, pressed, down);
@@ -99,13 +99,13 @@ void Settings::frame() {
     targetFpsSlider.frame(input, pressed, down);
 
   // ==== toggles ==== //
-  DrawTextFont("VSync:", left, 475 - scroll, 30, WHITE);
+  DrawTextFont("VSync:", left, 475 - scroll, 30, Theme::Text);
   vsyncButton.frame(input, pressed);
-  DrawTextFont("Interpolation:", left, 545 - scroll, 30, WHITE);
+  DrawTextFont("Interpolation:", left, 545 - scroll, 30, Theme::Text);
   interpolationButton.frame(input, pressed);
-  DrawTextFont("Shadows:", left, 615 - scroll, 30, WHITE);
+  DrawTextFont("Shadows:", left, 615 - scroll, 30, Theme::Text);
   shadowsButton.frame(input, pressed);
-  DrawTextFont("Auto jump:", left, 685 - scroll, 30, WHITE);
+  DrawTextFont("Auto jump:", left, 685 - scroll, 30, Theme::Text);
   autoJumpButton.frame(input, pressed);
 
   input.drawCursor();

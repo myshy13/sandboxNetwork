@@ -170,11 +170,11 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
     velocity.y = 0.0f;
   }
 
-  constexpr int autoJumpPrediction = 15;
+  constexpr int AUTO_JUMP_PREDICTION = 5;
   if (autoJump && onGround && !inWater && !input.down(Action::Sneak) &&
       inputEnabled && moveDir != Vector3Zero()) {
     Vector3 newPos = Vector3Add(
-        pos, {step.x * autoJumpPrediction, 0, step.z * autoJumpPrediction});
+        pos, {step.x * AUTO_JUMP_PREDICTION, 0, step.z * AUTO_JUMP_PREDICTION});
     if (blocked(newPos) &&
         !blocked(Vector3Add(
             newPos, {0, env::BLOCKSIZE.y * 1.2, 0}))) {  // 1.2 for a small gap

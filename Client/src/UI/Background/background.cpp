@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "Input/input.hpp"
 #include "UI/Theme/theme.hpp"
 
 Background::Background(int count) {
@@ -20,9 +21,9 @@ Background::Background(int count) {
   }
 }
 
-void Background::frame() {
+void Background::frame(Input& input) {
   const float dt = GetFrameTime();
-  const Vector2 mouse = GetMousePosition();
+  const Vector2 mouse = input.getPointer();
   const Vector2 mid = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
   // Mouse position relative to screen centre, -1..1 on each axis
   const Vector2 m = {(mouse.x - mid.x) / mid.x, (mouse.y - mid.y) / mid.y};
