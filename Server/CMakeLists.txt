@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(sandboxNetworkServer CXX)
+project(sandboxNetworkServer C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -71,6 +71,29 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(ixwebsocket)
 
 # ---------------------------------------------------------------------------
+# Monocypher (verify-only Ed25519 for login tickets)
+#
+# No CMakeLists upstream, so MakeAvailable only fetches it and the library is defined here. The optional
+# monocypher-ed25519 files are needed: the default crypto_eddsa_* hashes with BLAKE2b, not standard Ed25519.
+# ---------------------------------------------------------------------------
+FetchContent_Declare(
+  monocypher
+  GIT_REPOSITORY https://github.com/LoupVaillant/Monocypher.git
+  GIT_TAG        4.0.2
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(monocypher)
+
+add_library(monocypher STATIC
+    "${monocypher_SOURCE_DIR}/src/monocypher.c"
+    "${monocypher_SOURCE_DIR}/src/optional/monocypher-ed25519.c"
+)
+target_include_directories(monocypher PUBLIC
+    "${monocypher_SOURCE_DIR}/src"
+    "${monocypher_SOURCE_DIR}/src/optional"
+)
+
+# ---------------------------------------------------------------------------
 # Source files
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
@@ -88,7 +111,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 find_package(Threads REQUIRED) # std::async for the background world save
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket Threads::Threads)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet ixwebsocket monocypher Threads::Threads)
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm) # same ENet gap as the client
     target_compile_definitions(${PROJECT_NAME} PRIVATE NOGDI NOUSER NOMINMAX) # keep windows.h from clashing with raylib and std::min/max
