@@ -7,15 +7,11 @@
 #include "Input/input.hpp"
 #include "UI/Background/background.hpp"
 #include "UI/Button/button.hpp"
-#include "UI/TextBox/textbox.hpp"
 
 class Home {
  private:
   std::vector<Button> buttons;
   Input& input;
-
-  std::string content = "";
-  TextBox tempTextBox;
 
   std::vector<Particle> particles;
 
