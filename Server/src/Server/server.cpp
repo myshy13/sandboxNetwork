@@ -662,7 +662,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
       }
       auto msg = proto::unpack<proto::SetName>(data);
       msg.id = playerId; // trust the connection, not the payload
-      msg.name = "Guest" + msg.name;
+      msg.name = "Guest " + msg.name;
       const bool taken =
           std::any_of(players.begin(), players.end(), [&](const Player &p) {
             return p.id != playerId && p.displayName == msg.name;
