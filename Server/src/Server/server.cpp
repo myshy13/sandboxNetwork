@@ -84,24 +84,26 @@ Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
   }
   std::printf("ENet initialized\n");
 
-  std::ifstream pubKeyFile(pubkeyPath, std::ios::binary);
-  bool authFailure = false;
-  if (pubKeyFile.is_open()) {
-    std::array<uint8_t, 32> key;
-    pubKeyFile.read(reinterpret_cast<char *>(key.data()), key.size());
-    if (pubKeyFile.gcount() == 32 && pubKeyFile.peek() == EOF) {
-      tickets.emplace(key);
+  if (pubkeyPath != "") {
+    std::ifstream pubKeyFile(pubkeyPath, std::ios::binary);
+    bool authFailure = false;
+    if (pubKeyFile.is_open()) {
+      std::array<uint8_t, 32> key;
+      pubKeyFile.read(reinterpret_cast<char *>(key.data()), key.size());
+      if (pubKeyFile.gcount() == 32 && pubKeyFile.peek() == EOF) {
+        tickets.emplace(key);
+      } else {
+        authFailure = true;
+      }
     } else {
       authFailure = true;
     }
-  } else {
-    authFailure = true;
-  }
 
-  if (authFailure) {
-    std::cerr << "Failed to initialise auth.\n Make sure the "
-                 "public key is valid and the path is correct\n";
-    std::exit(EXIT_FAILURE);
+    if (authFailure) {
+      std::cerr << "Failed to initialise auth.\n Make sure the "
+                   "public key is valid and the path is correct\n";
+      std::exit(EXIT_FAILURE);
+    }
   }
 
   // Bind to the listen port - a null address makes a client-only host that
@@ -254,6 +256,20 @@ int Server::checkOverlaps() const {
     std::printf("no overlapping blocks (%zu objects)\n", objects.size());
   }
   return extra;
+}
+
+bool nameValid(const std::string &name) {
+  // [A-Za-z0-9_ ]
+  for (char l : name) {
+    if (!((l >= 'a' && l <= 'z') || (l >= 'A' && l <= 'Z') ||
+          (l >= '0' && l <= '9') || l == ' ')) {
+      return false;
+    }
+  }
+  if (name.front() == ' ' || name.back() == ' ') {
+    return false; // leading or trailing space
+  }
+  return true;
 }
 
 void Server::ensureChunk(int cx, int cz) {
@@ -662,6 +678,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
       }
       auto msg = proto::unpack<proto::SetName>(data);
       msg.id = playerId; // trust the connection, not the payload
+      // name check
+      if (msg.name.size() > 16 || msg.name.size() < 3 || !nameValid(msg.name)) {
+        break;
+      }
       msg.name = "Guest " + msg.name;
       const bool taken =
           std::any_of(players.begin(), players.end(), [&](const Player &p) {
@@ -728,6 +748,9 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     case proto::Type::clientHandshake: {
+      // this case is useless if it is already done
+      if (!(p == nullptr || !p->handshaken))
+        break;
       const auto kick = [&](const std::string &reason, int id = -1) -> void {
         if (id == -1)
           id = playerId;
@@ -735,7 +758,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
             proto::pack(proto::Type::kick, proto::kick{id, reason});
         sendTo(id, kickBytes, true);
         disconnectPlayer(id);
-        p->handshaken = false; // to stop updating them
+        Player *p = findPlayer(id);
+        if (p != nullptr) {
+          p->handshaken = false;
+        }
       };
       auto msg = proto::unpack<proto::clientHandshake>(data);
       if (msg.ver != proto::PROTOCOL_VERSION) {

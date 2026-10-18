@@ -187,7 +187,7 @@ public:
                   int MAX_PLAYERS = env::DEFAULT_MAX_PLAYERS,
                   float timeOfDay = env::DAY_DEFAULT_TIME,
                   bool freezeTime = false, bool allowGuests = false,
-                  const std::string &pubkeyPath = "key.pub");
+                  const std::string &pubkeyPath = "");
   ~Server();
 
   // ==== static consts ==== //

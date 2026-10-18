@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   int maxPlayers{env::DEFAULT_MAX_PLAYERS};
   float time{env::DAY_DEFAULT_TIME};
   bool freezeTime{false};
-  std::string publicKeyPath{"./keys.pub"};
+  std::string publicKeyPath{""}; // empty means no auth
   bool allowGuests{false};
 
   for (int i = 1; i < argc; i++) {
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
       freezeTime = true;
     } else if (std::strcmp(argv[i], "--allow-guests") == 0) {
       allowGuests = true;
-    } else if (std::strcmp(argv[i], "--auth-pubkey") == 0) {
+    } else if (std::strcmp(argv[i], "--auth-pubkey") == 0 && i + 1 < argc) {
       publicKeyPath = argv[++i];
     } else if (std::strcmp(argv[i], "--help") == 0) {
       std::printf(
