@@ -141,6 +141,19 @@ Each is a block-offset table like `TREE_SHAPE`, placed by terrain from the seed.
       water level updates while a flow is spreading
 - [ ] chunk save format versioning (terrain/tree changes vs old saves)
 
+## Input & platforms
+
+- [ ] `input_touch_remote.cpp`: a Siri Remote input source for tvOS (touch surface moves the pointer, click, Play/Pause
+      and Menu map to Click / Pause / Exit). Today the remote's touch surface still reaches raylib as a touch and moves
+      raylib's mouse (`rcore_tvos.c`), but nothing reads it as an `InputSource`. First make `Background::frame()` take
+      its pointer from `input.getPointer()` instead of `GetMousePosition()`, or the particles keep following the remote
+      on the TV while the gamepad cursor is somewhere else.
+- [ ] Ship gamepad support on every device that supports Bluetooth controllers (iOS, tvOS, desktop; web if the browser
+      Gamepad API is enough), not only tvOS or `-DUSE_GAMEPAD_INPUT=ON`, and let the player switch between sources.
+      Needs `Input` to own more than one `InputSource` (CMake compiles exactly one today) and a rule for which one is
+      active: last device used, or a setting. Hide the touch overlay and the drawn cursor of whichever source is not
+      active. Update `arch.md` ("CMake compiles exactly one") and `tech.md` when it lands.
+
 ## Infra & ops
 
 - [ ] deploy the server to an always-on host under systemd, `Restart=always`
