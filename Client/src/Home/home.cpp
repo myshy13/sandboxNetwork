@@ -83,7 +83,7 @@ void Home::frame() {
   BeginDrawing();
   ClearBackground(Theme::Ground);
 
-  background.frame();
+  background.frame(input);
 
   DrawLogo(GameState::shared().getMainFont(), (float)GetScreenWidth() / 2, 100);
 

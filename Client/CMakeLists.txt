@@ -203,7 +203,7 @@ endif()
 if(BUILD_TVOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
 elseif(BUILD_WEB)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.5f) 
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.5f)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
 

@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include "Input/input.hpp"
+
 struct Particle {
   Vector2 home;  // where it lives (spawn point)
   Vector2 pos;   // where it's drawn now
@@ -32,5 +34,5 @@ class Background {
 
  public:
   explicit Background(int count = 32);  // spawns the particles
-  void frame();                         // update + draw, call once per frame
+  void frame(Input& input);             // update + draw, call once per frame
 };
