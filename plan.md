@@ -69,7 +69,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
        `tickets.js` (sign a fixed byte layout, not JSON, so C++ can parse the same bytes), routes `/register` `/login`
        `/refresh`, `ban.js` / `unban.js`, one `node --test` file. Name rules start strict: ASCII `[A-Za-z0-9_]`, 3-16
        chars (loosening later is easy, tightening is not).
-2. [x] Game server verifies tickets: `ticket` string on `clientHandshake` (empty = guest), bump `PROTOCOL_VERSION`; a
+2. [ ] Game server verifies tickets: `ticket` string on `clientHandshake` (empty = guest), bump `PROTOCOL_VERSION`; a
        verify-only Ed25519 lib via `FetchContent` (monocypher or libsodium) behind a `TicketVerifier` class in
        `Server/src/Auth/`; `--allow-guests` and `--auth-pubkey <file>` args; guest checks in `PlaceObject` and chat;
        expiry checked on a timer in `Server::tick` with a small grace window; same account joining twice kicks the old

@@ -23,10 +23,10 @@ struct BlockInfo {
   bool opaque{true}; // hides the face of a neighbour behind it
   bool fluid{false}; // placing over it replaces it, and players swim in it
   bool translucent{false}; // the player can see through it
-  bool blended{false};     // drawn with alpha blending (water); glass is a cutout
-  bool solid{true};        // players collide with it
-  bool placeable{true};    // a client may ask the server to place it
-  Color color{WHITE};      // the block's look until it has a texture
+  bool blended{false};  // drawn with alpha blending (water); glass is a cutout
+  bool solid{true};     // players collide with it
+  bool placeable{true}; // a client may ask the server to place it
+  Color color{WHITE};   // the block's look until it has a texture
 };
 
 // One row per BlockType, in enum order. (it's checked at compile time)
