@@ -76,6 +76,29 @@ int main() {
   assert(!tickets.verify(std::string(100, 'A'), SIGNED_AT).has_value());
   assert(!tickets.verify(std::string(4000, 'A'), SIGNED_AT).has_value());
 
+  // ==== refreshAccepted: only the same account, with a ticket that verified ==== //
+  const Claim seven{7, "hamish", EXPIRES, true};
+  assert(refreshAccepted(7u, seven));
+  assert(refreshAccepted(0u, Claim{0, "root", EXPIRES, false})); // id 0 is still an account
+  assert(!refreshAccepted(std::nullopt, seven));                 // a guest has nothing to refresh
+  assert(!refreshAccepted(7u, std::nullopt));                    // the ticket failed verify
+  assert(!refreshAccepted(8u, seven));                           // someone else's valid ticket
+  assert(!refreshAccepted(std::nullopt, std::nullopt));
+
+  // ==== ticketExpired: exp + grace is the first second it counts as expired ==== //
+  assert(!ticketExpired(1000, 500, 30));
+  assert(!ticketExpired(1000, 1000, 30)); // at exp the grace window still covers it
+  assert(!ticketExpired(1000, 1029, 30));
+  assert(ticketExpired(1000, 1030, 30));
+  assert(ticketExpired(1000, 5000, 30));
+  assert(ticketExpired(1000, 1000, 0));   // no grace: expires at exp, like Tickets::verify
+  assert(!ticketExpired(1000, 999, 0));
+
+  // ==== past 2038 a u32 exp no longer fits an int, and must not wrap ==== //
+  const uint32_t late = 3'000'000'000u;
+  assert(!ticketExpired(late, late + 29, 30));
+  assert(ticketExpired(late, late + 30, 30));
+
   std::printf("ticket tests passed\n");
   return 0;
 }
