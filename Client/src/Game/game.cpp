@@ -140,45 +140,45 @@ void Game::frame(bool first) {
 
 // ==== update ==== //
 void Game::applyNetworkUpdates() {
-  if (client.isConnected()) {
-    client.poll();
-    if (auto pos = client.takeRespawn()) {
-      player.setPosition(*pos);
-      client.sendPlayerPosition(player.getTransform(), player.getPitch(),
-                                player.getYaw());
-      player.UpdateCamera(camera);
+  client.poll();
+  if (auto pos = client.takeRespawn()) {
+    player.setPosition(*pos);
+    client.sendPlayerPosition(player.getTransform(), player.getPitch(),
+                              player.getYaw());
+    player.UpdateCamera(camera);
+  }
+  // In arrival order: the server already sends a place-over-water as Remove
+  // then Add.
+  for (WorldEvent& e : client.takeWorldEvents()) {
+    switch (e.kind) {
+      case WorldEvent::Kind::LoadChunk:
+        world.addChunk(e.cx, e.cz, e.blocks);
+        break;
+      case WorldEvent::Kind::UnloadChunk:
+        world.unloadChunk(e.cx, e.cz);
+        break;
+      case WorldEvent::Kind::Add:
+        world.addObject(e.object);
+        break;
+      case WorldEvent::Kind::Remove:
+        world.removeObject(e.pos);
+        break;
+      case WorldEvent::Kind::Damage:
+        world.damageObject(e.pos);
+        break;
+      case WorldEvent::Kind::WaterLevel:
+        world.setWaterLevel(e.pos, e.level);
+        break;
     }
-    // In arrival order: the server already sends a place-over-water as Remove
-    // then Add.
-    for (WorldEvent& e : client.takeWorldEvents()) {
-      switch (e.kind) {
-        case WorldEvent::Kind::LoadChunk:
-          world.addChunk(e.cx, e.cz, e.blocks);
-          break;
-        case WorldEvent::Kind::UnloadChunk:
-          world.unloadChunk(e.cx, e.cz);
-          break;
-        case WorldEvent::Kind::Add:
-          world.addObject(e.object);
-          break;
-        case WorldEvent::Kind::Remove:
-          world.removeObject(e.pos);
-          break;
-        case WorldEvent::Kind::Damage:
-          world.damageObject(e.pos);
-          break;
-        case WorldEvent::Kind::WaterLevel:
-          world.setWaterLevel(e.pos, e.level);
-          break;
-      }
-    }
-    syncViewRadius();
+  }
+  syncViewRadius();
 
-    std::optional<TimeSetting> newTime = client.takeTimeSetting();
-    if (newTime.has_value()) {
-      world.setTimeSettings(newTime.value());
-    }
-  } else if (client.connect()) {
+  std::optional<TimeSetting> newTime = client.takeTimeSetting();
+  if (newTime.has_value()) {
+    world.setTimeSettings(newTime.value());
+  }
+
+  if (!client.isConnected() && client.connect()) {
     world.clear();  // the server re-streams every block on join
     sentViewRadius = -1;
   }
@@ -779,11 +779,18 @@ void Game::drawOverlays(float dt) {
     DrawRectangleV({0, 0}, {(float)GetScreenWidth(), (float)GetScreenHeight()},
                    Theme::Ground);
 
-    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 50) / 2 + 4,
-                 GetScreenHeight() / 2 - 25 + 4, 50,
+    int fontSize = 50;
+    int width = MeasureTextFont(msg, fontSize);
+    const float maxWidth = GetScreenWidth() * 0.9;
+    while (width > maxWidth) {
+      fontSize *= (maxWidth / width);
+      width = MeasureTextFont(msg, fontSize);
+    }
+    DrawTextFont(msg, GetScreenWidth() / 2 - width / 2 + 4,
+                 GetScreenHeight() / 2 - (fontSize / 2) + 4, fontSize,
                  client.getKickReason() ? Theme::RedDark : Theme::Blue);
-    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 50) / 2,
-                 GetScreenHeight() / 2 - 25, 50,
+    DrawTextFont(msg, GetScreenWidth() / 2 - width / 2,
+                 GetScreenHeight() / 2 - (fontSize / 2), fontSize,
                  client.getKickReason() ? Theme::Red : Theme::Text);
   } else if (!paused && !chunkUnderPlayerLoaded()) {
     DrawTextFont("Loading...",
