@@ -74,10 +74,44 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
        `Server/src/Auth/`; `--allow-guests` and `--auth-pubkey <file>` args; guest checks in `PlaceObject` and chat;
        expiry checked on a timer in `Server::tick` with a small grace window; same account joining twice kicks the old
        session; tests in `cd Server && make test` (valid, tampered, expired, wrong key, guest allowed/denied).
-3. [ ] Client login flow: HTTP client behind an interface, one class per backend (native HTTPS lib, Emscripten fetch on web),
-       no `#ifdef` in game code; `MenuState::Login` screen from the existing `Button`s and Input layer; a longer-lived
-       refresh token stored per platform (file native, `localStorage` web), never the password; Sign out button; refresh
-       message a minute before expiry. tvOS has no keyboard, so it stays guest-only at first.
+3. [ ] Client login flow (branch `feature/client-login`): HTTP client behind an interface, one class per backend (native
+       HTTPS lib, Emscripten fetch on web), no `#ifdef` in game code; `MenuState::Login` screen from the existing
+       `Button`s and Input layer; a longer-lived refresh token stored per platform (file native, `localStorage` web),
+       never the password; Sign out button; refresh message a minute before expiry. tvOS/iOS have no text entry, so they
+       stay guest-only at first.
+   - [x] 3a. `HttpClient` interface (`Client/src/Net/httpClient.hpp`) + native backend (`httpClient_native.cpp`: worker
+         thread, cpp-httplib + Mbed TLS via FetchContent, bundled `assets/cacert.pem`; the OS root stores are disabled so
+         only that file is trusted). Checked against the local auth service (200 / 401 / status 0 = no connection).
+   - [x] 3b. `AccountMenu` (Login screen): `TextBox` widget, Login / Signup buttons, takes an `HttpClient&` owned in
+         `main.cpp`. `submitLogin` / `submitSignup` are still empty (3f).
+   - [x] 3c. `TokenStore` (`Client/src/Auth/`): interface `load / save / clear` + `makeTokenStore()`; `TokenStoreFile`
+         writes `~/.sandboxNetwork/token` via a temp file and rename (owner-only), `load` accepts only 43 base64url
+         characters, a missing or corrupt file is "no token". Excluded from the web build.
+   - [ ] 3d. Test `TokenStoreFile` against a temp directory (needs a way to inject the folder, e.g. a constructor path
+         argument defaulting to the home folder): save then load round-trips, load of garbage / wrong length / missing
+         file gives empty, clear then load gives empty, a failed save leaves the old token. Standalone `make test`,
+         no raylib or network, like `Shared/Protocol`.
+   - [ ] 3e. `Auth` class (`Client/src/Auth/`, non-blocking, no threads of its own): takes `HttpClient&` and
+         `TokenStore&`. Public: `login / signup / refresh / logout`, `update(now)` once per frame, a state enum
+         (LoggedOut, Working, LoggedIn, Error), the current ticket, and `ticketSerial` (bumped on every new ticket so
+         the client knows to send `TicketRefresh`).
+         - Constants (`TICKET_LIFETIME` 3600 s, `REFRESH_MARGIN` 60 s, `RETRY_DELAY` 30 s, `AUTH_URL`) in
+           `Client/src/env.hpp` and `env.example.hpp`.
+         - Save the new refresh token before using the response, so a crash can't strand the account.
+         - Refresh: 401 clears the token (logged out); status 0 (no network) keeps it and retries after `RETRY_DELAY`.
+         - Logout clears the local token first, then tells the server (best effort).
+         - Signup chains `/login` (register returns no refresh token).
+         - Tests with a fake `HttpClient` and a fake `TokenStore`: each route's 200 / 401 / 0, the retry timer, and the
+           token being saved before the ticket is used.
+   - [ ] 3f. Wire it in: `submitLogin` / `submitSignup` call `Auth`; `Client::connect(ticket)` puts the ticket in
+         `clientHandshake`; on start, a saved token tries `refresh` before showing the Login screen; `TicketRefresh`
+         is sent whenever `ticketSerial` changes; Sign out button on Home; guest play stays one click away.
+   - [ ] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
+         `TokenStore` over `localStorage` (also fixes the web link error from `makeTokenStore` being undefined).
+   - [ ] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
+         `HttpClient` and `TokenStore` with no-ops.
+   - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
+     Fix later with a profile name in the path.
 4. [ ] Deployment: HTTPS in front of the auth service, systemd unit, key file permissions, SQLite backups (S3 later), game
        server flags. Later: email + password reset, revocation list pushed to game servers, admin web UI.
 
