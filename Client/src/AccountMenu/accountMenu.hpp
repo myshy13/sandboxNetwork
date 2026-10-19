@@ -9,7 +9,7 @@ enum class AccountScreen { Login, Signup };
 
 class AccountMenu {
  private:
-  GameState gameState = GameState::shared();
+  GameState &gameState = GameState::shared();
   AccountScreen accountScreen = AccountScreen::Login;
 
   Background &background = gameState.getBackground();
@@ -33,5 +33,3 @@ class AccountMenu {
   AccountMenu(Input &input);
   void frame();
 };
-
-class Auth {};

@@ -31,10 +31,11 @@ void AccountMenu::frame() {
                (float)GetScreenHeight() / 2 + 110 - 50, 40, Theme::Text);
   passwordBox.frame();
 
-  loginButton.frame(input, input.down(Action::Click));
-  signupButton.frame(input, input.down(Action::Click));
+  const bool clicked = input.pressed(Action::Click);
+  loginButton.frame(input, clicked);
+  signupButton.frame(input, clicked);
 
-  exitButton.frame(input, input.down(Action::Click));
+  exitButton.frame(input, clicked);
   EndDrawing();
 }
 
