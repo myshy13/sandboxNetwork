@@ -158,7 +158,7 @@ if(NOT BUILD_WEB)
         GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
         GIT_TAG v3.6.7
         GIT_SHALLOW TRUE
-        GIT_SUBMODULES ""
+        GIT_SUBMODULES framework
         EXCLUDE_FROM_ALL
     )
     set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
