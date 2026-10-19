@@ -146,6 +146,40 @@ if(NOT BUILD_WEB)
 endif()
 
 # ---------------------------------------------------------------------------
+# cpp-httplib + Mbed TLS (HTTPS to the auth service, fetched at configure time)
+#
+# Native only: the web build uses the browser's fetch (TLS included). httplib is >= 0.47 because
+# earlier Mbed TLS builds skipped chain validation for IP-literal hosts. Mbed TLS is excluded from
+# "all" so it only builds once a target links it.
+# ---------------------------------------------------------------------------
+if(NOT BUILD_WEB)
+    FetchContent_Declare(
+        mbedtls
+        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+        GIT_TAG v3.6.7
+        GIT_SHALLOW TRUE
+        GIT_SUBMODULES ""
+        EXCLUDE_FROM_ALL
+    )
+    set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(USE_STATIC_MBEDTLS_LIBRARY ON CACHE BOOL "" FORCE)
+    set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
+
+    # Header only: SOURCE_SUBDIR points at a folder with no CMakeLists.txt, so httplib is downloaded but
+    # not built; the backend adds ${httplib_SOURCE_DIR} to its include path.
+    FetchContent_Declare(
+        httplib
+        GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+        GIT_TAG v0.59.0
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR header-only
+    )
+
+    FetchContent_MakeAvailable(mbedtls httplib)
+endif()
+
+# ---------------------------------------------------------------------------
 # Cereal
 # ---------------------------------------------------------------------------
 
