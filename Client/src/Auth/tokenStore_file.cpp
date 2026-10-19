@@ -1,6 +1,11 @@
+#include <raylib.h>
+
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <system_error>
 
@@ -17,10 +22,13 @@ class TokenStoreFile : public TokenStore {
     if (HOMEDIR == nullptr) {
       HOMEDIR = getenv("USERPROFILE");
     }
+    // No home directory: leave tokenPath empty so save() refuses.
+    if (HOMEDIR == nullptr) return;
     tokenPath = std::string(HOMEDIR) + std::string(FOLDER);
   };
 
   bool save(const std::string& token) override {
+    if (tokenPath.empty()) return false;
     std::error_code ec;
     std::filesystem::create_directories(tokenPath, ec);
 
@@ -38,11 +46,54 @@ class TokenStoreFile : public TokenStore {
       return false;
     }
     tempFile << token;
+    // Close flushes the data; check it landed before the rename publishes it.
+    tempFile.close();
+    if (tempFile.fail()) {
+      std::filesystem::remove(tempPath, ec);
+      return false;
+    }
     std::filesystem::rename(tempPath, tokenPath / "token", ec);
     if (ec) {
       std::filesystem::remove(tokenPath / "token.tmp", ec);
-      std::filesystem::remove(tokenPath / "token", ec);
+      return false;
     }
     return true;
   }
+
+  void clear() override {
+    if (tokenPath.empty()) return;
+    // A missing file is already cleared, so errors are ignored.
+    std::error_code ec;
+    std::filesystem::remove(tokenPath / "token.tmp", ec);
+    std::filesystem::remove(tokenPath / "token", ec);
+  };
+
+  std::string load() override {
+    if (tokenPath.empty()) return "";
+    std::ifstream file(tokenPath / "token");
+    if (!file.is_open()) return "";
+
+    std::string token;
+    std::getline(file, token);
+
+    // Trim surrounding whitespace (a hand-edited file may have some).
+    const size_t first = token.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+    token = token.substr(first, token.find_last_not_of(" \t\r\n") - first + 1);
+
+    // A 32-byte base64url token is exactly 43 characters.
+    constexpr size_t TOKEN_LENGTH = 43;
+    auto valid = [](unsigned char c) {
+      return std::isalnum(c) || c == '_' || c == '-';
+    };
+    if (token.size() != TOKEN_LENGTH ||
+        !std::all_of(token.begin(), token.end(), valid)) {
+      return "";
+    }
+    return token;
+  };
 };
+
+std::unique_ptr<TokenStore> makeTokenStore() {
+  return std::make_unique<TokenStoreFile>();
+}
