@@ -18,11 +18,14 @@ class AccountMenu {
   std::string password;
 
   Button exitButton;
+
   TextBox usernameBox;
   TextBox passwordBox;
+  Button loginButton;
+  Button signupButton;
 
-  void frameLogin();
-  void frameSignup();
+  void submitLogin();
+  void submitSignup();
 
   Input &input;
 
