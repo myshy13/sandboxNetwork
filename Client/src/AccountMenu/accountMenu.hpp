@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameState/gameState.hpp"
+#include "Net/httpClient.hpp"
 #include "UI/Background/background.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/TextBox/textbox.hpp"
@@ -29,7 +30,9 @@ class AccountMenu {
 
   Input &input;
 
+  HttpClient& httpClient;
+
  public:
-  AccountMenu(Input &input);
+  AccountMenu(Input& input, HttpClient& httpClient);
   void frame();
 };

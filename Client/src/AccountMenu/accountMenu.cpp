@@ -4,14 +4,38 @@
 
 #include "GameState/gameState.hpp"
 #include "Input/inputState.hpp"
+#include "Net/httpClient.hpp"
 #include "Raylib/drawText.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/Theme/theme.hpp"
+
+void sizeButtons(Button& loginButton, Button& signupButton) {
+  Rectangle loginButtonRec;
+  loginButtonRec.height = BUTTON_HEIGHT;
+  loginButtonRec.width = BUTTON_WIDTH;
+  loginButtonRec.y = GetScreenHeight() - 100;
+  loginButtonRec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH;
+
+  Rectangle signupButtonRec;
+  signupButtonRec.height = BUTTON_HEIGHT;
+  signupButtonRec.width = BUTTON_WIDTH;
+  signupButtonRec.y = GetScreenHeight() - 100;
+  signupButtonRec.x = GetScreenWidth() / 2.0f + 10;
+
+  loginButton.setRec(loginButtonRec);
+  signupButton.setRec(signupButtonRec);
+}
 
 void AccountMenu::frame() {
   BeginDrawing();
   ClearBackground(Theme::Ground);
   background.frame(input);
+  if (IsWindowResized()) {
+    sizeButtons(loginButton, signupButton);
+
+    usernameBox.setYPos((float)GetScreenHeight() / 2 - 50);
+    passwordBox.setYPos((float)GetScreenHeight() / 2 + 110);
+  }
   const std::string titleText =
       accountScreen == AccountScreen::Login ? "Login" : "Signup";
   DrawTextFont(
@@ -42,32 +66,21 @@ void AccountMenu::frame() {
 void AccountMenu::submitLogin() {};
 void AccountMenu::submitSignup() {};
 
-AccountMenu::AccountMenu(Input& input)
+AccountMenu::AccountMenu(Input& input, HttpClient& httpClient)
     : exitButton(
           Button([]() { GameState::shared().setMenuState(MenuState::Home); },
                  "<", Rectangle{10, 10, 50, 50}, 40, ButtonStyles::Primary)),
-      // std::string& content, float yPos, bool masked, ButtonStyle style,
-      // Input& input
       usernameBox(username, (float)GetScreenHeight() / 2 - 50, false,
                   ButtonStyles::Primary, input),
+      // std::string& content, float yPos, bool masked, ButtonStyle style,
+      // Input& input
       passwordBox(password, (float)GetScreenHeight() / 2 + 110, true,
                   ButtonStyles::Primary, input),
       loginButton([&]() { submitLogin(); }, "Login",
                   (float)GetScreenHeight() - 100, ButtonStyles::Primary),
       signupButton([&]() { submitSignup(); }, "Signup",
                    (float)GetScreenHeight() - 100, ButtonStyles::Secondary),
-      input(input) {
-  Rectangle loginButtonRec;
-  loginButtonRec.height = BUTTON_HEIGHT;
-  loginButtonRec.width = (float)BUTTON_WIDTH;
-  loginButtonRec.y = (float)GetScreenHeight() - 100;
-  loginButtonRec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH;
-  Rectangle signupButtonRec;
-  signupButtonRec.height = BUTTON_HEIGHT;
-  signupButtonRec.width = BUTTON_WIDTH;
-  signupButtonRec.y = (float)GetScreenHeight() - 100;
-  signupButtonRec.x = GetScreenWidth() / 2.0f + 10;
-
-  loginButton.setRec(loginButtonRec);
-  signupButton.setRec(signupButtonRec);
+      input(input),
+      httpClient(httpClient) {
+  sizeButtons(loginButton, signupButton);
 };

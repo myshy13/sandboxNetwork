@@ -55,5 +55,12 @@ class Button {
 
   void setRec(Rectangle r) { rec = r; }
 
+  void setY(float yPos) {
+    rec.height = BUTTON_HEIGHT;
+    rec.width = BUTTON_WIDTH;
+    rec.y = yPos;
+    rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
+  }
+
   void frame(Input& input, bool clicked);
 };

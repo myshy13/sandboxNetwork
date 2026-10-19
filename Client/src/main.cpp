@@ -1,4 +1,5 @@
 #include <raylib.h>
+
 #include "AccountMenu/accountMenu.hpp"
 
 #ifdef __EMSCRIPTEN__
@@ -14,6 +15,7 @@
 #include "Home/home.hpp"
 #include "Input/input.hpp"
 #include "Input/inputSource.hpp"
+#include "Net/httpClient.hpp"
 #include "Protocol/protocol.hpp"
 #include "Settings/settings.hpp"
 #include "env.hpp"
@@ -26,6 +28,7 @@ static std::unique_ptr<Game> game;
 static std::unique_ptr<Home> home;
 static std::unique_ptr<Settings> settings;
 static std::unique_ptr<Input> input;
+static std::unique_ptr<HttpClient> httpClient;
 static std::unique_ptr<AccountMenu> accounts;
 
 // ==== lifecycle ==== //
@@ -106,7 +109,8 @@ static void ready() {
   game = std::make_unique<Game>(*assets, *input);
   home = std::make_unique<Home>(*input);
   settings = std::make_unique<Settings>(*input);
-accounts = std::make_unique<AccountMenu>(*input);
+  httpClient = makeHttpClient();
+  accounts = std::make_unique<AccountMenu>(*input, *httpClient);
 
   GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
@@ -134,6 +138,8 @@ static void update() {
 
 static void destroy() {
   // Reverse order, and before CloseWindow() destroys the GL context.
+  accounts.reset();
+  httpClient.reset();
   settings.reset();
   home.reset();
   game.reset();
