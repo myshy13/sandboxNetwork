@@ -42,6 +42,14 @@ Home::Home(Input& input)
   buttons.push_back(quitButton);
 #endif
 
+  Button loginButton = Button(
+      [&input](void) {
+        GameState::shared().setMenuState(MenuState::Login);
+        input.setMouseLook(false);
+      },
+      "Login", (float)GetScreenHeight() - 100, ButtonStyles::Secondary);
+  buttons.push_back(loginButton);
+
   // ==== init particles ==== //
   int particleCount = 10 + rand() % 10;
   const int sizes[3] = {16, 24, 32};

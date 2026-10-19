@@ -6,7 +6,7 @@
 
 #include "UI/Background/background.hpp"
 
-enum class MenuState { Home, Settings, Playing };
+enum class MenuState { Home, Settings, Playing, Login };
 
 class GameState {
  private:

@@ -16,3 +16,4 @@ sudo apt-get install -y \
     libwayland-dev \
     libxkbcommon-dev \
     xorg-dev
+    source "/workspaces/emsdk/emsdk_env.sh"

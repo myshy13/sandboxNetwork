@@ -1,4 +1,5 @@
 #include <raylib.h>
+#include "AccountMenu/accountMenu.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -25,6 +26,7 @@ static std::unique_ptr<Game> game;
 static std::unique_ptr<Home> home;
 static std::unique_ptr<Settings> settings;
 static std::unique_ptr<Input> input;
+static std::unique_ptr<AccountMenu> accounts;
 
 // ==== lifecycle ==== //
 
@@ -104,6 +106,7 @@ static void ready() {
   game = std::make_unique<Game>(*assets, *input);
   home = std::make_unique<Home>(*input);
   settings = std::make_unique<Settings>(*input);
+accounts = std::make_unique<AccountMenu>(*input);
 
   GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
@@ -120,8 +123,10 @@ static void update() {
     game->frame(prevMenu != menu);
   } else if (menu == MenuState::Home) {
     home->frame();
-  } else {
+  } else if (menu == MenuState::Settings) {
     settings->frame();
+  } else if (menu == MenuState::Login) {
+    accounts->frame();
   }
 
   prevMenu = menu;

@@ -31,6 +31,7 @@ class Background {
   };
 
   std::vector<Particle> particles;
+  Vector2 prevWindowSize;
 
  public:
   explicit Background(int count = 32);  // spawns the particles
