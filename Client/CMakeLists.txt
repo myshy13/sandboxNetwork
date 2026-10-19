@@ -220,6 +220,7 @@ endforeach()
 # place the native/web split lives, so no #ifdef leaks into the game code.
 if(BUILD_WEB)
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_enet.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/httpClient_native.cpp")
 else()
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_ws.cpp")
 endif()
@@ -347,7 +348,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 if(NOT BUILD_WEB)
-    target_include_directories(${PROJECT_NAME} PRIVATE "${enet_SOURCE_DIR}/include")
+    target_include_directories(${PROJECT_NAME} PRIVATE "${enet_SOURCE_DIR}/include" "${httplib_SOURCE_DIR}")
+    # Use only our bundled CA file on every platform: no macOS keychain (needs Security.framework) or Windows root store.
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_MBEDTLS_SUPPORT
+        CPPHTTPLIB_DISABLE_MACOSX_AUTOMATIC_ROOT_CERTIFICATES
+        CPPHTTPLIB_DISABLE_WINDOWS_AUTOMATIC_ROOT_CERTIFICATES_UPDATE)
 endif()
 
 if(BUILD_WEB)
@@ -355,7 +360,7 @@ if(BUILD_WEB)
 else()
     # The ENet transport runs its network thread with std::thread.
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads)
+    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads mbedtls mbedx509 mbedcrypto)
     # ENet is a static lib and does not pass its Windows socket/timer libs on to us
     if(WIN32)
         target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm)
