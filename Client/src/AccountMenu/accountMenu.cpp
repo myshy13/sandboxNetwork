@@ -28,8 +28,8 @@ AccountMenu::AccountMenu(Input &input)
                  "<", Rectangle{10, 10, 50, 50}, 40, ButtonStyles::Primary)),
       // std::string& content, float yPos, bool masked, ButtonStyle style,
       // Input& input
-      usernameBox(username, (float)GetScreenWidth() / 2, false, ButtonStyles::Primary, input),
-      passwordBox(password, (float)GetScreenWidth() / 2 + 100, true, ButtonStyles::Primary, input),
+      usernameBox(username, (float)GetScreenWidth() / 2 - 50, false, ButtonStyles::Primary, input),
+      passwordBox(password, (float)GetScreenWidth() / 2 + 50, true, ButtonStyles::Primary, input),
       input(input){};
 
 void AccountMenu::frameLogin() {
