@@ -87,7 +87,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
    - [x] 3c. `TokenStore` (`Client/src/Auth/`): interface `load / save / clear` + `makeTokenStore()`; `TokenStoreFile`
          writes `~/.sandboxNetwork/token` via a temp file and rename (owner-only), `load` accepts only 43 base64url
          characters, a missing or corrupt file is "no token". Excluded from the web build.
-   - [ ] 3d. Test `TokenStoreFile` against a temp directory (needs a way to inject the folder, e.g. a constructor path
+   - [x] 3d. Test `TokenStoreFile` against a temp directory (needs a way to inject the folder, e.g. a constructor path
          argument defaulting to the home folder): save then load round-trips, load of garbage / wrong length / missing
          file gives empty, clear then load gives empty, a failed save leaves the old token. Standalone `make test`,
          no raylib or network, like `Shared/Protocol`.
