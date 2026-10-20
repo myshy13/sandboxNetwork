@@ -13,6 +13,9 @@ constexpr Vector3 PLAYER_SCALE = SHARED_PLAYER_SCALE;
 constexpr std::string VERSION = SHARED_VERSION;
 constexpr Vector3 BLOCKSIZE = {5, 5, 5};
 
+// path to main auth server
+constexpr const char* AUTH_URL = "http://127.0.0.1:3020";
+
 }  // namespace env
 
 // Compile-time toggles
