@@ -347,6 +347,7 @@ int main() {
     f.auth.logout();
     assert(f.auth.getState() == State::LoggedOut);
     assert(f.store.token.empty());
+    assert(f.auth.getTicket().empty());
     assert(f.http.posts.size() == 2 && f.http.posts[1].url == URL + "/logout");
     assert(parseRefreshToken(f.http.posts[1].body) == TOKEN_A);
     f.answer(101, 204);
@@ -372,6 +373,7 @@ int main() {
     f.auth.update(3640);  // refresh in flight
     f.auth.logout();
     assert(f.auth.getState() == State::LoggedOut && f.store.token.empty());
+    assert(f.auth.getTicket().empty());
     f.answer(3641, 200, loginBody("T2", TOKEN_B));
     assert(f.auth.getState() == State::LoggedOut);
     assert(f.store.token.empty());
