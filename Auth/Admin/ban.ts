@@ -11,7 +11,7 @@ if (!name || !reason) {
 const currentTime = new Date().getTime() / 1000;
 
 let banExp: number | null;
-if (hours) {
+if (hours && !Number.isNaN(hours)) {
   banExp = currentTime + hours * 60 * 60;
 } else {
   banExp = null;
