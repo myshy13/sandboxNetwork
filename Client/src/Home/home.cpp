@@ -8,14 +8,27 @@
 #include "Input/inputState.hpp"
 #include "Raylib/drawText.hpp"
 #include "UI/Button/button.hpp"
+#include "UI/TextBox/textbox.hpp"
 #include "UI/Theme/theme.hpp"
 #include "env.hpp"
 
-Home::Home(Input& input)
-    : input(input), background(GameState::shared().getBackground()) {
+Home::Home(Input& input, Auth& auth)
+    : input(input),
+      auth(auth),
+      background(GameState::shared().getBackground()),
+      loginButton(
+          [&input](void) {
+            GameState::shared().setMenuState(MenuState::Login);
+            input.setMouseLook(false);
+          },
+          "Login", (float)GetScreenHeight() - 100, ButtonStyles::Secondary),
+      logoutButton([&auth](void) { auth.logout(); }, "Sign out",
+                   (float)GetScreenHeight() - 100, ButtonStyles::Secondary) {
   // play button
   Button playButton = Button(
-      [&input](void) {
+      [&input, &auth](void) {
+        // A sign-in is still in flight: the ticket is empty, so joining now would be as a guest.
+        if (auth.getState() == State::Working) return;
         GameState::shared().setMenuState(MenuState::Playing);
         input.setMouseLook(true);
       },
@@ -99,6 +112,17 @@ void Home::frame() {
   bool clicked = input.pressed(Action::Click);
   for (auto& b : buttons) {
     b.frame(input, clicked);
+  }
+  if (auth.getState() == State::LoggedIn) {
+    logoutButton.frame(input, clicked);
+  } else {
+    loginButton.frame(input, clicked);
+  }
+
+  if (auth.getState() == State::Working) {
+    const char* msg = "Signing in...";
+    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 20) / 2,
+                 (float)GetScreenHeight() - 150, 20, Theme::TextMuted);
   }
 
   input.drawCursor();

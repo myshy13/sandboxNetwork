@@ -1,5 +1,7 @@
 #include "UI/Background/background.hpp"
 
+#include <raylib.h>
+
 #include <cmath>
 
 #include "Input/input.hpp"
@@ -19,9 +21,20 @@ Background::Background(int count) {
     p.color.a = 110;  // see-through, so it stays behind the UI
     particles.push_back(p);
   }
+  prevWindowSize = {(float)GetScreenWidth(), (float)GetScreenHeight()};
 }
 
 void Background::frame(Input& input) {
+  // bug: doesn't work yet. todo later
+  if (IsWindowResized()) {
+    Vector2 newWindowSize = {(float)GetScreenWidth(), (float)GetScreenHeight()};
+    Vector2 scale = {prevWindowSize.x / newWindowSize.x,
+                     prevWindowSize.y / newWindowSize.y};
+    for (auto& p : particles) {
+      p.pos.x *= scale.x;
+      p.pos.y *= scale.y;
+    }
+  }
   const float dt = GetFrameTime();
   const Vector2 mouse = input.getPointer();
   const Vector2 mid = {GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
@@ -37,11 +50,11 @@ void Background::frame(Input& input) {
     // Target = home, shifted toward the mouse a little (parallax) plus a bob
     Vector2 target = {p.home.x + m.x * PARALLAX * p.depth,
                       p.home.y + m.y * PARALLAX * p.depth +
-                          std::sinf((float)GetTime() * 1.5f + p.phase) * BOB};
+                          std::sin((float)GetTime() * 1.5f + p.phase) * BOB};
 
     // Optional: shove it away from the cursor when the cursor gets close
     const float dx = target.x - mouse.x, dy = target.y - mouse.y;
-    const float dist = std::sqrtf(dx * dx + dy * dy);
+    const float dist = std::sqrt(dx * dx + dy * dy);
     if (dist < REPEL_R && dist > 0.001f) {
       const float push = (REPEL_R - dist) * REPEL_K;
       target.x += dx / dist * push;
@@ -49,7 +62,7 @@ void Background::frame(Input& input) {
     }
 
     // Frame-rate independent smoothing toward the target
-    const float k = 1.0f - std::expf(-SMOOTH * dt);
+    const float k = 1.0f - std::exp(-SMOOTH * dt);
     p.pos.x += (target.x - p.pos.x) * k;
     p.pos.y += (target.y - p.pos.y) * k;
 

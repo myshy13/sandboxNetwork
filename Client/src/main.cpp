@@ -1,5 +1,11 @@
 #include <raylib.h>
 
+#include <cstdint>
+
+#include "AccountMenu/accountMenu.hpp"
+#include "Auth/auth.hpp"
+#include "Auth/tokenStore.hpp"
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
@@ -13,6 +19,7 @@
 #include "Home/home.hpp"
 #include "Input/input.hpp"
 #include "Input/inputSource.hpp"
+#include "Net/httpClient.hpp"
 #include "Protocol/protocol.hpp"
 #include "Settings/settings.hpp"
 #include "env.hpp"
@@ -25,9 +32,12 @@ static std::unique_ptr<Game> game;
 static std::unique_ptr<Home> home;
 static std::unique_ptr<Settings> settings;
 static std::unique_ptr<Input> input;
+static std::unique_ptr<HttpClient> httpClient;
+static std::unique_ptr<AccountMenu> accounts;
+static std::unique_ptr<TokenStore> tokenStore;
+static std::unique_ptr<Auth> auth;
 
 // ==== lifecycle ==== //
-
 static void ready() {
 #ifndef __EMSCRIPTEN__
   // Native: asset paths are relative to the binary, not the shell.
@@ -101,9 +111,16 @@ static void ready() {
 
   assets = std::make_unique<AssetManager>();
   input = std::make_unique<Input>(makeInputSource(), *assets);
-  game = std::make_unique<Game>(*assets, *input);
-  home = std::make_unique<Home>(*input);
+  tokenStore = makeTokenStore();
+  httpClient = makeHttpClient();
+  auth = std::make_unique<Auth>(*tokenStore, *httpClient);
+  if (auth->refresh()) {
+    GameState::shared().setMenuState(MenuState::Login);
+  }
+  home = std::make_unique<Home>(*input, *auth);
   settings = std::make_unique<Settings>(*input);
+  accounts = std::make_unique<AccountMenu>(*input, *auth);
+  game = std::make_unique<Game>(*assets, *input, *auth);
 
   GameState::shared().setMainFont(assets->get(Fon::PressStart2P));
 
@@ -111,6 +128,7 @@ static void ready() {
 }
 
 static void update() {
+  auth->update(static_cast<int64_t>(GetTime()));
   const static GameState& gameState = GameState::shared();
   static MenuState prevMenu = MenuState::Home;
   const MenuState menu = gameState.getMenu();
@@ -120,8 +138,10 @@ static void update() {
     game->frame(prevMenu != menu);
   } else if (menu == MenuState::Home) {
     home->frame();
-  } else {
+  } else if (menu == MenuState::Settings) {
     settings->frame();
+  } else if (menu == MenuState::Login) {
+    accounts->frame();
   }
 
   prevMenu = menu;
@@ -129,9 +149,13 @@ static void update() {
 
 static void destroy() {
   // Reverse order, and before CloseWindow() destroys the GL context.
-  settings.reset();
-  home.reset();
+  accounts.reset();
   game.reset();
+  home.reset();
+  settings.reset();
+  auth.reset();
+  httpClient.reset();
+  tokenStore.reset();
   input.reset();
   assets.reset();
 

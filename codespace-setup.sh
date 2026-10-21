@@ -16,3 +16,26 @@ sudo apt-get install -y \
     libwayland-dev \
     libxkbcommon-dev \
     xorg-dev
+
+# Create the auth signing key once per Codespace. Never commit the private key.
+if [[ -e Auth/ticket-private.pem || -e Server/auth-public.key ]]; then
+    if [[ ! -f Auth/ticket-private.pem || ! -f Server/auth-public.key ]]; then
+        echo "Auth keypair is incomplete; restore both key files before continuing." >&2
+        exit 1
+    fi
+else
+    (cd Auth && pnpm exec tsx Tickets/keygen.ts ticket-private.pem ../Server/auth-public.key)
+fi
+
+if [[ ! -e Auth/.env ]]; then
+    if [[ -n "${CODESPACE_NAME:-}" ]]; then
+        CORS_ORIGIN="https://${CODESPACE_NAME}-8080.app.github.dev"
+    else
+        CORS_ORIGIN="http://localhost:8080"
+    fi
+    printf 'PORT=3020\nAUTH_KEY_PATH=ticket-private.pem\nCORS_ORIGIN=%s\n' \
+        "$CORS_ORIGIN" > Auth/.env
+    chmod 600 Auth/.env
+fi
+
+    source "/workspaces/emsdk/emsdk_env.sh"

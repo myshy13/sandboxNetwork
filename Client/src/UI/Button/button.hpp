@@ -53,7 +53,18 @@ class Button {
 
   void setText(const std::string& t) { text = t; }
 
-  void setRec(Rectangle r) { rec = r; }
+  // A button given its own rectangle is no longer a centred menu button.
+  void setRec(Rectangle r) {
+    rec = r;
+    centred = false;
+  }
+
+  void setY(float yPos) {
+    rec.height = BUTTON_HEIGHT;
+    rec.width = BUTTON_WIDTH;
+    rec.y = yPos;
+    rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
+  }
 
   void frame(Input& input, bool clicked);
 };

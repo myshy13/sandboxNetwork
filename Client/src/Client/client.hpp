@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "Auth/auth.hpp"
 #include "Models/Object.hpp"
 #include "Net/transport.hpp"
 #include "structs.hpp"
@@ -72,6 +73,7 @@ struct WorldEvent {
 
 class Client {
  private:
+  int lastTicketSerial{0};
   int port{env::SERVER_PORT};
   std::unique_ptr<Transport> transport;
 
@@ -105,8 +107,10 @@ class Client {
   }
 
   void handleMessage(const std::string& data);
+  Auth& auth;
 
  public:
+  Client(Auth& auth);
   void sendPlayerPosition(const Transform& transform, float pitch, float yaw);
   void poll();
   bool aimingAtPlayer(Ray facing);

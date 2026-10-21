@@ -24,6 +24,8 @@ Client/ios/Signing.xcconfig
 *.p12
 *.cer
 *.pem
+!Client/assets/cacert.pem
+Server/auth-public.key
 
 # ==== server runtime ==== #
 *.bin

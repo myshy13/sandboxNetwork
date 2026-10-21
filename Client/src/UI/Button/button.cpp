@@ -3,11 +3,8 @@
 #include <raylib.h>
 
 #include "Input/input.hpp"
+#include "Input/inputState.hpp"
 #include "Raylib/drawText.hpp"
-
-static constexpr float BORDER = 4.0f;
-static constexpr float SHADOW = 8.0f;  // resting depth of the drop shadow
-static constexpr float LIFT = 4.0f;    // how far the face rises on hover
 
 Button::Button(std::function<void(void)> click, std::string text, float yPos,
                ButtonStyle style)
@@ -33,7 +30,7 @@ void Button::frame(Input& input, bool clicked) {
     rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
 
   const bool hovered = CheckCollisionPointRec(mousePos, rec);
-  const bool down = hovered && IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+  const bool down = hovered && input.down(Action::Click);
 
   if (hovered) {
     input.setCursorStyle(MOUSE_CURSOR_POINTING_HAND);

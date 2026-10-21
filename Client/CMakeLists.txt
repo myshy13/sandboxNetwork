@@ -146,6 +146,40 @@ if(NOT BUILD_WEB)
 endif()
 
 # ---------------------------------------------------------------------------
+# cpp-httplib + Mbed TLS (HTTPS to the auth service, fetched at configure time)
+#
+# Native only: the web build uses the browser's fetch (TLS included). httplib is >= 0.47 because
+# earlier Mbed TLS builds skipped chain validation for IP-literal hosts. Mbed TLS is excluded from
+# "all" so it only builds once a target links it.
+# ---------------------------------------------------------------------------
+if(NOT BUILD_WEB)
+    FetchContent_Declare(
+        mbedtls
+        GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+        GIT_TAG v3.6.7
+        GIT_SHALLOW TRUE
+        GIT_SUBMODULES framework
+        EXCLUDE_FROM_ALL
+    )
+    set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(USE_STATIC_MBEDTLS_LIBRARY ON CACHE BOOL "" FORCE)
+    set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
+
+    # Header only: SOURCE_SUBDIR points at a folder with no CMakeLists.txt, so httplib is downloaded but
+    # not built; the backend adds ${httplib_SOURCE_DIR} to its include path.
+    FetchContent_Declare(
+        httplib
+        GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+        GIT_TAG v0.59.0
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR header-only
+    )
+
+    FetchContent_MakeAvailable(mbedtls httplib)
+endif()
+
+# ---------------------------------------------------------------------------
 # Cereal
 # ---------------------------------------------------------------------------
 
@@ -182,12 +216,15 @@ foreach(f input_kbm.cpp input_touch.cpp input_gamepad.cpp)
     endif()
 endforeach()
 
-# Exactly one transport backend gets compiled. This is deliberately the only
-# place the native/web split lives, so no #ifdef leaks into the game code.
+# Compile exactly one backend per platform; keep the native/web split here.
 if(BUILD_WEB)
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_enet.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/httpClient_native.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Auth/tokenStore_file.cpp")
 else()
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_ws.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/httpClient_web.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Auth/tokenStore_web.cpp")
 endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -313,7 +350,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 if(NOT BUILD_WEB)
-    target_include_directories(${PROJECT_NAME} PRIVATE "${enet_SOURCE_DIR}/include")
+    target_include_directories(${PROJECT_NAME} PRIVATE "${enet_SOURCE_DIR}/include" "${httplib_SOURCE_DIR}")
+    # Use only our bundled CA file on every platform: no macOS keychain (needs Security.framework) or Windows root store.
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CPPHTTPLIB_MBEDTLS_SUPPORT
+        CPPHTTPLIB_DISABLE_MACOSX_AUTOMATIC_ROOT_CERTIFICATES
+        CPPHTTPLIB_DISABLE_WINDOWS_AUTOMATIC_ROOT_CERTIFICATES_UPDATE)
 endif()
 
 if(BUILD_WEB)
@@ -321,7 +362,7 @@ if(BUILD_WEB)
 else()
     # The ENet transport runs its network thread with std::thread.
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads)
+    target_link_libraries(${PROJECT_NAME} PRIVATE raylib enet Threads::Threads mbedtls mbedx509 mbedcrypto)
     # ENet is a static lib and does not pass its Windows socket/timer libs on to us
     if(WIN32)
         target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32 winmm)
@@ -369,6 +410,7 @@ if(BUILD_WEB)
         "-sUSE_GLFW=3"
         "-sWASM=1"
         "-sALLOW_MEMORY_GROWTH=1"
+        "-sFETCH=1"
         # TEMP debugging: function names in stack traces + runtime checks; remove once the web freeze is fixed
         "-sASSERTIONS=2"
         "--profiling-funcs"
