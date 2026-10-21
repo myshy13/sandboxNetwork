@@ -17,7 +17,12 @@ const passwords = new Passwords();
 const ticketSigner = new TicketSigner();
 
 const app = await buildApp(db, passwords, ticketSigner);
-await app.listen({
-  port: port,
-  host: host,
-});
+await app.listen(
+  {
+    port: port,
+    host: host,
+  },
+  () => {
+    console.log("listening");
+  },
+);
