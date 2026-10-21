@@ -26,7 +26,9 @@ Home::Home(Input& input, Auth& auth)
                    (float)GetScreenHeight() - 100, ButtonStyles::Secondary) {
   // play button
   Button playButton = Button(
-      [&input](void) {
+      [&input, &auth](void) {
+        // A sign-in is still in flight: the ticket is empty, so joining now would be as a guest.
+        if (auth.getState() == State::Working) return;
         GameState::shared().setMenuState(MenuState::Playing);
         input.setMouseLook(true);
       },
@@ -115,6 +117,12 @@ void Home::frame() {
     logoutButton.frame(input, clicked);
   } else {
     loginButton.frame(input, clicked);
+  }
+
+  if (auth.getState() == State::Working) {
+    const char* msg = "Signing in...";
+    DrawTextFont(msg, GetScreenWidth() / 2 - MeasureTextFont(msg, 20) / 2,
+                 (float)GetScreenHeight() - 150, 20, Theme::TextMuted);
   }
 
   input.drawCursor();

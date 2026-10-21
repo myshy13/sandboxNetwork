@@ -26,12 +26,35 @@ void sizeButtons(Button& loginButton, Button& signupButton) {
   signupButton.setRec(signupButtonRec);
 }
 
+constexpr double ERROR_SECONDS =
+    2.0;  // how long an ordinary error stays on screen
+constexpr double BAN_SECONDS = 6.0;  // a ban with a reason to read stays longer
+
+void drawTextSize(const std::string& message, int initialSize, float yMod = 0) {
+  const char* msg = message.c_str();
+  int fontSize = initialSize;
+  int width = MeasureTextFont(msg, fontSize);
+  const float maxWidth = GetScreenWidth() * 0.9;
+  while (width > maxWidth) {
+    fontSize *= (maxWidth / width);
+    width = MeasureTextFont(msg, fontSize);
+  }
+  DrawTextFont(msg, GetScreenWidth() / 2 - width / 2 + 4,
+               GetScreenHeight() / 2.0f - (fontSize / 2.0f) + 4 + yMod,
+               fontSize, Theme::RedDark);
+  DrawTextFont(msg, GetScreenWidth() / 2 - width / 2,
+               GetScreenHeight() / 2.0f - (fontSize / 2.0f) + yMod, fontSize,
+               Theme::Red);
+}
+
 void AccountMenu::frame() {
   if (auth.getState() == State::LoggedIn) {
     gameState.setMenuState(MenuState::Home);
     return;
   }
   waiting = auth.getState() == State::Working;
+  // Any state but Error rearms the timer, so the next error gets its full time.
+  if (auth.getState() != State::Error) errorShownAt = -1.0;
 
   BeginDrawing();
   ClearBackground(Theme::Ground);
@@ -70,22 +93,19 @@ void AccountMenu::frame() {
   if (auth.getState() != State::Working) {
     waiting = false;
     if (auth.getState() == State::Error) {
-      const std::string errorMessage = auth.getErrorMesssage();
-      const char* msg = errorMessage.c_str();
-      int fontSize = 50;
-      int width = MeasureTextFont(msg, fontSize);
-      const float maxWidth = GetScreenWidth() * 0.9;
-      while (width > maxWidth) {
-        fontSize *= (maxWidth / width);
-        width = MeasureTextFont(msg, fontSize);
+      // Timed from the first frame the error is seen; the state itself stays
+      // Error.
+      if (errorShownAt < 0) errorShownAt = GetTime();
+      const std::string errorMessage = auth.getErrorMessage();
+      const std::string banReason = auth.getBanReason();
+      // A ban has a reason to read as well as the message, so it stays up
+      // longer.
+      const double showFor = banReason.empty() ? ERROR_SECONDS : BAN_SECONDS;
+      if (GetTime() - errorShownAt < showFor) {
+        drawTextSize(errorMessage, 50);
+        drawTextSize("Reason: " + banReason, 20, 50);
       }
-      DrawTextFont(msg, GetScreenWidth() / 2 - width / 2 + 4,
-                   GetScreenHeight() / 2 - (fontSize / 2) + 4, fontSize,
-                   Theme::RedDark);
-      DrawTextFont(msg, GetScreenWidth() / 2 - width / 2,
-                   GetScreenHeight() / 2 - (fontSize / 2), fontSize,
-                   Theme::Red);
-    } 
+    }
   }
   if (waiting) {
     DrawTextFont(
@@ -104,6 +124,7 @@ void AccountMenu::frame() {
 void AccountMenu::submitLogin() {
   if (!waiting) {
     auth.login(username, password);
+    password.clear();  // after the call: Auth has its own copy by now
     waiting = true;
   }
 };
@@ -111,6 +132,7 @@ void AccountMenu::submitLogin() {
 void AccountMenu::submitSignup() {
   if (!waiting) {
     auth.signup(username, password);
+    password.clear();
     waiting = true;
   }
 };

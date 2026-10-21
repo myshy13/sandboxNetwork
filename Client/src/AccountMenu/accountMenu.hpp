@@ -23,6 +23,7 @@ class AccountMenu {
   Button exitButton;
   
   bool waiting{false};
+  double errorShownAt{-1.0};  // GetTime() when the current error first showed; < 0 = not showing
 
   TextBox usernameBox;
   TextBox passwordBox;
