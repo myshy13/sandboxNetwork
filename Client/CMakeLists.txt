@@ -216,14 +216,15 @@ foreach(f input_kbm.cpp input_touch.cpp input_gamepad.cpp)
     endif()
 endforeach()
 
-# Exactly one transport backend gets compiled. This is deliberately the only
-# place the native/web split lives, so no #ifdef leaks into the game code.
+# Compile exactly one backend per platform; keep the native/web split here.
 if(BUILD_WEB)
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_enet.cpp")
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/httpClient_native.cpp")
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Auth/tokenStore_file.cpp")
 else()
     list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/transport_ws.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Net/httpClient_web.cpp")
+    list(REMOVE_ITEM PROJECT_SOURCES "${CMAKE_SOURCE_DIR}/src/Auth/tokenStore_web.cpp")
 endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -409,6 +410,7 @@ if(BUILD_WEB)
         "-sUSE_GLFW=3"
         "-sWASM=1"
         "-sALLOW_MEMORY_GROWTH=1"
+        "-sFETCH=1"
         # TEMP debugging: function names in stack traces + runtime checks; remove once the web freeze is fixed
         "-sASSERTIONS=2"
         "--profiling-funcs"

@@ -1,7 +1,5 @@
 #include <raylib.h>
 
-#include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -81,15 +79,7 @@ class TokenStoreFile : public TokenStore {
     if (first == std::string::npos) return "";
     token = token.substr(first, token.find_last_not_of(" \t\r\n") - first + 1);
 
-    // A 32-byte base64url token is exactly 43 characters.
-    constexpr size_t TOKEN_LENGTH = 43;
-    auto valid = [](unsigned char c) {
-      return std::isalnum(c) || c == '_' || c == '-';
-    };
-    if (token.size() != TOKEN_LENGTH ||
-        !std::all_of(token.begin(), token.end(), valid)) {
-      return "";
-    }
+    if (!isValidToken(token)) return "";
     return token;
   };
 };
