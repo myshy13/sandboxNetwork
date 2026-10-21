@@ -28,7 +28,13 @@ else
 fi
 
 if [[ ! -e Auth/.env ]]; then
-    printf 'PORT=3020\nAUTH_KEY_PATH=ticket-private.pem\n' > Auth/.env
+    if [[ -n "${CODESPACE_NAME:-}" ]]; then
+        CORS_ORIGIN="https://${CODESPACE_NAME}-8080.app.github.dev"
+    else
+        CORS_ORIGIN="http://localhost:8080"
+    fi
+    printf 'PORT=3020\nAUTH_KEY_PATH=ticket-private.pem\nCORS_ORIGIN=%s\n' \
+        "$CORS_ORIGIN" > Auth/.env
     chmod 600 Auth/.env
 fi
 
