@@ -79,7 +79,10 @@ class HttpClientNative : public HttpClient {
     return out;
   }
 
-  ~HttpClientNative() { worker.join(); }
+  // Only joinable once post() has run; joining a never-started thread throws, and a destructor can't.
+  ~HttpClientNative() {
+    if (worker.joinable()) worker.join();
+  }
 };
 
 std::unique_ptr<HttpClient> makeHttpClient() {
