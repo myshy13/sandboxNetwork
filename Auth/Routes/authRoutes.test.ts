@@ -19,6 +19,30 @@ async function setup(t: TestContext) {
   return { app, db };
 }
 
+test("CORS allows the configured game origin", async (t) => {
+  const db = new Db(":memory:");
+  const origin = "https://game.example";
+  const app = await buildApp(db, passwords, signer, origin);
+  t.after(() => app.close());
+
+  const res = await app.inject({
+    method: "OPTIONS",
+    url: "/login",
+    headers: {
+      origin,
+      "access-control-request-method": "POST",
+      "access-control-request-headers": "content-type",
+    },
+  });
+
+  assert.equal(res.statusCode, 204);
+  assert.equal(res.headers["access-control-allow-origin"], origin);
+  assert.match(
+    res.headers["access-control-allow-headers"] ?? "",
+    /content-type/i,
+  );
+});
+
 type App = Awaited<ReturnType<typeof setup>>["app"];
 
 const register = (app: App, payload: object) => app.inject({ method: "POST", url: "/register", payload });

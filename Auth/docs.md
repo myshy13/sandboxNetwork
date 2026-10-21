@@ -5,6 +5,12 @@ One entry per route, added when the route is created (rule in `CLAUDE.md`). Bodi
 rejected (Fastify's default Ajv). Route order and status: `routes-backlog.md`. Ticket bytes: top of
 `Tickets/ticketSigner.ts`.
 
+## Browser CORS
+
+Set `CORS_ORIGIN` to the exact origin serving the web client (scheme, host and
+port, with no path). The Auth service allows browser requests from that origin
+only. Leave it unset for native-only local development.
+
 Statuses every route can return without its handler running: `400` (body fails the schema), `429` (rate limit),
 `413` (body over 1024 bytes).
 
