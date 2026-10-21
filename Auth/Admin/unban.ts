@@ -9,12 +9,10 @@ if (!name) {
   process.exit(-1);
 }
 
-db.clearBan(name);
-
 if (db.clearBan(name)) {
   console.log("Cleared ban '" + name + "' successfully");
 } else {
-  console.error("Failed to ban account '" + name + "'");
+  console.error("Failed to unban account '" + name + "'");
 }
 
 db.close();
