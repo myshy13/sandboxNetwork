@@ -91,7 +91,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
          argument defaulting to the home folder): save then load round-trips, load of garbage / wrong length / missing
          file gives empty, clear then load gives empty, a failed save leaves the old token. Standalone `make test`,
          no raylib or network, like `Shared/Protocol`.
-   - [ ] 3e. `Auth` class (`Client/src/Auth/`, non-blocking, no threads of its own): takes `HttpClient&` and
+   - [x] 3e. `Auth` class (`Client/src/Auth/`, non-blocking, no threads of its own): takes `HttpClient&` and
          `TokenStore&`. Public: `login / signup / refresh / logout`, `update(now)` once per frame, a state enum
          (LoggedOut, Working, LoggedIn, Error), the current ticket, and `ticketSerial` (bumped on every new ticket so
          the client knows to send `TicketRefresh`).
@@ -103,37 +103,11 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
          - Signup chains `/login` (register returns no refresh token).
          - Tests with a fake `HttpClient` and a fake `TokenStore`: each route's 200 / 401 / 0, the retry timer, and the
            token being saved before the ticket is used.
-   - [ ] 3f. Wire it in: `submitLogin` / `submitSignup` call `Auth`; `Client::connect(ticket)` puts the ticket in
+   - [x] 3f. Wire it in: `submitLogin` / `submitSignup` call `Auth`; `Client::connect(ticket)` puts the ticket in
          `clientHandshake`; on start, a saved token tries `refresh` before showing the Login screen; `TicketRefresh`
          is sent whenever `ticketSerial` changes; Sign out button on Home; guest play stays one click away.
-   - [ ] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
+   - [x] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
          `TokenStore` over `localStorage` (also fixes the web link error from `makeTokenStore` being undefined).
-         `localStorage` steps (`Client/src/Auth/tokenStore_web.cpp`, `TokenStoreWeb : TokenStore`):
-         1. Move the 43-character base64url check out of `TokenStoreFile::load` into one inline `isValidToken(const
-            std::string&)` in `tokenStore.hpp`, so both backends share it. Make `TokenStoreFile::load` call it.
-         2. In `tokenStore_web.cpp`, declare three `EM_JS` functions (from `<emscripten.h>`) with a `try { } catch` in
-            each, because `localStorage` throws in private windows, with site data blocked, or when full:
-            - `js_tokenGet()` returns `localStorage.getItem(KEY)` copied into the wasm heap with `stringToNewUTF8`
-              (empty string if null or on a throw). The caller must `free()` the returned pointer.
-            - `js_tokenSet(const char* t)` does `setItem(KEY, UTF8ToString(t))` and returns 1 / 0 for ok / threw.
-            - `js_tokenRemove()` does `removeItem(KEY)`.
-            `KEY` is one string constant, `"sandboxNetwork.token"`, so a second game on the same origin can't collide.
-         3. `TokenStoreWeb::load()`: call `js_tokenGet`, copy it into a `std::string`, `free` the pointer, return it if
-            `isValidToken` says yes, otherwise `""`. Corrupt or missing = "no token", same contract as the file backend.
-         4. `TokenStoreWeb::save(token)`: return `js_tokenSet(token.c_str()) != 0`. No temp file or rename: a single
-            `setItem` is atomic and synchronous, so the "old token survives a failed save" rule already holds (a throw
-            leaves the old value).
-         5. `TokenStoreWeb::clear()`: call `js_tokenRemove()`.
-         6. `makeTokenStore()` at the bottom returns `std::make_unique<TokenStoreWeb>()`. Exactly one definition then
-            exists per platform, picked by CMake, no `#ifdef`.
-         7. `Client/CMakeLists.txt`: in the `BUILD_WEB` branch keep `tokenStore_web.cpp` and (already done) remove
-            `tokenStore_file.cpp`; in the `else()` native branch add a `list(REMOVE_ITEM ...)` for `tokenStore_web.cpp`.
-         8. Check in a browser: log in, reload the page (token still there, `refresh` runs instead of the Login
-            screen); in devtools Application > Local Storage the key shows 43 characters; Sign out removes the key;
-            hand-edit the value to garbage and reload (treated as logged out, no crash); block site data and confirm
-            `save` returns false and the app stays usable as a guest.
-         Security note: `localStorage` is readable by any script on the page, so keep the game's page free of third-party
-         scripts, and remember the stored value is a refresh token, not the password.
    - [ ] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
          `HttpClient` and `TokenStore` with no-ops.
    - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
