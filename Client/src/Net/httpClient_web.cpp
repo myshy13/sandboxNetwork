@@ -1,3 +1,4 @@
+
 #include <emscripten/fetch.h>
 
 #include <cstring>
@@ -7,6 +8,10 @@
 #include <utility>
 
 #include "Net/httpClient.hpp"
+
+// A hung server must surface as status 0 ("Can't reach server"), not leave Auth
+// in Working forever.
+constexpr unsigned long REQUEST_TIMEOUT_MS = 10000;
 
 class HttpClientWeb final : public HttpClient {
  private:
@@ -64,6 +69,7 @@ class HttpClientWeb final : public HttpClient {
     attributes.requestData = body.c_str();
     attributes.requestDataSize = body.size();
     attributes.userData = this;
+    attributes.timeoutMSecs = REQUEST_TIMEOUT_MS;
     attributes.onsuccess = onSuccess;
     attributes.onerror = onError;
     const char* headers[] = {"Content-Type", "application/json", nullptr};
