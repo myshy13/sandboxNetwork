@@ -48,6 +48,18 @@ std::string errorFrom(const std::string& body, const std::string& fallback) {
   return res.error;
 }
 
+// The ban reason from a 403 body; empty when it is missing, null or unreadable. Read with RapidJSON directly
+// because cereal throws on the nulls the server sends (no reason, or expires: null for a permanent ban).
+std::string banReasonFrom(const std::string& body) {
+  rapidjson::Document doc;
+  doc.Parse(body.c_str());
+  if (doc.HasParseError() || !doc.IsObject()) return "";
+
+  const auto reason = doc.FindMember("reason");
+  if (reason == doc.MemberEnd() || !reason->value.IsString()) return "";
+  return reason->value.GetString();
+}
+
 }  // namespace
 
 void Auth::update(int64_t now) {
@@ -96,9 +108,11 @@ void Auth::handleResponse(HttpResponse res) {
   // nothing to read.
   if (type == Pending::Logout) return;
 
-  auto fail = [&](const std::string& message) {
+  // A failure that is not a ban resets banReason, so an old reason never shows under a new error.
+  auto fail = [&](const std::string& message, const std::string& reason = "") {
     state = State::Error;
     errorMessage = message;
+    banReason = reason;
   };
 
   // ==== success ==== //
@@ -129,6 +143,7 @@ void Auth::handleResponse(HttpResponse res) {
     ticketSerial++;
     nextRefreshAt = prevNow + TICKET_LIFETIME - REFRESH_MARGIN;
     errorMessage.clear();
+    banReason.clear();
     state = State::LoggedIn;
     return;
   }
@@ -157,12 +172,13 @@ void Auth::handleResponse(HttpResponse res) {
         return;
       }
       break;
-    case 403:
+    case 403: {
       if (type == Pending::Refresh) {
         tokenStore.clear();
         refreshToken.clear();
       }
-      return fail(errorFrom(res.body, "Account banned"));
+      return fail(errorFrom(res.body, "Account banned"), banReasonFrom(res.body));
+    }
     case 429:
       return fail(errorFrom(res.body, "Too many attempts"));
     case 0:

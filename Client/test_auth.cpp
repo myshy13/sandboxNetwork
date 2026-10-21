@@ -155,7 +155,7 @@ int main() {
     f.auth.login("alice", "wrongwrongwrong");
     f.answer(0, 401, "{\"error\":\"Invalid username or password\"}");
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Invalid username or password");
+    assert(f.auth.getErrorMessage() == "Invalid username or password");
     assert(f.store.token.empty());
 
     // an Error is not a dead end: the player can try again
@@ -168,22 +168,75 @@ int main() {
     f.auth.login("alice", "hunter2hunter2");
     f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Account banned");
+    assert(f.auth.getErrorMessage() == "Account banned");
+    // expires is null (permanent): the reason must survive it
+    assert(f.auth.getBanReason() == "cheating");
     assert(f.store.token.empty());
+  }
+
+  // ==== the ban reason: from the server, empty when there is none, never stale ==== //
+  {
+    // a timed ban, with a number in expires
+    Fixture f;
+    f.auth.login("alice", "hunter2hunter2");
+    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"spam\",\"expires\":1900000000}");
+    assert(f.auth.getBanReason() == "spam");
+  }
+  {
+    // the server stored no reason: null, so none shown, and the message is still the server's
+    Fixture f;
+    f.auth.login("alice", "hunter2hunter2");
+    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":null,\"expires\":null}");
+    assert(f.auth.getState() == State::Error);
+    assert(f.auth.getErrorMessage() == "Account banned");
+    assert(f.auth.getBanReason().empty());
+  }
+  {
+    // a body that is not JSON, or has no reason: fallback message, empty reason, no throw
+    for (const std::string& body : {std::string("not json"), std::string(""),
+                                    std::string("{\"error\":\"Account banned\"}"),
+                                    std::string("{\"reason\":42}"), std::string("[1,2]")}) {
+      Fixture f;
+      f.auth.login("alice", "hunter2hunter2");
+      f.answer(0, 403, body);
+      assert(f.auth.getState() == State::Error);
+      assert(f.auth.getErrorMessage() == "Account banned");
+      assert(f.auth.getBanReason().empty());
+    }
+  }
+  {
+    // a later failure that is not a ban clears the old reason; a login clears it too
+    Fixture f;
+    f.auth.login("alice", "hunter2hunter2");
+    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
+    assert(f.auth.getBanReason() == "cheating");
+
+    assert(f.auth.login("bob", "hunter2hunter2"));
+    f.answer(1, 401, "{\"error\":\"Invalid username or password\"}");
+    assert(f.auth.getErrorMessage() == "Invalid username or password");
+    assert(f.auth.getBanReason().empty());
+
+    assert(f.auth.login("alice", "hunter2hunter2"));
+    f.answer(2, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
+    assert(f.auth.getBanReason() == "cheating");
+    assert(f.auth.login("carol", "hunter2hunter2"));
+    f.answer(3, 200, loginBody("T1", TOKEN_A));
+    assert(f.auth.getState() == State::LoggedIn);
+    assert(f.auth.getBanReason().empty());
   }
   {
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
     f.answer(0, 429, "{\"error\":\"Too many attempts\"}");
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Too many attempts");
+    assert(f.auth.getErrorMessage() == "Too many attempts");
   }
   {
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
     f.answer(0, 0);
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Can't reach server");
+    assert(f.auth.getErrorMessage() == "Can't reach server");
   }
 
   // ==== a 200 with an unreadable body is not a login ==== //
@@ -246,6 +299,7 @@ int main() {
     f.auth.update(3640);
     f.answer(3641, 403, "{\"error\":\"Account banned\",\"reason\":\"x\",\"expires\":null}");
     assert(f.auth.getState() == State::Error);
+    assert(f.auth.getBanReason() == "x");
     assert(f.store.token.empty());
   }
 
@@ -318,7 +372,7 @@ int main() {
     f.auth.signup("alice", "hunter2hunter2");
     f.answer(10, 409, "{\"error\":\"Name already taken\"}");
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Name already taken");
+    assert(f.auth.getErrorMessage() == "Name already taken");
     assert(f.http.posts.size() == 1);
   }
   {
@@ -326,7 +380,7 @@ int main() {
     f.auth.signup("alice", "hunter2hunter2");
     f.answer(10, 0);
     assert(f.auth.getState() == State::Error);
-    assert(f.auth.getErrorMesssage() == "Can't reach server");
+    assert(f.auth.getErrorMessage() == "Can't reach server");
     assert(f.http.posts.size() == 1);
   }
   {

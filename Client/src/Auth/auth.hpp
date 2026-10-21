@@ -57,6 +57,7 @@ class Auth {
   std::string pendingLogoutToken;  // sent from update() once the client is free
 
   std::string errorMessage;
+  std::string banReason;
 
   bool sendRequest(const Pending p, const std::string& path,
                    const std::string& body);
@@ -77,5 +78,7 @@ class Auth {
 
   int getTicketSerial() { return ticketSerial; }
 
-  std::string getErrorMesssage() { return errorMessage; }
+  std::string getErrorMessage() { return errorMessage; }
+
+  std::string getBanReason() { return banReason; }
 };
