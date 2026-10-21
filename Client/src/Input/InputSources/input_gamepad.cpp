@@ -10,7 +10,7 @@
 // Per second, so the feel doesn't change with the frame rate.
 constexpr float CURSOR_SPEED = 600.0f;  // pixels
 constexpr float LOOK_SPEED = 1200.0f;   // mouse-delta units
-constexpr float DRIFT_MAXIMUM = 0.2f;
+constexpr float DRIFT_MAXIMUM = 0.1f;
 
 // SDL_GameControllerDB (zlib), copied next to the other assets
 constexpr const char* MAPPINGS_FILE = "assets/gamecontrollerdb.txt";
