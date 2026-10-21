@@ -24,11 +24,17 @@ jobs:
           key: test-deps-${{ hashFiles('**/CMakeLists.txt') }}
 
       # Tests only need the fetched cereal/raylib headers, not a built client
-      - name: Fetch dependencies
+      - name: Fetch dependencies (Client)
         run: cmake -S Client -B Client/build
+
+      - name: Fetch dependencies (Server)
+        run: cmake -S Server -B Server/build
 
       - name: Shared/Protocol tests
         run: cd Shared/Protocol && make test
+
+      - name: Client/Protocol tests
+        run: cd Client && make test
 
       - name: Server tests
         run: cd Server && make test
