@@ -4,7 +4,6 @@
 #include <raymath.h>
 
 #include <cmath>
-#include <cstddef>
 #include <optional>
 #include <string>
 #include <utility>
@@ -14,6 +13,10 @@
 #include "Protocol/protocol.hpp"
 #include "env.hpp"
 #include "structs.hpp"
+
+Client::Client(Auth& auth) : auth(auth) {
+  lastTicketSerial = auth.getTicketSerial();
+}
 
 // ==== outgoing messages ==== //
 void Client::sendPlayerPosition(const Transform& transform, float pitch,
@@ -86,12 +89,17 @@ void Client::poll() {
     }
   }
   if (!handshakeSent && transport->isConnected()) {
-    transport->send(
-        proto::pack(proto::Type::clientHandshake,
-                    proto::clientHandshake{proto::PROTOCOL_VERSION}),
-        true);
+    transport->send(proto::pack(proto::Type::clientHandshake,
+                                proto::clientHandshake{proto::PROTOCOL_VERSION,
+                                                       auth.getTicket()}),
+                    true);
     handshakeSent = true;
     std::cout << "Connected to server\n";
+  } else {
+    if (lastTicketSerial != auth.getTicketSerial()) {
+      lastTicketSerial = auth.getTicketSerial();
+      transport->send(proto::pack(proto::Type::TicketRefresh, proto::TicketRefresh{auth.getTicket()}), true);
+    }
   }
 }
 

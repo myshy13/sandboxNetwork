@@ -18,7 +18,7 @@ constexpr float lightUpdateCooldownTime = 0.1f;
 
 class Game {
  public:
-  Game(const AssetManager& a, Input& input);
+  Game(const AssetManager& a, Input& input, Auth& auth);
   ~Game();
   Game(const Game&) = delete;
   Game& operator=(const Game&) = delete;

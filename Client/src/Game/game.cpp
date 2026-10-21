@@ -30,8 +30,9 @@
 #endif
 
 // ==== setup / teardown ==== //
-Game::Game(const AssetManager& a, Input& input)
+Game::Game(const AssetManager& a, Input& input, Auth& auth)
     : assets(a),
+      client(auth),
       renderer(a),
       input(input),
       exitButton(Button([&]() { exit(); }, "<", Rectangle{10, 10, 50, 50}, 40,
@@ -345,10 +346,9 @@ void Game::updateLighting(float dt) {
                          newLight.tar, sun);
     lighting.updateLight(sunLights[3], Vector3Add(newLight.pos, {0, 10, -10}),
                          newLight.tar, sun);
-    const float (&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
-                                 ((float)newLight.color.g / 4 + 10) / 255,
-                                 ((float)newLight.color.b / 4 + 10) / 255,
-                                 1.0f};
+    const float(&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
+                                ((float)newLight.color.g / 4 + 10) / 255,
+                                ((float)newLight.color.b / 4 + 10) / 255, 1.0f};
     lighting.updateAmbient(ambient);
   }
 }

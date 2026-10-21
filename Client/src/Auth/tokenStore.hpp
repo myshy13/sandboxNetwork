@@ -1,7 +1,20 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <string>
+
+inline bool isValidToken(const std::string& token) {
+  constexpr std::size_t TOKEN_LENGTH = 43;
+  if (token.size() != TOKEN_LENGTH) return false;
+  for (unsigned char c : token) {
+    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+          (c >= '0' && c <= '9') || c == '_' || c == '-')) {
+      return false;
+    }
+  }
+  return true;
+}
 
 class TokenStore {
  public:

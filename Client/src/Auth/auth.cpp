@@ -230,6 +230,7 @@ void Auth::logout() {
   const std::string token = refreshToken;
 
   refreshToken.clear();
+  ticket.clear();
   tokenStore.clear();
   state = State::LoggedOut;
 

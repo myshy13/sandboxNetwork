@@ -12,8 +12,18 @@
 #include "UI/Theme/theme.hpp"
 #include "env.hpp"
 
-Home::Home(Input& input)
-    : input(input), background(GameState::shared().getBackground()) {
+Home::Home(Input& input, Auth& auth)
+    : input(input),
+      auth(auth),
+      background(GameState::shared().getBackground()),
+      loginButton(
+          [&input](void) {
+            GameState::shared().setMenuState(MenuState::Login);
+            input.setMouseLook(false);
+          },
+          "Login", (float)GetScreenHeight() - 100, ButtonStyles::Secondary),
+      logoutButton([&auth](void) { auth.logout(); }, "Sign out",
+                   (float)GetScreenHeight() - 100, ButtonStyles::Secondary) {
   // play button
   Button playButton = Button(
       [&input](void) {
@@ -41,14 +51,6 @@ Home::Home(Input& input)
              (float)GetScreenHeight() / 2 + 200, ButtonStyles::Ghost);
   buttons.push_back(quitButton);
 #endif
-
-  Button loginButton = Button(
-      [&input](void) {
-        GameState::shared().setMenuState(MenuState::Login);
-        input.setMouseLook(false);
-      },
-      "Login", (float)GetScreenHeight() - 100, ButtonStyles::Secondary);
-  buttons.push_back(loginButton);
 
   // ==== init particles ==== //
   int particleCount = 10 + rand() % 10;
@@ -108,6 +110,11 @@ void Home::frame() {
   bool clicked = input.pressed(Action::Click);
   for (auto& b : buttons) {
     b.frame(input, clicked);
+  }
+  if (auth.getState() == State::LoggedIn) {
+    logoutButton.frame(input, clicked);
+  } else {
+    loginButton.frame(input, clicked);
   }
 
   input.drawCursor();

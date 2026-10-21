@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Auth/auth.hpp"
+#include "Auth/tokenStore.hpp"
 #include "GameState/gameState.hpp"
 #include "Net/httpClient.hpp"
 #include "UI/Background/background.hpp"
@@ -19,6 +21,8 @@ class AccountMenu {
   std::string password;
 
   Button exitButton;
+  
+  bool waiting{false};
 
   TextBox usernameBox;
   TextBox passwordBox;
@@ -30,9 +34,9 @@ class AccountMenu {
 
   Input &input;
 
-  HttpClient& httpClient;
+  Auth& auth;
 
  public:
-  AccountMenu(Input& input, HttpClient& httpClient);
+  AccountMenu(Input& input, Auth& auth);
   void frame();
 };

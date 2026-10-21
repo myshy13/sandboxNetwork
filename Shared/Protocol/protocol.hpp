@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 17; // Added ticket refresh packet type
+constexpr int PROTOCOL_VERSION = 18; // Handshake now carries the auth ticket
 
 enum class Type : uint8_t {
   // player
@@ -128,7 +128,7 @@ struct UpdateWaterLevel {
 struct clientHandshake {
   int ver; // client version
   std::string ticket;
-  template <class A> void serialize(A &ar) { ar(ver); }
+  template <class A> void serialize(A &ar) { ar(ver, ticket); }
 };
 struct kick { // server -> client
   int playerId;

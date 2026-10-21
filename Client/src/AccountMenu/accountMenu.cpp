@@ -2,9 +2,9 @@
 
 #include <raylib.h>
 
+#include "Auth/auth.hpp"
 #include "GameState/gameState.hpp"
 #include "Input/inputState.hpp"
-#include "Net/httpClient.hpp"
 #include "Raylib/drawText.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/Theme/theme.hpp"
@@ -27,6 +27,12 @@ void sizeButtons(Button& loginButton, Button& signupButton) {
 }
 
 void AccountMenu::frame() {
+  if (auth.getState() == State::LoggedIn) {
+    gameState.setMenuState(MenuState::Home);
+    return;
+  }
+  waiting = auth.getState() == State::Working;
+
   BeginDrawing();
   ClearBackground(Theme::Ground);
   background.frame(input);
@@ -60,13 +66,56 @@ void AccountMenu::frame() {
   signupButton.frame(input, clicked);
 
   exitButton.frame(input, clicked);
+
+  if (auth.getState() != State::Working) {
+    waiting = false;
+    if (auth.getState() == State::Error) {
+      const std::string errorMessage = auth.getErrorMesssage();
+      const char* msg = errorMessage.c_str();
+      int fontSize = 50;
+      int width = MeasureTextFont(msg, fontSize);
+      const float maxWidth = GetScreenWidth() * 0.9;
+      while (width > maxWidth) {
+        fontSize *= (maxWidth / width);
+        width = MeasureTextFont(msg, fontSize);
+      }
+      DrawTextFont(msg, GetScreenWidth() / 2 - width / 2 + 4,
+                   GetScreenHeight() / 2 - (fontSize / 2) + 4, fontSize,
+                   Theme::RedDark);
+      DrawTextFont(msg, GetScreenWidth() / 2 - width / 2,
+                   GetScreenHeight() / 2 - (fontSize / 2), fontSize,
+                   Theme::Red);
+    } 
+  }
+  if (waiting) {
+    DrawTextFont(
+        "Loading...",
+        GetScreenWidth() / 2.0f - MeasureTextFont("Loading...", 50) / 2.0f + 3,
+        GetScreenHeight() / 2.0f - 25 + 3, 50, Theme::TextMuted);
+    DrawTextFont(
+        "Loading...",
+        GetScreenWidth() / 2.0f - MeasureTextFont("Loading...", 50) / 2.0f,
+        GetScreenHeight() / 2.0f - 25, 50, Theme::Text);
+  }
+
   EndDrawing();
 }
 
-void AccountMenu::submitLogin() {};
-void AccountMenu::submitSignup() {};
+void AccountMenu::submitLogin() {
+  if (!waiting) {
+    auth.login(username, password);
+    waiting = true;
+  }
+};
 
-AccountMenu::AccountMenu(Input& input, HttpClient& httpClient)
+void AccountMenu::submitSignup() {
+  if (!waiting) {
+    auth.signup(username, password);
+    waiting = true;
+  }
+};
+
+AccountMenu::AccountMenu(Input& input, Auth& auth)
     : exitButton(
           Button([]() { GameState::shared().setMenuState(MenuState::Home); },
                  "<", Rectangle{10, 10, 50, 50}, 40, ButtonStyles::Primary)),
@@ -81,6 +130,6 @@ AccountMenu::AccountMenu(Input& input, HttpClient& httpClient)
       signupButton([&]() { submitSignup(); }, "Signup",
                    (float)GetScreenHeight() - 100, ButtonStyles::Secondary),
       input(input),
-      httpClient(httpClient) {
+      auth(auth) {
   sizeButtons(loginButton, signupButton);
 };
