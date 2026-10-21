@@ -106,9 +106,9 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
    - [x] 3f. Wire it in: `submitLogin` / `submitSignup` call `Auth`; `Client::connect(ticket)` puts the ticket in
          `clientHandshake`; on start, a saved token tries `refresh` before showing the Login screen; `TicketRefresh`
          is sent whenever `ticketSerial` changes; Sign out button on Home; guest play stays one click away.
-   - [x] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
+   - [ ] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
          `TokenStore` over `localStorage` (also fixes the web link error from `makeTokenStore` being undefined).
-   - [ ] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
+   - [x] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
          `HttpClient` and `TokenStore` with no-ops.
    - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
      Fix later with a profile name in the path.
