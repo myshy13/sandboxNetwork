@@ -103,6 +103,35 @@ Ends one login session by deleting its refresh token. Used by the client's Sign 
 - A ticket already issued keeps working until its `exp` (up to 1 hour). Logging out cannot recall it; the client
   should just discard it.
 
+## POST /admin/ban
+
+Bans an account by name, for a number of hours. Admin only.
+
+- **Auth:** the caller's ticket (from `/login` or `/refresh`) in the `authorization` header, as the bare ticket with
+  no `Bearer ` prefix. It must verify and have `isAdmin`; the caller's identity comes from it, never from the body.
+- **Rate limit:** the global 100 per minute per IP.
+- **Body** (`#banPlayerBody`):
+
+  | Field    | Type    | Rules                                                                          |
+  | -------- | ------- | ------------------------------------------------------------------------------ |
+  | `name`   | string  | 1 to 16 characters, the account to ban                                         |
+  | `reason` | string  | 1 to 64 characters                                                             |
+  | `hours`  | integer | how long the ban lasts; it expires at now + `hours` * 3600 (unix seconds)      |
+
+- **Responses:**
+
+  | Status | Body                            | When                                                |
+  | ------ | ------------------------------- | --------------------------------------------------- |
+  | `204`  | none                            | the ban was set                                     |
+  | `400`  | `{ error: "Or in the past" }`   | `hours` is `null`, `0` or negative                  |
+  | `400`  | `{ error: "Ticket invalid" }`   | ticket malformed, bad signature or expired          |
+  | `401`  | `{ error: "Not an admin" }`     | valid ticket, but `isAdmin` is false                |
+  | `404`  | `{ error: "Player not found" }` | no account with that name                           |
+
+- Same effect as `Admin/ban.ts` (`Db.setBan`): all of the account's refresh tokens are deleted. A ticket already
+  issued still works until its `exp`.
+- `isAdmin` is read from the ticket, not the db, so a demoted admin keeps access until their ticket expires.
+
 ## Bans (`Admin/ban.ts`, `Admin/unban.ts`)
 
 Run from `Auth/` (so dotenv finds `.env`): `pnpm tsx Admin/ban.ts <name> <reason> [hours]` and

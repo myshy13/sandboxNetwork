@@ -7,7 +7,6 @@ import { Passwords } from "./Passwords/passwords.js";
 import { TicketSigner } from "./Tickets/ticketSigner.js";
 import AuthRoutes from "./Routes/authRoutes.js";
 import AdminRoutes from "./Routes/adminRoutes.js";
-import { sign } from "node:crypto";
 
 async function buildApp(
   db: Db,
@@ -25,7 +24,7 @@ async function buildApp(
 
   // link routes
   new AuthRoutes(db, passwords, ticketSigner).register(app);
-  new AdminRoutes(db, passwords, ticketSigner).register(app);
+  new AdminRoutes(db, ticketSigner).register(app);
 
   return app;
 }
