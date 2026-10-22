@@ -173,10 +173,8 @@ class AuthRoutes {
         // Unknown, expired and already-used tokens all get the same answer.
         const session = this.#db.getSession(req.body.refreshToken, now);
         const account = session && this.#db.getById(session.accountId);
-        if (!account) {
-          res.status(401).send({ error: "Invalid refresh token" });
-          return;
-        }
+        if (!account) return res.status(401).send({ error: "Invalid refresh token" });
+
 
         // Checked before rotating, so a banned player's token is not used up.
         if (this.#isBanned(account, now)) {
