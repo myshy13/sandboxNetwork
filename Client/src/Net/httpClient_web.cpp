@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "Net/httpClient.hpp"
 
@@ -22,6 +23,8 @@ class HttpClientWeb final : public HttpClient {
   std::optional<HttpResponse> result;
   std::string url;
   std::string body;
+  std::string authValue;  // headers points into this, so it outlives the call
+  std::vector<const char*> headers;  // name, value pairs, then nullptr
 
   static void onSuccess(emscripten_fetch_t* fetch) {
     auto* client = static_cast<HttpClientWeb*>(fetch->userData);
@@ -54,13 +57,21 @@ class HttpClientWeb final : public HttpClient {
     }
   }
 
-  void post(const std::string& requestUrl,
-            const std::string& jsonBody) override {
+  void post(const std::string& requestUrl, const std::string& jsonBody,
+            const std::string& authorization) override {
     if (state != State::Idle) return;
 
     url = requestUrl;
     body = jsonBody;
+    authValue = authorization;
     state = State::Running;
+
+    headers = {"Content-Type", "application/json"};
+    if (!authValue.empty()) {
+      headers.push_back("authorization");
+      headers.push_back(authValue.c_str());
+    }
+    headers.push_back(nullptr);
 
     emscripten_fetch_attr_t attributes;
     emscripten_fetch_attr_init(&attributes);
@@ -72,8 +83,7 @@ class HttpClientWeb final : public HttpClient {
     attributes.timeoutMSecs = REQUEST_TIMEOUT_MS;
     attributes.onsuccess = onSuccess;
     attributes.onerror = onError;
-    const char* headers[] = {"Content-Type", "application/json", nullptr};
-    attributes.requestHeaders = headers;
+    attributes.requestHeaders = headers.data();
 
     request = emscripten_fetch(&attributes, url.c_str());
     if (request == nullptr) {
@@ -92,6 +102,8 @@ class HttpClientWeb final : public HttpClient {
     state = State::Idle;
     url.clear();
     body.clear();
+    authValue.clear();
+    headers.clear();
     return response;
   }
 };
