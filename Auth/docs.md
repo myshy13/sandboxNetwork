@@ -138,12 +138,32 @@ Bans an account by name, for a number of hours. Admin only.
 - `hours` is optional, not nullable, on purpose: Ajv coerces `0` to `null` in a nullable field, which would turn
   `hours: 0` into a permanent ban.
 
+## POST /admin/unban
+
+Lifts a ban on an account by name. Admin only, same auth as `POST /admin/ban`.
+
+- **Auth, rate limit:** exactly as `POST /admin/ban` (the same hook covers every `/admin` route). A banned admin is
+  refused, so an admin can't unban themselves.
+- **Body** (`#unbanPlayerBody`): `{ name }`, a string of 1 to 16 characters, no other fields.
+- **Responses:**
+
+  | Status | Body                            | When                                                      |
+  | ------ | ------------------------------- | --------------------------------------------------------- |
+  | `204`  | none                            | the account is now unbanned (also if it was not banned)   |
+  | `400`  | `{ error }`                     | body fails the schema                                     |
+  | `401`  | `{ error }`                     | ticket missing, invalid or expired, or its account is gone |
+  | `403`  | `{ error }`                     | the caller is not an admin, or is banned                  |
+  | `404`  | `{ error: "Player not found" }` | no account with that name                                 |
+
+- Same effect as `Admin/unban.ts` (`Db.clearBan`): `banned`, the reason and the expiry are cleared. Refresh tokens
+  deleted by the ban stay deleted; the player logs in again.
+- Unbanning an account that is not banned is not an error, so `404` only ever means "no such account".
+
 ## Bans (`Admin/ban.ts`, `Admin/unban.ts`)
 
 Run from `Auth/` (so dotenv finds `.env`): `pnpm tsx Admin/ban.ts <name> <reason> [hours]` and
 `pnpm tsx Admin/unban.ts <name>`. No hours means permanent. Both open the same db file as the server (`Db/dbPath.ts`:
-`AUTH_DB_PATH`, else `Auth/app.db`). `POST /admin/ban` above does the same ban over HTTP for the admin panel; there is no
-unban route yet.
+`AUTH_DB_PATH`, else `Auth/app.db`). `POST /admin/ban` and `POST /admin/unban` above do the same over HTTP for the admin panel.
 
 - Banning sets the ban and deletes **all** of that account's refresh tokens in one transaction (`Db.setBan`), so every
   device is signed out at once and `/refresh` answers `401`. Unbanning does not restore them; the player logs in again.

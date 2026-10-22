@@ -17,6 +17,13 @@ class AdminRoutes {
     { additionalProperties: false },
   );
 
+  readonly #unbanPlayerBody = Type.Object(
+    {
+      name: Type.String({ minLength: 1, maxLength: 16 }),
+    },
+    { additionalProperties: false },
+  );
+
   constructor(db: Db, signer: TicketSigner) {
     this.#db = db;
     this.#signer = signer;
@@ -46,6 +53,13 @@ class AdminRoutes {
         const expires = hours ? Math.floor(Date.now() / 1000) + hours * 3600 : null;
 
         if (this.#db.setBan(name, reason, expires)) return res.status(204).send();
+        else return res.status(404).send({ error: "Player not found" });
+      });
+
+      typed.post("/admin/unban", { schema: { body: this.#unbanPlayerBody } }, async (req, res) => {
+        const { name } = req.body;
+
+        if (this.#db.clearBan(name)) return res.status(204).send();
         else return res.status(404).send({ error: "Player not found" });
       });
     });

@@ -41,7 +41,7 @@ Every route here takes the caller's ticket in the `authorization` header and nee
    - [x] Status codes: bad ticket `401` (now `400`), not an admin `403` (now `401`). Update tests and `docs.md`.
    - [x] Check the caller is still an admin and not banned in the db, not only in the ticket (up to 1 hour stale).
    - [x] One `onRequest` hook for the whole `/admin` scope (auth runs before body validation) so the next route can't skip it.
-2. [ ] `POST /admin/unban`: `{ name }`, over `Db.clearBan`; same auth as ban.
+2. [x] `POST /admin/unban`: `{ name }`, over `Db.clearBan`; same auth as ban. Tested.
 3. [ ] Admin panel itself: the client or web page that calls these routes (not started).
 
 ## Scripts (not routes)
