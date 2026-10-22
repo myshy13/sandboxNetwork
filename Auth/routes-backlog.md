@@ -36,11 +36,11 @@ Every route here takes the caller's ticket in the `authorization` header and nee
 
 1. [x] `POST /admin/ban`: `{ name, reason, hours }`, over `Db.setBan`; `204`, `404` unknown player. Tested
        (`Routes/adminRoutes.test.ts`).
-   - [ ] Decide what `hours: null` means (permanent?) and make the schema and handler agree; today the handler rejects it.
-   - [ ] Upper limit on `hours` (schema `minimum`/`maximum`), and reject negative in the schema instead of the handler.
-   - [ ] Status codes: bad ticket `401` (now `400`), not an admin `403` (now `401`). Update tests and `docs.md`.
-   - [ ] Check the caller is still an admin and not banned in the db, not only in the ticket (up to 1 hour stale).
-   - [ ] Move the ticket check into one `preHandler` hook so the next admin route can't skip it.
+   - [x] Decide what `hours: null` means (permanent?) and make the schema and handler agree; today the handler rejects it. **Decision:** permanent = omit `hours` (not `null`: Ajv coerces `0` to `null`)
+   - [x] Upper limit on `hours` (schema `minimum`/`maximum`),\* and reject negative in the schema instead of the handler.
+   - [x] Status codes: bad ticket `401` (now `400`), not an admin `403` (now `401`). Update tests and `docs.md`.
+   - [x] Check the caller is still an admin and not banned in the db, not only in the ticket (up to 1 hour stale).
+   - [x] One `onRequest` hook for the whole `/admin` scope (auth runs before body validation) so the next route can't skip it.
 2. [ ] `POST /admin/unban`: `{ name }`, over `Db.clearBan`; same auth as ban.
 3. [ ] Admin panel itself: the client or web page that calls these routes (not started).
 

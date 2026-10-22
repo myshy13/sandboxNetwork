@@ -6,7 +6,8 @@ rejected (Fastify's default Ajv). Route order and status: `routes-backlog.md`. T
 `Tickets/ticketSigner.ts`.
 
 Statuses every route can return without its handler running: `400` (body fails the schema), `429` (rate limit),
-`413` (body over 1024 bytes).
+`413` (body over 1024 bytes). Every `/admin` route can also answer `401` or `403` from its auth hook before the body is
+checked (see `POST /admin/ban`).
 
 ## Browser CORS
 
@@ -108,7 +109,9 @@ Ends one login session by deleting its refresh token. Used by the client's Sign 
 Bans an account by name, for a number of hours. Admin only.
 
 - **Auth:** the caller's ticket (from `/login` or `/refresh`) in the `authorization` header, as the bare ticket with
-  no `Bearer ` prefix. It must verify and have `isAdmin`; the caller's identity comes from it, never from the body.
+  no `Bearer ` prefix. A hook on every `/admin` route checks it before the body is looked at: it must verify, and the
+  account must still exist, be an admin and not be banned **in the db** (the ticket's own `isAdmin` is not trusted, it
+  can be an hour old). The caller's identity comes from the ticket, never from the body.
 - **Rate limit:** the global 100 per minute per IP.
 - **Body** (`#banPlayerBody`):
 
@@ -116,27 +119,31 @@ Bans an account by name, for a number of hours. Admin only.
   | -------- | ------- | ------------------------------------------------------------------------------ |
   | `name`   | string  | 1 to 16 characters, the account to ban                                         |
   | `reason` | string  | 1 to 64 characters                                                             |
-  | `hours`  | integer | how long the ban lasts; it expires at now + `hours` * 3600 (unix seconds)      |
+  | `hours`  | integer | optional, 1 to 8760 (one year); the ban ends at now + `hours` * 3600. Omit for permanent |
 
 - **Responses:**
 
-  | Status | Body                            | When                                                |
-  | ------ | ------------------------------- | --------------------------------------------------- |
-  | `204`  | none                            | the ban was set                                     |
-  | `400`  | `{ error: "Or in the past" }`   | `hours` is `null`, `0` or negative                  |
-  | `400`  | `{ error: "Ticket invalid" }`   | ticket malformed, bad signature or expired          |
-  | `401`  | `{ error: "Not an admin" }`     | valid ticket, but `isAdmin` is false                |
-  | `404`  | `{ error: "Player not found" }` | no account with that name                           |
+  | Status | Body                                 | When                                                   |
+  | ------ | ------------------------------------ | ------------------------------------------------------ |
+  | `204`  | none                                 | the ban was set                                        |
+  | `400`  | `{ error }`                          | body fails the schema (e.g. `hours` is `0`, `null`, 1.5 or over 8760) |
+  | `401`  | `{ error: "Ticket invalid" }`        | header missing, ticket malformed, bad signature or expired |
+  | `401`  | `{ error: "Account doesn't exist" }` | the ticket's account is gone                           |
+  | `403`  | `{ error: "Not an admin" }`          | the account is not an admin in the db                  |
+  | `403`  | `{ error: "Admin account banned" }`  | the caller is banned                                   |
+  | `404`  | `{ error: "Player not found" }`      | no account with that name                              |
 
 - Same effect as `Admin/ban.ts` (`Db.setBan`): all of the account's refresh tokens are deleted. A ticket already
-  issued still works until its `exp`.
-- `isAdmin` is read from the ticket, not the db, so a demoted admin keeps access until their ticket expires.
+  issued to the banned player still works until its `exp`.
+- `hours` is optional, not nullable, on purpose: Ajv coerces `0` to `null` in a nullable field, which would turn
+  `hours: 0` into a permanent ban.
 
 ## Bans (`Admin/ban.ts`, `Admin/unban.ts`)
 
 Run from `Auth/` (so dotenv finds `.env`): `pnpm tsx Admin/ban.ts <name> <reason> [hours]` and
 `pnpm tsx Admin/unban.ts <name>`. No hours means permanent. Both open the same db file as the server (`Db/dbPath.ts`:
-`AUTH_DB_PATH`, else `Auth/app.db`).
+`AUTH_DB_PATH`, else `Auth/app.db`). `POST /admin/ban` above does the same ban over HTTP for the admin panel; there is no
+unban route yet.
 
 - Banning sets the ban and deletes **all** of that account's refresh tokens in one transaction (`Db.setBan`), so every
   device is signed out at once and `/refresh` answers `401`. Unbanning does not restore them; the player logs in again.

@@ -1,8 +1,7 @@
 import { Type, TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Db } from "../Db/db.js";
-import { Passwords } from "../Passwords/passwords.js";
 import { TicketSigner } from "../Tickets/ticketSigner.js";
-import { FastifyInstance } from "fastify";
+import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 class AdminRoutes {
   readonly #db: Db;
@@ -12,46 +11,44 @@ class AdminRoutes {
     {
       name: Type.String({ minLength: 1, maxLength: 16 }),
       reason: Type.String({ minLength: 1, maxLength: 64 }),
-      hours: Type.Union([Type.Integer(), Type.Null()]),
+      // Omit for permanent; a Null union lets Ajv coerce 0 to null and ban forever. Max 1 year.
+      hours: Type.Optional(Type.Integer({ minimum: 1, maximum: 8760 })),
     },
     { additionalProperties: false },
   );
-
-  readonly #authHeaders = Type.Object({
-    authorization: Type.String(),
-  });
 
   constructor(db: Db, signer: TicketSigner) {
     this.#db = db;
     this.#signer = signer;
   }
 
+  // Runs before body validation, so a caller who isn't an admin learns nothing about the schema.
+  readonly #requireAdmin = async (req: FastifyRequest, res: FastifyReply) => {
+    const token = req.headers.authorization;
+    const claim = token ? this.#signer.verify(token, Date.now() / 1000) : null;
+    if (!claim) return res.status(401).send({ error: "Ticket invalid" });
+
+    // The ticket can be an hour old, so the db decides who is an admin right now.
+    const account = this.#db.getById(claim.id);
+    if (!account) return res.status(401).send({ error: "Account doesn't exist" });
+    if (!account.isAdmin) return res.status(403).send({ error: "Not an admin" });
+    if (account.banned) return res.status(403).send({ error: "Admin account banned" });
+  };
+
   register(app: FastifyInstance) {
-    const typed = app.withTypeProvider<TypeBoxTypeProvider>();
+    // One scope for every admin route: the hook can't be forgotten on the next one.
+    app.register(async (scope) => {
+      scope.addHook("onRequest", this.#requireAdmin);
+      const typed = scope.withTypeProvider<TypeBoxTypeProvider>();
 
-    typed.post(
-      "/admin/ban",
-      {
-        schema: {
-          body: this.#banPlayerBody,
-          headers: this.#authHeaders,
-        },
-      },
-      async (req, res) => {
-        const token = req.headers["authorization"];
-        const player = req.body.name;
-        const reason = req.body.reason;
-        const hours = req.body.hours;
-        if (!hours || hours < 0) return res.status(400).send({ error: "Or in the past" });
-        const claim = this.#signer.verify(token, Date.now() / 1000);
-        if (!claim) return res.status(400).send({ error: "Ticket invalid" });
-        if (!claim.isAdmin) return res.status(401).send({ error: "Not an admin" });
+      typed.post("/admin/ban", { schema: { body: this.#banPlayerBody } }, async (req, res) => {
+        const { name, reason, hours } = req.body;
+        const expires = hours ? Math.floor(Date.now() / 1000) + hours * 3600 : null;
 
-        if (this.#db.setBan(player, reason, Math.floor(Date.now() / 1000) + hours * 3600))
-          return res.status(204).send();
+        if (this.#db.setBan(name, reason, expires)) return res.status(204).send();
         else return res.status(404).send({ error: "Player not found" });
-      },
-    );
+      });
+    });
   }
 }
 
