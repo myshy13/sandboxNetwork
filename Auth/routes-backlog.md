@@ -48,6 +48,7 @@ Every route here takes the caller's ticket in the `authorization` header and nee
 
 1. [x] `Admin/ban.ts`: `<name> "<reason>" [hours]`, over `Db.setBan`.
 2. [x] `Admin/unban.ts`: `<name>`, over `Db.clearBan`.
+3. [x] `Admin/promote.ts`: `<name> [--revoke]`, over `Db.setAdmin`. Not a route on purpose: the first admin comes from the box.
 
 ## Deliberately not routes (v1)
 

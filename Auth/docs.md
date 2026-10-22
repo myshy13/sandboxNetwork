@@ -159,6 +159,13 @@ Lifts a ban on an account by name. Admin only, same auth as `POST /admin/ban`.
   deleted by the ban stay deleted; the player logs in again.
 - Unbanning an account that is not banned is not an error, so `404` only ever means "no such account".
 
+## Making an admin (`Admin/promote.ts`)
+
+Run from `Auth/`: `pnpm tsx Admin/promote.ts <name>` sets `isAdmin` on the account, `pnpm tsx Admin/promote.ts <name> --revoke`
+clears it. There is deliberately no route for this: the first admin has to come from the box. The admin routes read
+`isAdmin` from the db on every call, so a change applies at once to `/admin/*`; the account's ticket keeps its old
+`isAdmin` until it is refreshed (at most an hour).
+
 ## Bans (`Admin/ban.ts`, `Admin/unban.ts`)
 
 Run from `Auth/` (so dotenv finds `.env`): `pnpm tsx Admin/ban.ts <name> <reason> [hours]` and
