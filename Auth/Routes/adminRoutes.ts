@@ -47,11 +47,9 @@ class AdminRoutes {
         if (!claim) return res.status(400).send({ error: "Ticket invalid" });
         if (!claim.isAdmin) return res.status(401).send({ error: "Not an admin" });
 
-        if (this.#db.setBan(player, reason, Math.floor(Date.now() / 1000) + hours * 3600)) {
+        if (this.#db.setBan(player, reason, Math.floor(Date.now() / 1000) + hours * 3600))
           return res.status(204).send();
-        } else {
-          return res.status(404).send({ error: "Player not found" });
-        }
+        else return res.status(404).send({ error: "Player not found" });
       },
     );
   }
