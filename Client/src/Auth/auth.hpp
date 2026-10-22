@@ -78,6 +78,8 @@ class Auth {
 
   int getTicketSerial() { return ticketSerial; }
 
+  bool isAdmin();
+
   std::string getErrorMessage() { return errorMessage; }
 
   std::string getBanReason() { return banReason; }
