@@ -38,6 +38,7 @@ export class Db {
   readonly #getRefreshToken: Database.Statement<[string]>;
   readonly #ban: Database.Statement<[string | null, number | null, string]>;
   readonly #unban: Database.Statement<[string]>;
+  readonly #setAdmin: Database.Statement<[number, string]>;
 
   readonly #cleanupInterval: NodeJS.Timeout;
 
@@ -85,6 +86,8 @@ export class Db {
       "UPDATE accounts SET banned = 0, banReason = NULL, banExpires = NULL WHERE name = ?",
     );
 
+    this.#setAdmin = this.#db.prepare("UPDATE accounts SET isAdmin = ? WHERE name = ?");
+
     const deleteExpired = this.#db.prepare(
       "DELETE FROM refresh_tokens WHERE exp < unixepoch('now')",
     );
@@ -124,6 +127,11 @@ export class Db {
 
   clearBan(name: string): boolean {
     return this.#unban.run(name).changes > 0;
+  }
+
+  // false if no such account.
+  setAdmin(name: string, isAdmin: boolean): boolean {
+    return this.#setAdmin.run(isAdmin ? 1 : 0, name).changes > 0;
   }
 
   // ==== tokens ==== //
