@@ -59,7 +59,7 @@ Decisions:
 - Bans sit on the account (`banned`, reason, optional expiry). Registration is rate-limited per IP so a ban sticks. A ban also deletes all the account's refresh tokens (`Db.setBan`, one transaction); tickets already issued stay valid until `exp`.
 - Guests are configurable per game server: `--allow-guests` plus a few bools in `Server/src/env.hpp` for what a guest
   may do (build, chat, ...). Guests are named "Guest \<n>".
-- Some accounts are admins (a flag in the ticket); a CLI script on the auth box does bans until something better is needed.
+- Some accounts are admins (a flag in the ticket); bans can be set by a CLI script on the auth box or by `POST /admin/ban` (ticket in the `authorization` header, admin status re-checked in the db). Nothing grants admin yet except editing the db (`Db.setAdmin`).
 - Client: a Login / Register / Guest screen on first launch, and a small "Sign out" button on the Home screen.
 
 Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth/routes-backlog.md`.
@@ -113,7 +113,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
    - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
      Fix later with a profile name in the path.
 4. [ ] Deployment: HTTPS in front of the auth service, systemd unit, key file permissions, SQLite backups (S3 later), game
-       server flags. Later: email + password reset, revocation list pushed to game servers, admin web UI.
+       server flags. Later: email + password reset, revocation list pushed to game servers, `POST /admin/unban`, the admin panel (in the game client, calling `/admin/*`).
 
 Security checklist: Argon2id with per-password salt and the same error for unknown name vs wrong password; rate limits on
 login (IP + name) and register (IP); parameterised SQL, body schemas and a size cap; the private key never in the repo or on a
