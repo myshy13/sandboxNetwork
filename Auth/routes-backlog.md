@@ -30,6 +30,20 @@ Bigger picture and decisions: `plan.md` at the repo root, "Accounts".
      Two requests with the same token must not both succeed.
 4. [x] `POST /logout`: `deleteSession`; always reply `204`, even for an unknown token.
 
+## AdminRoutes (`Routes/adminRoutes.ts`), for the admin panel
+
+Every route here takes the caller's ticket in the `authorization` header and needs `isAdmin`.
+
+1. [x] `POST /admin/ban`: `{ name, reason, hours }`, over `Db.setBan`; `204`, `404` unknown player. Tested
+       (`Routes/adminRoutes.test.ts`).
+   - [ ] Decide what `hours: null` means (permanent?) and make the schema and handler agree; today the handler rejects it.
+   - [ ] Upper limit on `hours` (schema `minimum`/`maximum`), and reject negative in the schema instead of the handler.
+   - [ ] Status codes: bad ticket `401` (now `400`), not an admin `403` (now `401`). Update tests and `docs.md`.
+   - [ ] Check the caller is still an admin and not banned in the db, not only in the ticket (up to 1 hour stale).
+   - [ ] Move the ticket check into one `preHandler` hook so the next admin route can't skip it.
+2. [ ] `POST /admin/unban`: `{ name }`, over `Db.clearBan`; same auth as ban.
+3. [ ] Admin panel itself: the client or web page that calls these routes (not started).
+
 ## Scripts (not routes)
 
 1. [x] `Admin/ban.ts`: `<name> "<reason>" [hours]`, over `Db.setBan`.
@@ -38,8 +52,8 @@ Bigger picture and decisions: `plan.md` at the repo root, "Accounts".
 ## Deliberately not routes (v1)
 
 - **No `/verify`:** game servers check tickets locally with the public key.
-- **No admin HTTP routes:** the CLI scripts do bans until there's a real need.
+- **Admin HTTP routes are limited to the admin panel's needs:** the CLI scripts stay for the operator.
 
 ## Later
 
-Email + password reset, a revocation list endpoint for game servers, an admin web UI.
+Email + password reset, a revocation list endpoint for game servers.
