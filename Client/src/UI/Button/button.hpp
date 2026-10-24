@@ -3,6 +3,7 @@
 #include <raylib.h>
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "Input/input.hpp"
@@ -19,20 +20,23 @@ struct ButtonStyle {
   Color border;
   Color shadow;
   Color textColor;
+  Color mutedColor;
   Color textHover;
 };
 
 namespace ButtonStyles {
-inline const ButtonStyle Primary = {Theme::Blue, Theme::BlueHi,
-                                    Theme::Text, Theme::BlueDark,
-                                    Theme::Text, Theme::Text};
-inline const ButtonStyle Multi = {Theme::Red,     Theme::RedHi, Theme::Text,
-                                  Theme::RedDark, Theme::Text,  Theme::Text};
-inline const ButtonStyle Secondary = {Theme::Panel,       Theme::PanelHi,
-                                      Theme::PanelBorder, Theme::PanelShadow,
-                                      Theme::Text,        Theme::Text};
+inline const ButtonStyle Primary = {Theme::Blue,     Theme::BlueHi, Theme::Text,
+                                    Theme::BlueDark, Theme::Text,   Theme::Text,
+                                    Theme::TextMuted};
+inline const ButtonStyle Multi = {Theme::Red,      Theme::RedHi, Theme::Text,
+                                  Theme::RedDark,  Theme::Text,  Theme::Text,
+                                  Theme::TextMuted};
+inline const ButtonStyle Secondary = {
+    Theme::Panel, Theme::PanelHi, Theme::PanelBorder, Theme::PanelShadow,
+    Theme::Text,  Theme::Text,    Theme::TextMuted};
 inline const ButtonStyle Ghost = {
-    BLANK, BLANK, BLANK, BLANK, Theme::TextMuted, Theme::Text};
+    BLANK,       BLANK,           BLANK, BLANK, Theme::TextMuted,
+    Theme::Text, Theme::TextMuted};
 }  // namespace ButtonStyles
 
 class Button {
@@ -42,6 +46,7 @@ class Button {
   int fontSize{FONT_SIZE};
   bool centred{true};  // a menu button stays centred when the window resizes
   ButtonStyle style;
+  std::optional<float> initialY;
 
  public:
   // A menu button: fixed size, centred on the screen at yPos.

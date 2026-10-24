@@ -13,6 +13,7 @@ class TextBox {
  private:
   Rectangle rec;
   std::string& content;
+  const std::string placeholder{""};
 
   bool focused;
   bool masked;
@@ -27,13 +28,14 @@ class TextBox {
 
  public:
   TextBox(std::string& content, Rectangle rec, int fontSize, bool masked,
-          ButtonStyle style, Input& input);
+          ButtonStyle style, Input& input, const std::string& placeholder = "");
   TextBox(std::string& content, float yPos, bool masked, ButtonStyle style,
-          Input& input);
+          Input& input, const std::string& placeholder = "");
 
   void setYPos(float yPos) {
     rec = Rectangle{GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f, yPos,
                     BUTTON_WIDTH, BUTTON_HEIGHT};
   };
+
   void frame();
 };
