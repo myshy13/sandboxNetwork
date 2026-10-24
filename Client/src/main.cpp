@@ -114,9 +114,7 @@ static void ready() {
   tokenStore = makeTokenStore();
   httpClient = makeHttpClient();
   auth = std::make_unique<Auth>(*tokenStore, *httpClient);
-  if (auth->refresh()) {
-    GameState::shared().setMenuState(MenuState::Login);
-  }
+  auth->refresh();  // initial auth
   home = std::make_unique<Home>(*input, *auth);
   settings = std::make_unique<Settings>(*input);
   accounts = std::make_unique<AccountMenu>(*input, *auth);
