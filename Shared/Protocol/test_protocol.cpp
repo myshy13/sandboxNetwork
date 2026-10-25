@@ -60,8 +60,7 @@ int main() {
                                 // knows it has loaded
   }
 
-  // ==== ChunkData: blocks keep their id, position, scale, type and
-  // durability ==== //
+  // ==== ChunkData: blocks keep their data ==== //
   {
     Object first(5, ObjectTransform{{2.5f, 7.5f, -12.5f}, {5, 5, 5}},
                  BlockType::Grass);
@@ -100,13 +99,12 @@ int main() {
     assert(fresh.getColor().g == base.g * 3 / 4);
     assert(fresh.getColor().a == base.a); // damage never changes opacity
     // a received block's colour matches the sender's without being sent
-    auto msg = proto::unpack<proto::ChunkData>(proto::pack(
-        proto::Type::ChunkData, proto::ChunkData{0, 0, {fresh}}));
+    auto msg = proto::unpack<proto::ChunkData>(
+        proto::pack(proto::Type::ChunkData, proto::ChunkData{0, 0, {fresh}}));
     assert(msg.blocks[0].getColor().g == fresh.getColor().g);
   }
 
-  // ==== ChunkData: a full-size chunk (~1200 blocks, ~40 KB, far over one 1392
-  // byte datagram) ==== //
+  // ==== ChunkData: a full-size chunk ==== //
   {
     std::vector<Object> blocks;
     for (int i = 0; i < 1200; i++) {
@@ -141,8 +139,7 @@ int main() {
            msg.blocks[1].getState() == 0); // default: source/unset
   }
 
-  // ==== BLOCK_INFO: properties come from the table, bad wire values fail ====
-  // //
+  // ==== BLOCK_INFO: properties come from the table ==== //
   {
     assert(isSolid(BlockType::Grass) && isSolid(BlockType::Dirt));
     assert(isSolid(BlockType::Leaves) && isSolid(BlockType::Wood));
@@ -183,8 +180,7 @@ int main() {
     assert(msg.radius == 6);
   }
 
-  // ==== clientHandshake carries the version and the ticket (empty = guest)
-  // ==== //
+  // ==== clientHandshake carries the version and the ticket ==== //
   {
     auto bytes = proto::pack(
         proto::Type::clientHandshake,
