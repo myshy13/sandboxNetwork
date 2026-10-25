@@ -43,6 +43,8 @@ constexpr Bind BINDS[] = {
     {false, KEY_C},     // Zoom
     {false, KEY_NULL},  // DownHotbarSlot (gamepad only)
     {false, KEY_NULL},  // UpHotbarSlot (gamepad only)
+
+    {false, KEY_F8},  // OpenAdminPanel
 };
 
 static_assert(std::size(BINDS) == static_cast<size_t>(Action::Count),

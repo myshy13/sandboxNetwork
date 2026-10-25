@@ -35,6 +35,8 @@ Game::Game(const AssetManager& a, Input& input, Auth& auth)
       client(auth),
       renderer(a),
       input(input),
+      auth(auth),
+      adminPanel(auth, client, input),
       exitButton(Button([&]() { exit(); }, "<", Rectangle{10, 10, 50, 50}, 40,
                         ButtonStyles::Primary)) {
   // ==== lighting ==== //
@@ -81,6 +83,8 @@ void Game::frame(bool first) {
   updateLighting(dt);
   handlePause();
   handleChatInput();
+  handleOpenAdmin();
+  adminPanel.update();
   updatePlayer(dt);
   sendPosition(dt);
   handleActions(dt);
@@ -89,7 +93,7 @@ void Game::frame(bool first) {
   // scene is re-rendered at full resolution rather than enlarged pixels. The
   // frustum culling and the camera-relative view both read camera.fovy too.
   const float wantedFov =
-      (!inChat && input.down(Action::Zoom)) ? ZOOM_FOV : BASE_FOV;
+      (!uiOpen() && input.down(Action::Zoom)) ? ZOOM_FOV : BASE_FOV;
   camera.fovy = Lerp(camera.fovy, wantedFov, 1.0f - expf(-15.0f * dt));
 
   // The setting, and a valid clock (it isn't until the handshake finishes).
@@ -200,12 +204,30 @@ void Game::syncViewRadius() {
 void Game::handlePause() {
   if (!input.pressed(Action::Pause)) return;
 
+  // Escape closes the admin panel first, like it closes chat.
+  if (adminOpen) {
+    adminOpen = false;
+    input.setMouseLook(true);
+    return;
+  }
+
   if (!inChat) {
     paused = !paused;
-    input.setMouseLook(!paused);
+    input.setMouseLook(!paused || !client.isConnected());
   } else {
     inChat = false;
     chatInput.clear();
+  }
+}
+
+void Game::handleOpenAdmin() {
+  if (!input.pressed(Action::OpenAdminPanel) || !auth.isAdmin() || paused) {
+    return;
+  }
+
+  if (!inChat) {
+    adminOpen = !adminOpen;
+    input.setMouseLook(!adminOpen || !client.isConnected());
   }
 }
 
@@ -282,10 +304,10 @@ void Game::handleChatInput() {
       }
       inChat = false;
     }
-  } else if (input.pressed(Action::Openchat)) {
+  } else if (input.pressed(Action::Openchat) && !adminOpen) {
     inChat = true;
     paused = false;
-  } else if (input.pressed(Action::OpenChatCommands)) {
+  } else if (input.pressed(Action::OpenChatCommands) && !adminOpen) {
     inChat = true;
     paused = false;
     chatInput = "/";
@@ -307,13 +329,13 @@ void Game::updatePlayer(float dt) {
 
   // Chat freezes input, not the world: the player keeps falling/sliding
   // while you type, and other clients keep seeing you move.
-  player.inputEnabled = !inChat;
+  player.inputEnabled = !uiOpen();
 
 #ifdef DEBUG
   double t0 = GetTime();
 #endif
   player.Update(dt, camera, world, input,
-                (!inChat && input.down(Action::Zoom)));
+                (!uiOpen() && input.down(Action::Zoom)));
 #ifdef DEBUG
   playerUpdateMs = (GetTime() - t0) * 1000.0;
 #endif
@@ -346,9 +368,10 @@ void Game::updateLighting(float dt) {
                          newLight.tar, sun);
     lighting.updateLight(sunLights[3], Vector3Add(newLight.pos, {0, 10, -10}),
                          newLight.tar, sun);
-    const float(&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
-                                ((float)newLight.color.g / 4 + 10) / 255,
-                                ((float)newLight.color.b / 4 + 10) / 255, 1.0f};
+    const float (&ambient)[4] = {((float)newLight.color.r / 4 + 10) / 255,
+                                 ((float)newLight.color.g / 4 + 10) / 255,
+                                 ((float)newLight.color.b / 4 + 10) / 255,
+                                 1.0f};
     lighting.updateAmbient(ambient);
   }
 }
@@ -376,12 +399,12 @@ void Game::handleActions(float dt) {
     }
 
     std::optional<int> slot = input.getHotbarSlot();
-    if (slot.has_value() && *slot >= 0 && *slot < blockTypesSize && !paused &&
-        !inChat && client.isConnected()) {
+    if (slot.has_value() && *slot >= 0 && *slot < blockTypesSize && !uiOpen() &&
+        client.isConnected()) {
       activeBlockType = *slot;
     }
   }
-  if (paused || inChat || !chunkUnderPlayerLoaded()) return;
+  if (uiOpen() || !chunkUnderPlayerLoaded()) return;
 
   // Crosshair actions aim straight down the look direction - not
   // GetScreenToWorldRay(centre, camera) or camera.target - camera.position:
@@ -723,13 +746,14 @@ void Game::exit() {
   GameState::shared().setMenuState(MenuState::Home);
   input.setMouseLook(false);
   paused = false;
+  adminOpen = false;
 }
 
 // Pause / damage flashes, the connection status line and the crosshair.
 void Game::drawOverlays(float dt) {
   GameState& gameState = GameState::shared();
 
-  if (!(paused || inChat)) {
+  if (!uiOpen()) {
     constexpr float SLOT = 64.0f;  // multiple of 8 keeps it on the pixel grid
     constexpr float GAP = 4.0f;
     constexpr float MARGIN =
@@ -796,7 +820,7 @@ void Game::drawOverlays(float dt) {
     DrawTextFont("Loading...",
                  GetScreenWidth() / 2 - MeasureTextFont("Loading...", 50) / 2,
                  GetScreenHeight() / 2 - 25, 50, Theme::Text);
-  } else if (!paused) {
+  } else if (!paused && !adminOpen) {
     // ==== draw crosshair ==== //
     Vector2 centre = {(float)GetScreenWidth() / 2,
                       (float)GetScreenHeight() / 2};
@@ -837,6 +861,10 @@ void Game::drawOverlays(float dt) {
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {10, 100, 10, 50});
     gameState.greenFlashTimer -= dt;
   }
+
+  if (adminOpen) {
+    adminPanel.frame(dt);
+  }
 }
 
 void Game::drawDebug() {
@@ -844,7 +872,7 @@ void Game::drawDebug() {
   if (input.pressed(Action::OpenDebug)) {
     showDebug = !showDebug;
   }
-  if (!inChat && input.pressed(Action::Reconnect)) {
+  if (!inChat && !adminOpen && input.pressed(Action::Reconnect)) {
     client
         .disconnect();  // applyNetworkUpdates starts a fresh session next frame
   }

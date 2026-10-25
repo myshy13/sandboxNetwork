@@ -2,7 +2,7 @@ import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { FastifyInstance } from "fastify";
-import { Db, type Account } from "../Db/db.js";
+import { Db, isBanned, type Account } from "../Db/db.js";
 import { Passwords } from "../Passwords/passwords.js";
 import { TicketSigner } from "../Tickets/ticketSigner.js";
 
@@ -50,11 +50,6 @@ class AuthRoutes {
     this.#db = db;
     this.#signer = signer;
     this.#passwords = passwords;
-  }
-
-  // Banned while the flag is set and the ban is permanent (null) or ends in the future; no time units mixed.
-  #isBanned(account: Account, now: number): boolean {
-    return account.banned !== 0 && (account.banExpires === null || account.banExpires > now);
   }
 
   // Claims always come from the account row, never from anything the client sent.
@@ -138,7 +133,7 @@ class AuthRoutes {
         }
 
         // Only reached with the right password, so the ban is never revealed to a stranger.
-        if (this.#isBanned(account, now)) {
+        if (isBanned(account, now)) {
           res.status(403).send({
             error: "Account banned",
             reason: account.banReason,
@@ -173,13 +168,10 @@ class AuthRoutes {
         // Unknown, expired and already-used tokens all get the same answer.
         const session = this.#db.getSession(req.body.refreshToken, now);
         const account = session && this.#db.getById(session.accountId);
-        if (!account) {
-          res.status(401).send({ error: "Invalid refresh token" });
-          return;
-        }
+        if (!account) return res.status(401).send({ error: "Invalid refresh token" });
 
         // Checked before rotating, so a banned player's token is not used up.
-        if (this.#isBanned(account, now)) {
+        if (isBanned(account, now)) {
           res.status(403).send({
             error: "Account banned",
             reason: account.banReason,

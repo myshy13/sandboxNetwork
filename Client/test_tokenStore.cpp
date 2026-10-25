@@ -9,14 +9,16 @@
 
 namespace fs = std::filesystem;
 
-// Writes raw bytes to <home>/.sandboxNetwork/token, as a hand edit or a corrupt disk would.
+// Writes raw bytes to <home>/.sandboxNetwork/token, as a hand edit or a corrupt
+// disk would.
 static void writeRaw(const fs::path& home, const std::string& content) {
   fs::create_directories(home / ".sandboxNetwork");
   std::ofstream(home / ".sandboxNetwork" / "token") << content;
 }
 
 int main() {
-  // The store reads $HOME when constructed, so a temp folder keeps the real token safe.
+  // The store reads $HOME when constructed, so a temp folder keeps the real
+  // token safe.
   const fs::path home = fs::temp_directory_path() / "token_store_test";
   fs::remove_all(home);
   fs::create_directories(home);
@@ -32,8 +34,10 @@ int main() {
   // ==== save then load round-trips, and the file is owner-only ==== //
   assert(store->save(tokenA));
   assert(store->load() == tokenA);
-  const auto perms = fs::status(home / ".sandboxNetwork" / "token").permissions();
-  assert((perms & (fs::perms::group_all | fs::perms::others_all)) == fs::perms::none);
+  const auto perms =
+      fs::status(home / ".sandboxNetwork" / "token").permissions();
+  assert((perms & (fs::perms::group_all | fs::perms::others_all)) ==
+         fs::perms::none);
 
   // ==== a second save replaces the first and leaves no temp file ==== //
   assert(store->save(tokenB));
@@ -71,12 +75,14 @@ int main() {
 
   // ==== a failed save leaves the old token ==== //
   assert(store->save(tokenA));
-  fs::create_directory(home / ".sandboxNetwork" / "token.tmp");  // blocks the temp file
+  fs::create_directory(home / ".sandboxNetwork" /
+                       "token.tmp");  // blocks the temp file
   assert(!store->save(tokenB));
   assert(store->load() == tokenA);
   fs::remove_all(home / ".sandboxNetwork" / "token.tmp");
 
-  // ==== no home folder: save refuses, load is empty, clear does nothing ==== //
+  // ==== no home folder: save refuses, load is empty, clear does nothing ====
+  // //
   unsetenv("HOME");
   unsetenv("USERPROFILE");
   auto homeless = makeTokenStore();

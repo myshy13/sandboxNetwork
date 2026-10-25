@@ -3,6 +3,7 @@
 #include <raylib.h>
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "Input/input.hpp"
@@ -42,6 +43,7 @@ class Button {
   int fontSize{FONT_SIZE};
   bool centred{true};  // a menu button stays centred when the window resizes
   ButtonStyle style;
+  std::optional<float> initialY;
 
  public:
   // A menu button: fixed size, centred on the screen at yPos.

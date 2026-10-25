@@ -13,6 +13,7 @@ Button::Button(std::function<void(void)> click, std::string text, float yPos,
   rec.width = BUTTON_WIDTH;
   rec.y = yPos;
   rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
+  initialY = yPos;
 }
 
 Button::Button(std::function<void(void)> click, std::string text, Rectangle rec,
@@ -25,6 +26,12 @@ Button::Button(std::function<void(void)> click, std::string text, Rectangle rec,
       style(style) {}
 
 void Button::frame(Input& input, bool clicked) {
+  if (IsWindowResized() && initialY.has_value()) {
+    rec.height = BUTTON_HEIGHT;
+    rec.width = BUTTON_WIDTH;
+    rec.y = initialY.value();
+    rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;
+  }
   Vector2 mousePos = input.getPointer();
   if (centred && IsWindowResized())
     rec.x = GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f;

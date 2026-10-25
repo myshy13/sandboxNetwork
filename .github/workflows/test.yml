@@ -30,6 +30,10 @@ jobs:
       - name: Fetch dependencies (Server)
         run: cmake -S Server -B Server/build
 
+      # env.hpp is git-ignored, so CI starts from the template (as build.yml does)
+      - name: Create env.hpp
+        run: cp Client/src/env.example.hpp Client/src/env.hpp
+
       - name: Shared/Protocol tests
         run: cd Shared/Protocol && make test
 

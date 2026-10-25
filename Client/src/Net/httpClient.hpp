@@ -16,7 +16,8 @@ class HttpClient {
   virtual ~HttpClient() = default;
 
   // Non-blocking: starts a JSON POST and returns; ignored while busy().
-  virtual void post(const std::string &url, const std::string &jsonBody) = 0;
+  virtual void post(const std::string& url, const std::string& jsonBody,
+                    const std::string& authorization = "") = 0;
 
   // True from post() until poll() has handed the response back.
   virtual bool busy() const = 0;

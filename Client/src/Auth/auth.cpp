@@ -60,6 +60,16 @@ std::string banReasonFrom(const std::string& body) {
   return reason->value.GetString();
 }
 
+// Value of one standard base64 character, or -1 if it isn't one.
+int base64Value(char c) {
+  if (c >= 'A' && c <= 'Z') return c - 'A';
+  if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+  if (c >= '0' && c <= '9') return c - '0' + 52;
+  if (c == '+') return 62;
+  if (c == '/') return 63;
+  return -1;
+}
+
 }  // namespace
 
 void Auth::update(int64_t now) {
@@ -277,4 +287,20 @@ bool Auth::refresh() {
   } else {
     return false;
   }
+}
+
+// UI hint only: the auth service re-checks admin status on every request.
+bool Auth::isAdmin() {
+  // isAdmin is byte 8 of the ticket (Auth/Tickets/ticketSigner.ts), the last
+  // byte of the third 4-character base64 group (characters 8 to 11).
+  if (ticket.size() < 12) return false;
+
+  int v[4];
+  for (int i = 0; i < 4; i++) {
+    v[i] = base64Value(ticket[8 + i]);
+    if (v[i] < 0) return false;
+  }
+  // The group is 24 bits, v0 v1 v2 v3 at 6 bits each; byte 8 is the low 8.
+  const int byte8 = ((v[2] & 0x3) << 6) | v[3];
+  return byte8 == 1;
 }

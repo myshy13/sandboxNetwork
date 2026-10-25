@@ -62,6 +62,9 @@ constexpr int EXPIRY_CHECK_INTERVAL =
     30;                                 // seconds between ticket expiry checks
 constexpr int EXPIRY_GRACE_WINDOW = 30; // grace window for clients
 
+constexpr int REVOKED_UNTIL_LIFETIME =
+    3600 + EXPIRY_GRACE_WINDOW; // Must match ticketSigner.ts
+
 constexpr bool debug{false};
 
 constexpr float FALL_DAMAGE_PER_BLOCK = 1.0f;

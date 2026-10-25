@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <string>
 
 #include "Auth/tokenStore.hpp"
@@ -77,6 +76,8 @@ class Auth {
   const std::string& getTicket() { return ticket; }
 
   int getTicketSerial() { return ticketSerial; }
+
+  bool isAdmin();
 
   std::string getErrorMessage() { return errorMessage; }
 

@@ -59,7 +59,7 @@ Decisions:
 - Bans sit on the account (`banned`, reason, optional expiry). Registration is rate-limited per IP so a ban sticks. A ban also deletes all the account's refresh tokens (`Db.setBan`, one transaction); tickets already issued stay valid until `exp`.
 - Guests are configurable per game server: `--allow-guests` plus a few bools in `Server/src/env.hpp` for what a guest
   may do (build, chat, ...). Guests are named "Guest \<n>".
-- Some accounts are admins (a flag in the ticket); a CLI script on the auth box does bans until something better is needed.
+- Some accounts are admins (a flag in the ticket); bans can be set by a CLI script on the auth box or by `POST /admin/ban` (ticket as `Bearer <ticket>` in the `authorization` header, admin status re-checked in the db). Admin is granted only from the box (`Admin/promote.ts`, `Db.setAdmin`).
 - Client: a Login / Register / Guest screen on first launch, and a small "Sign out" button on the Home screen.
 
 Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth/routes-backlog.md`.
@@ -74,7 +74,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
        `Server/src/Auth/`; `--allow-guests` and `--auth-pubkey <file>` args; guest checks in `PlaceObject` and chat;
        expiry checked on a timer in `Server::tick` with a small grace window; same account joining twice kicks the old
        session; tests in `cd Server && make test` (valid, tampered, expired, wrong key, guest allowed/denied).
-3. [ ] Client login flow (branch `feature/client-login`): HTTP client behind an interface, one class per backend (native
+3. [x] Client login flow (branch `feature/client-login`): HTTP client behind an interface, one class per backend (native
        HTTPS lib, Emscripten fetch on web), no `#ifdef` in game code; `MenuState::Login` screen from the existing
        `Button`s and Input layer; a longer-lived refresh token stored per platform (file native, `localStorage` web),
        never the password; Sign out button; refresh message a minute before expiry. tvOS/iOS have no text entry, so they
@@ -108,12 +108,12 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
          is sent whenever `ticketSerial` changes; Sign out button on Home; guest play stays one click away.
    - [x] 3g. Web backend: `HttpClient` over `emscripten_fetch`, CORS on the auth service for the web origin,
          `TokenStore` over `localStorage` (also fixes the web link error from `makeTokenStore` being undefined).
-   - [ ] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
+   - [x] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
          `HttpClient` and `TokenStore` with no-ops.
    - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
      Fix later with a profile name in the path.
 4. [ ] Deployment: HTTPS in front of the auth service, systemd unit, key file permissions, SQLite backups (S3 later), game
-       server flags. Later: email + password reset, revocation list pushed to game servers, admin web UI.
+       server flags. Later: email + password reset. Done early (branch `feature/admin-panel`): `POST /admin/unban`, the admin panel in the game client (calls `/admin/*`), and a revoked-tickets list on the game server fed by `AdminKick` (not pushed from auth).
 
 Security checklist: Argon2id with per-password salt and the same error for unknown name vs wrong password; rate limits on
 login (IP + name) and register (IP); parameterised SQL, body schemas and a size cap; the private key never in the repo or on a

@@ -22,6 +22,9 @@ Client/src/
                Begin/EndDrawing (Game, Home, Settings), never after it. Game code never calls raylib's input functions,
                except chat typing or in UI/TextBox/...
   Home/        home menu screen (Home class: owns its Buttons, per-frame draw)
+  AdminPanel/  admin-only overlay (F8 / gamepad View, Game::adminOpen): online players with Ban, an unban box; ban and
+               unban go over HTTP to the auth service with the ticket as a Bearer token, and on a 204 for a ban it sends
+               AdminKick (Client::banPlayerMessage) so the live session ends too
   UI/          reusable widgets, one folder each (Button/: hover, click, draw, runs its handler; menu or any-rectangle
                buttons. Slider/: int range tied to a value by a getter and a setter)
   Settings/    settings screen (reached from the menu; Buttons and Sliders that write values into GameState)
@@ -47,7 +50,7 @@ Auth/          the account service: its own Node + TypeScript + Fastify program,
 Shared/
   sharedEnv.hpp  constants both sides must agree on (SHARED_PLAYER_SCALE)
   Protocol/
-    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, SetTime, clientHandshake (version + ticket), TicketRefresh, ...)
+    protocol.hpp   cereal message structs (PlayerUpdate, NewBullet, DeleteBullet, PlayerHit, ChunkData, ChunkUnload, SetViewRadius, SetTime, clientHandshake (version + ticket), TicketRefresh, AdminKick, ...)
     protocol.cpp   pack/unpack, compiled directly into both Client and Server
 ```
 
@@ -119,7 +122,14 @@ key (`--auth-pubkey`, raw 32 bytes; given but unreadable or the wrong size means
 - **Kicks**: a `kick` message is only a request (the client disconnects itself), so the server also closes the
   connection with `Server::disconnectPlayer` (`Connection::disconnect`, after queued sends). Cleanup still happens in
   `handleDisconnect`, off the transport's own disconnect event.
-- A ban does not recall tickets already issued; they stay valid until `exp` (see `Auth/docs.md`).
+- A ban does not recall tickets already issued; they stay valid until `exp` (see `Auth/docs.md`). The game server
+  closes that gap itself, without calling auth: `AdminKick` (name + reason) is accepted only from a connection whose
+  `Player::isAdmin` is set, kicks the named player and records their `accountId` in `Server::revokedUntil` for
+  `env::REVOKED_UNTIL_LIFETIME` (ticket lifetime + grace; it must match `ticketSigner.ts`). `clientHandshake` and
+  `TicketRefresh` reject a listed account, and `Server::tick` sweeps expired entries. Limits: the list is in memory
+  (a restart clears it), covers only players online when banned, and an unban over HTTP does not clear it, so an
+  unbanned player stays blocked up to an hour. `isAdmin` comes from the last verified ticket, so a demoted admin can
+  still kick for up to an hour (the HTTP admin routes re-check the db on every call).
 
 ## Adding a new networked feature
 

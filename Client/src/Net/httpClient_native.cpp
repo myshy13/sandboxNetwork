@@ -22,7 +22,8 @@ class HttpClientNative : public HttpClient {
   std::optional<HttpResponse> result;
 
   // Runs on the worker thread: no raylib calls in here.
-  void run(const std::string& url, const std::string& jsonBody) {
+  void run(const std::string& url, const std::string& jsonBody,
+           const std::string& authorization) {
     HttpResponse response;  // status 0 until the server answers
 
     try {
@@ -37,11 +38,15 @@ class HttpClientNative : public HttpClient {
             pathStart == std::string::npos ? "/" : url.substr(pathStart);
 
         httplib::Client client(origin);
+        httplib::Headers headers;
+        if (!authorization.empty())
+          headers.emplace("authorization", authorization);
         client.set_connection_timeout(CONNECT_TIMEOUT_SECONDS);
         client.set_read_timeout(READ_TIMEOUT_SECONDS);
         client.set_ca_cert_path(CA_BUNDLE_PATH);  // verification stays on
 
-        if (auto res = client.Post(path, jsonBody, "application/json")) {
+        if (auto res =
+                client.Post(path, headers, jsonBody, "application/json")) {
           response.status = res->status;
           response.body = res->body;
         }
@@ -57,12 +62,14 @@ class HttpClientNative : public HttpClient {
   }
 
  public:
-  void post(const std::string& url, const std::string& jsonBody) override {
+  void post(const std::string& url, const std::string& jsonBody,
+            const std::string& authorization) override {
     std::lock_guard<std::mutex> lock(stateMutex);
     if (state != State::Idle) return;
     if (worker.joinable()) worker.join();
     state = State::Running;
-    worker = std::thread(&HttpClientNative::run, this, url, jsonBody);
+    worker =
+        std::thread(&HttpClientNative::run, this, url, jsonBody, authorization);
   }
 
   bool busy() const override {
@@ -79,7 +86,8 @@ class HttpClientNative : public HttpClient {
     return out;
   }
 
-  // Only joinable once post() has run; joining a never-started thread throws, and a destructor can't.
+  // Only joinable once post() has run; joining a never-started thread throws,
+  // and a destructor can't.
   ~HttpClientNative() {
     if (worker.joinable()) worker.join();
   }

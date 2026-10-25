@@ -188,6 +188,15 @@ Same voxel look, different game. Pick a direction before building any of these: 
       active: last device used, or a setting. Hide the touch overlay and the drawn cursor of whichever source is not
       active. Update `arch.md` ("CMake compiles exactly one") and `tech.md` when it lands.
 
+## Admin & moderation
+
+- [-] `AdminUnban`: the admin panel's unban also tells the game server (new message, admin-checked like `AdminKick`),
+      so it drops that account from the revoked-tickets list. Until then an unbanned player stays blocked on the game
+      server until their entry expires (up to an hour). **Skipped:** They can just log back in, it's not that hard
+- [x] Game server revoked-tickets list: `AdminKick` records the account (`revokedUntil`, lifetime = ticket lifetime +
+      `EXPIRY_GRACE_WINDOW`), and the `clientHandshake` and `TicketRefresh` cases reject it, so a banned player can't
+      rejoin on a ticket that is still valid.
+
 ## Infra & ops
 
 - [ ] deploy the server to an always-on host under systemd, `Restart=always`
