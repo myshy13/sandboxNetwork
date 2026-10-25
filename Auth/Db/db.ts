@@ -12,6 +12,11 @@ export interface Account {
   banExpires: number | null;
 }
 
+// Banned while the flag is set and the ban is permanent (null) or ends in the future; no time units mixed.
+export function isBanned(account: Account, now: number): boolean {
+  return account.banned !== 0 && (account.banExpires === null || account.banExpires > now);
+}
+
 export interface RefreshToken {
   accountId: number;
   tokenHash: string;

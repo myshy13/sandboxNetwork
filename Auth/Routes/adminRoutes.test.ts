@@ -272,3 +272,19 @@ test("getban needs an admin: no ticket 401, non-admin 403", async (t) => {
   assert.equal((await getban(app, "victim")).statusCode, 401);
   assert.equal((await getban(app, "victim", userTicket)).statusCode, 403);
 });
+
+test("getban treats a timed ban that has run out as lifted, like login", async (t) => {
+  const { app, db, adminTicket } = await setup(t);
+  db.setBan("victim", "cheating", now() - 60);
+  const res = await getban(app, "victim", adminTicket);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { banned: false });
+});
+
+test("an admin whose timed ban has run out can use the admin routes again", async (t) => {
+  const { app, db, adminTicket } = await setup(t);
+  db.setBan("boss", "oops", now() - 60);
+  const res = await ban(app, goodBody, adminTicket);
+  assert.equal(res.statusCode, 204);
+  assert.equal(db.getByName("victim")!.banned, 1);
+});

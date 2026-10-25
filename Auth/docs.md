@@ -154,7 +154,8 @@ Reports whether an account is banned, and why. Admin only, same auth as `POST /a
   | `403`  | `{ error }`                                               | the caller is not an admin, or is banned |
   | `404`  | `{ error: "Account not found" }`                          | no account with that name             |
 
-- `exp` is the stored expiry; an expired timed ban is still reported as banned until it is cleared.
+- A timed ban whose `exp` has passed is reported as `{ banned: false }`, the same rule login and refresh use (`isBanned`
+  in `Db/db.ts`).
 
 ## POST /admin/unban
 

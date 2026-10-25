@@ -1,5 +1,5 @@
 import { Type, TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
-import { Db } from "../Db/db.js";
+import { Db, isBanned } from "../Db/db.js";
 import { TicketSigner } from "../Tickets/ticketSigner.js";
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
@@ -42,7 +42,7 @@ class AdminRoutes {
     const account = this.#db.getById(claim.id);
     if (!account) return res.status(401).send({ error: "Account doesn't exist" });
     if (!account.isAdmin) return res.status(403).send({ error: "Not an admin" });
-    if (account.banned) return res.status(403).send({ error: "Admin account banned" });
+    if (isBanned(account, Math.floor(Date.now() / 1000))) return res.status(403).send({ error: "Admin account banned" });
   };
 
   register(app: FastifyInstance) {
@@ -60,7 +60,8 @@ class AdminRoutes {
         if (!name) return res.status(400).send({ error: "Name required" });
         const account = this.#db.getByName(name);
         if (!account) return res.status(404).send({ error: "Account not found" });
-        if (!account.banned) return res.status(200).send({ banned: false });
+        // Same rule as login: a timed ban that has run out counts as lifted.
+        if (!isBanned(account, Math.floor(Date.now() / 1000))) return res.status(200).send({ banned: false });
         return res.status(200).send({ banned: true, exp: account.banExpires, reason: account.banReason });
       });
 
