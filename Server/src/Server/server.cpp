@@ -23,7 +23,9 @@
 #include <future>
 #include <optional>
 #include <raymath.h>
+#include <sstream>
 #include <string>
+#include <sys/resource.h>
 #include <unordered_map>
 #include <vector>
 
@@ -71,12 +73,13 @@ private:
 
 // ==== connection setup ==== //
 
-Server::Server(int wsPort, std::string savePath, int saveTime, uint32_t seed,
-               int nextObjectId, int maxPlayers, float time, bool freezeTime,
-               bool allowGuests, const std::string &pubkeyPath)
+Server::Server(FILE *console, int wsPort, std::string savePath, int saveTime,
+               uint32_t seed, int nextObjectId, int maxPlayers, float time,
+               bool freezeTime, bool allowGuests, const std::string &pubkeyPath)
     : freezeTime(freezeTime), allowGuests(allowGuests),
       savePath(std::move(savePath)), maxPlayers(maxPlayers), saveTime(saveTime),
-      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed) {
+      timeOfDay(time), nextObjectId(nextObjectId), terrain(seed),
+      console(console) {
   std::setvbuf(stdout, nullptr, _IONBF, 0);
   if (enet_initialize() != 0) {
     std::fprintf(stderr, "Failed to initialize ENet\n");
@@ -425,12 +428,14 @@ void Server::sendTo(int playerId, const std::string &bytes, bool reliable) {
   auto it = connections.find(playerId);
   if (it != connections.end()) {
     it->second->send(bytes, reliable);
+    statusSent++;
   }
 }
 
 void Server::broadcast(const std::string &bytes, bool reliable) {
   for (auto &entry : connections) {
     entry.second->send(bytes, reliable);
+    statusSent++;
   }
 }
 
@@ -485,6 +490,7 @@ std::optional<Bullet> Server::createBullet(Player *p, Vector3 origin,
   bullet.vel = Vector3Scale(forward, env::BULLET_SPEED);
 
   bullets.push_back(bullet);
+  statusBulletsFired++;
   return bullet;
 };
 
@@ -616,6 +622,7 @@ void Server::damagePlayer(Player &p, int amount, int attackerId) {
            true);
     if (attackerId >= 0) {
       kills[attackerId] += 1;
+      statusKills++;
     }
   }
 }
@@ -624,6 +631,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
   if (data.empty()) {
     return;
   }
+  statusReceived++;
   try {
     const auto seconds = getSeconds();
     Player *p = findPlayer(playerId);
@@ -1370,5 +1378,120 @@ void Server::poll() {
     tick(std::min(dt, env::MAX_TICK_DT)); // after a stall, don't sweep bullets
                                           // across huge boxes in one step
     lastTick = now;
+    statusLogCountdown -= dt; // only per tick: dt is time since the last tick
+    statusTicks++;
+    statusDtSum += dt;
+    statusMaxDt = std::max(statusMaxDt, dt);
   }
+
+  if (statusLogCountdown <= 0.0f) {
+    logStatus();
+  }
+}
+
+// ==== status log ==== //
+void Server::logStatus() {
+  const float interval = env::SERVER_STATUS_INTERVAL - statusLogCountdown;
+  statusLogCountdown = env::SERVER_STATUS_INTERVAL;
+
+  std::stringstream is;
+  is << "===== Server status =====\n";
+
+  if (env::stats::PERFORMANCE_STATS) {
+    const float tps = statusTicks / interval;
+    if (env::stats::TICK_TIME) {
+      const float avg = statusTicks > 0 ? statusDtSum / statusTicks : 0.0f;
+      is << "ticks/s: " << tps << " (target " << 1.0f / env::TICK_RATE << ")\n";
+      is << "tick dt avg: " << avg * 1000.0f
+         << " ms, worst: " << statusMaxDt * 1000.0f << " ms\n";
+    }
+    if (env::stats::UPTIME) {
+      const auto up = std::chrono::duration_cast<std::chrono::seconds>(
+                          std::chrono::steady_clock::now() - startTime)
+                          .count();
+      is << "uptime: " << up / 3600 << "h " << up / 60 % 60 << "m " << up % 60
+         << "s\n";
+    }
+    if (env::stats::MEMORY) {
+      rusage usage{};
+      getrusage(RUSAGE_SELF, &usage);
+#ifdef __APPLE__
+      const long peakKb = usage.ru_maxrss / 1024; // macOS reports bytes
+#else
+      const long peakKb = usage.ru_maxrss; // Linux reports kilobytes
+#endif
+      is << "peak memory: " << peakKb / 1024 << " MB\n";
+    }
+    if (env::stats::WARNINGS) {
+      if (tps < 0.9f / env::TICK_RATE)
+        is << "WARNING: ticks/s below 90% of target\n";
+      if (statusMaxDt > env::MAX_TICK_DT)
+        is << "WARNING: a tick stalled past MAX_TICK_DT\n";
+      if (connections.size() != players.size())
+        is << "WARNING: connections don't match players\n";
+      // Each player fires at most 1/SHOT_INTERVAL a second, plus a burst.
+      const float maxBullets =
+          (1.0f / env::SHOT_INTERVAL * env::BULLET_LIFETIME + env::SHOT_BURST) *
+          players.size();
+      if (bullets.size() > maxBullets)
+        is << "WARNING: more bullets than players can fire\n";
+    }
+  }
+
+  if (env::stats::PLAYER_STATS) {
+    int accounts = 0, guests = 0, admins = 0;
+    for (const auto &p : players) {
+      if (!p.handshaken)
+        continue;
+      if (p.accountId)
+        accounts++;
+      else
+        guests++;
+      if (p.isAdmin)
+        admins++;
+    }
+    if (env::stats::PLAYER_COUNT)
+      is << "players: " << accounts + guests << " (" << accounts
+         << " accounts, " << guests << " guests)\n";
+    if (env::stats::PLAYER_CAPACITY)
+      is << "capacity: " << players.size() << "/" << maxPlayers << "\n";
+    if (env::stats::ADMIN_COUNT)
+      is << "admins online: " << admins << "\n";
+  }
+
+  if (env::stats::WORLD_STATS) {
+    if (env::stats::TIME_OF_DAY)
+      is << "time of day: " << timeOfDay << (freezeTime ? " (frozen)" : "")
+         << "\n";
+    if (env::stats::GENERATED_CHUNKS)
+      is << "generated chunks: " << generatedChunks.size() << " ("
+         << dirtyChunks.size() << " unsaved)\n";
+  }
+
+  if (env::stats::COMBAT_STATS) {
+    if (env::stats::BULLET_COUNT)
+      is << "bullets alive: " << bullets.size() << "\n";
+    if (env::stats::BULLETS_FIRED)
+      is << "bullets fired: " << statusBulletsFired << "\n";
+    if (env::stats::RECENT_KILLS)
+      is << "kills: " << statusKills << "\n";
+  }
+
+  if (env::stats::NETWORK_STATS) {
+    if (env::stats::PACKET_COUNT)
+      is << "messages in: " << statusReceived << ", out: " << statusSent
+         << "\n";
+  }
+
+  is << "========================\n";
+  fputs(is.str().c_str(), console);
+  fflush(console);
+
+  statusTicks = 0;
+  statusDtSum = 0.0f;
+  statusMaxDt = 0.0f;
+  statusBulletsFired = 0;
+  statusKills = 0;
+  statusReceived = 0;
+  statusSent = 0;
 }

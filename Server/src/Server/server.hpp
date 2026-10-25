@@ -8,6 +8,7 @@
 #include "Terrain/terrain.hpp"
 #include "env.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <enet/enet.h>
 #include <future>
@@ -104,11 +105,27 @@ class Server {
   float saveCountdown{saveCountdownTime};
   float timeBroadcastCountdown{env::TIME_BROADCAST_INTERVAL};
   float ticketCheckCountdown{env::EXPIRY_CHECK_INTERVAL};
+  float statusLogCountdown{env::SERVER_STATUS_INTERVAL};
 
   // ==== World saving ==== //
   // Periodic saves write on another thread; `saving` is that write in flight.
   std::future<std::unordered_set<int64_t>> saving;
   void saveWorldAsync();
+
+  FILE *console;
+
+  // ==== status log ==== //
+  // Counters cover one status interval; logStatus() prints then resets them.
+  std::chrono::steady_clock::time_point startTime{
+      std::chrono::steady_clock::now()};
+  int statusTicks{0};
+  float statusDtSum{0.0f};
+  float statusMaxDt{0.0f};
+  int statusBulletsFired{0};
+  int statusKills{0};
+  int statusReceived{0};
+  int statusSent{0};
+  void logStatus();
 
   Player *findPlayer(int id) {
     for (auto &p : players) {
@@ -183,9 +200,9 @@ public:
   void saveWorld();
   void poll();
   // wsPort of 0 leaves the browser proxy switched off.
-  explicit Server(int wsPort = 0, const std::string savePath = "save",
-                  const int saveTime = 30, uint32_t seed = 0,
-                  int nextObjectId = 1,
+  explicit Server(FILE *console, int wsPort = 0,
+                  const std::string savePath = "save", const int saveTime = 30,
+                  uint32_t seed = 0, int nextObjectId = 1,
                   int MAX_PLAYERS = env::DEFAULT_MAX_PLAYERS,
                   float timeOfDay = env::DAY_DEFAULT_TIME,
                   bool freezeTime = false, bool allowGuests = false,

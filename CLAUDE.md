@@ -45,7 +45,8 @@ Do not do any code unless you have concrete evidence that they already would kno
 - Branch names are `type/what-it-is` in kebab-case: `feature/block-registry`, `bug/shadow-hop`.
 - Small changes (docs, backlog/plan/context updates, a typo or one-line fix, tuning a constant) may be committed straight
   on `main`. Anything medium or bigger (what would need a minor version bump) and any change to gameplay mechanics gets
-  its own branch. If unsure whether it's small, use a branch.
+  its own branch. If a change looks like it qualifies for its own branch, ask the creator before branching or
+  reminding; the creator decides.
 - Merging a branch: major changes and any change to gameplay mechanics, however small, go through a GitHub PR
   (`gh pr create`, then `gh pr merge --merge`); the rest get a regular local `git merge --no-ff` into `main`, then push.
   Always a merge commit, never a fast-forward or a squash.

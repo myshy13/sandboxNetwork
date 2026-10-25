@@ -70,6 +70,41 @@ constexpr bool debug{false};
 constexpr float FALL_DAMAGE_PER_BLOCK = 1.0f;
 constexpr int FALL_SAFE_BLOCKS = 3;
 
+constexpr float SERVER_STATUS_INTERVAL = 5.0f;
+
+// which stats to log, so doesn't get messy
+namespace stats {
+// ==== performance ==== //
+constexpr bool PERFORMANCE_STATS = true;
+constexpr bool TICK_TIME = true;
+constexpr bool WARNINGS = true;
+constexpr bool UPTIME = true;
+constexpr bool MEMORY = true;
+
+// ==== players ==== //
+constexpr bool PLAYER_STATS = true;
+constexpr bool PLAYER_COUNT = true;
+constexpr bool PLAYER_CAPACITY = true;
+constexpr bool ADMIN_COUNT = true;
+
+// ==== World stats ==== //
+constexpr bool WORLD_STATS = true;
+constexpr bool TIME_OF_DAY = true;
+constexpr bool GENERATED_CHUNKS = true;
+
+// ==== Combat ==== //
+constexpr bool COMBAT_STATS = true;
+constexpr bool BULLET_COUNT = true;
+constexpr bool BULLETS_FIRED = true;
+constexpr bool RECENT_KILLS = true;
+
+// ==== Network === //
+constexpr bool NETWORK_STATS = true;
+constexpr bool PACKET_COUNT =
+    true; // for each handlereceive, sendto, and broadcast.
+
+}; // namespace stats
+
 namespace guest {
 constexpr bool CAN_BUILD = true;
 constexpr bool CAN_CHAT = true;

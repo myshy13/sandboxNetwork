@@ -200,8 +200,9 @@ Same voxel look, different game. Pick a direction before building any of these: 
 ## Infra & ops
 
 - [ ] deploy the server to an always-on host under systemd, `Restart=always`
-- [ ] `--max-players` cap with a polite "server full" reject
+- [x] `--max-players` cap with a polite "server full" reject
 - [ ] status console command (player count, uptime, chunk count)
+- [ ] status log: average ping (`roundTripTime` on each ENet peer)
 - [ ] web client: verify the WS proxy path against the deployed server over
       `wss://`
 - [ ] iOS client: planned in `plan.md` ("iOS client"), setup in `iOS.md`. Original questions (unchecked: what it supports, whether ENet/UDP works on iOS or it needs

@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <unistd.h>
 
 std::atomic<bool> keep_running(true);
 
@@ -93,12 +95,14 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  // After arg parsing so --help and bad args still reach the terminal.
-  std::printf("logging to server.log\n");
+  // After arg parsing and the save check so their errors still reach the terminal.
+  std::printf("Logging to server.log\n");
+  int consoleFd = dup(STDOUT_FILENO); // kept so status can still reach the terminal
+  FILE *console = consoleFd >= 0 ? fdopen(consoleFd, "w") : nullptr;
+  if (console == nullptr)
+    console = stdout; // status goes to the log instead of crashing
   std::freopen("server.log", "a", stdout);
   std::freopen("server.log", "a", stderr);
-  std::setvbuf(stdout, nullptr, _IOLBF,
-               0); // a file is fully buffered by default
 
   // A saved seed overrides the CLI/current-time one: unedited chunks have to
   // regenerate with the same terrain as the edited chunks already on disk.
@@ -111,8 +115,8 @@ int main(int argc, char **argv) {
 
   std::printf("seed: %u\n", seed);
   srand(seed); // before the Server exists: its constructor generates the world
-  Server server(wsPort, savePath, saveTime, seed, nextObjectId, maxPlayers,
-                time, freezeTime, allowGuests, publicKeyPath);
+  Server server(console, wsPort, savePath, saveTime, seed, nextObjectId,
+                maxPlayers, time, freezeTime, allowGuests, publicKeyPath);
   std::signal(SIGINT, sigIntHandler);
 
   while (keep_running) {
