@@ -98,7 +98,9 @@ void Client::poll() {
   } else {
     if (lastTicketSerial != auth.getTicketSerial()) {
       lastTicketSerial = auth.getTicketSerial();
-      transport->send(proto::pack(proto::Type::TicketRefresh, proto::TicketRefresh{auth.getTicket()}), true);
+      transport->send(proto::pack(proto::Type::TicketRefresh,
+                                  proto::TicketRefresh{auth.getTicket()}),
+                      true);
     }
   }
 }
@@ -358,8 +360,8 @@ void Client::updatePlayers() {
       alpha = 1.0f;
     }
     p.pos = Vector3Lerp(p.last2pos[0], p.last2pos[1], alpha);
-    // remainder() wraps the difference into -PI..PI, so yaw turns the short way
-    // round
+    // remainder() wraps the difference into -PI..PI, so yaw turns the short
+    // way round
     p.yaw = p.last2yaw[0] +
             std::remainder(p.last2yaw[1] - p.last2yaw[0], 2.0f * PI) * alpha;
   }

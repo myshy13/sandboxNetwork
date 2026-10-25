@@ -26,7 +26,8 @@ bool isGuest(const std::string& name) { return name.starts_with("Guest "); }
 // The longest reason /admin/ban accepts (banPlayerBody in adminRoutes.ts).
 constexpr size_t MAX_REASON_LENGTH = 64;
 
-// The longest ban /admin/ban accepts, one year (banPlayerBody in adminRoutes.ts).
+// The longest ban /admin/ban accepts, one year (banPlayerBody in
+// adminRoutes.ts).
 constexpr int MAX_BAN_HOURS = 8760;
 
 }  // namespace
