@@ -31,8 +31,9 @@ class AdminRoutes {
 
   // Runs before body validation, so a caller who isn't an admin learns nothing about the schema.
   readonly #requireAdmin = async (req: FastifyRequest, res: FastifyReply) => {
-    const token = req.headers.authorization;
-    const claim = token ? this.#signer.verify(token, Date.now() / 1000) : null;
+    const header = req.headers.authorization ?? "";
+    // An empty token fails verify, so there is no separate check for it.
+    const claim = header.startsWith("Bearer ") ? this.#signer.verify(header.slice(7), Date.now() / 1000) : null;
     if (!claim) return res.status(401).send({ error: "Ticket invalid" });
 
     // The ticket can be an hour old, so the db decides who is an admin right now.
@@ -47,6 +48,23 @@ class AdminRoutes {
     app.register(async (scope) => {
       scope.addHook("onRequest", this.#requireAdmin);
       const typed = scope.withTypeProvider<TypeBoxTypeProvider>();
+
+      interface NameParams {
+        name: string | null;
+      }
+
+      typed.get<{ Params: NameParams }>("/admin/getban/:name", async (req, res) => {
+        const { name } = req.params;
+        if (!name) return res.status(400).send({ error: "Name required" });
+        const account = this.#db.getByName(name);
+        if (!account) return res.status(404).send({ error: "Account not found " });
+        if (account.banned) {
+          return res.status(200).send({
+            banned: account.banned,
+            ...(account.banned && { exp: account.banExpires, reason: account.banReason }),
+          });
+        }
+      });
 
       typed.post("/admin/ban", { schema: { body: this.#banPlayerBody } }, async (req, res) => {
         const { name, reason, hours } = req.body;

@@ -34,7 +34,7 @@ const ban = (app: App, payload: object, ticket?: string) =>
     method: "POST",
     url: "/admin/ban",
     payload,
-    headers: ticket === undefined ? {} : { authorization: ticket },
+    headers: ticket === undefined ? {} : { authorization: `Bearer ${ticket}` },
   });
 
 const goodBody = { name: "victim", reason: "cheating", hours: 2 };
@@ -72,6 +72,24 @@ test("a garbage ticket is refused and nobody gets banned", async (t) => {
   const res = await ban(app, goodBody, "not-a-ticket");
   assert.equal(res.statusCode, 401);
   assert.equal(db.getByName("victim")!.banned, 0);
+});
+
+// ==== authorization header format ==== //
+
+test("only a 'Bearer <ticket>' header is accepted", async (t) => {
+  const { app, db, adminTicket } = await setup(t);
+  const send = (authorization: string) =>
+    app.inject({ method: "POST", url: "/admin/ban", payload: goodBody, headers: { authorization } });
+
+  // a valid ticket in the wrong format never reaches the verifier
+  for (const header of [adminTicket, `Basic ${adminTicket}`, `bearer ${adminTicket}`, "Bearer ", "Bearer"]) {
+    assert.equal((await send(header)).statusCode, 401, header.slice(0, 12));
+  }
+  assert.equal(db.getByName("victim")!.banned, 0);
+
+  // the same ticket in the right format gets through
+  assert.equal((await send(`Bearer ${adminTicket}`)).statusCode, 204);
+  assert.equal(db.getByName("victim")!.banned, 1);
 });
 
 test("an expired admin ticket is refused", async (t) => {
@@ -151,7 +169,7 @@ const unban = (app: App, payload: object, ticket?: string) =>
     method: "POST",
     url: "/admin/unban",
     payload,
-    headers: ticket === undefined ? {} : { authorization: ticket },
+    headers: ticket === undefined ? {} : { authorization: `Bearer ${ticket}` },
   });
 
 test("an admin unbans a banned player and the ban fields are cleared", async (t) => {
