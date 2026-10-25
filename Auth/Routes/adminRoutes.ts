@@ -59,19 +59,13 @@ class AdminRoutes {
         const { name } = req.params;
         if (!name) return res.status(400).send({ error: "Name required" });
         const account = this.#db.getByName(name);
-        if (!account) return res.status(404).send({ error: "Account not found " });
-        if (account.banned) {
-          return res.status(200).send({
-            banned: account.banned,
-            ...(account.banned && { exp: account.banExpires, reason: account.banReason }),
-          });
-        }
+        if (!account) return res.status(404).send({ error: "Account not found" });
+        if (!account.banned) return res.status(200).send({ banned: false });
+        return res.status(200).send({ banned: true, exp: account.banExpires, reason: account.banReason });
       });
 
       typed.post("/admin/ban", { schema: { body: this.#banPlayerBody } }, async (req, res) => {
-        const { name, reason } = req.body;
-        let { hours } = req.body;
-        if (hours && hours === 0) hours = undefined; // easy option for c++ client
+        const { name, reason, hours } = req.body;
         const expires = hours ? Math.floor(Date.now() / 1000) + hours * 3600 : null;
 
         if (this.#db.setBan(name, reason, expires)) return res.status(204).send();

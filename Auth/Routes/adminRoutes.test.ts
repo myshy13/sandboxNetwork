@@ -226,3 +226,49 @@ test("an unban body missing the name or with extra fields is rejected with 400",
   assert.equal((await unban(app, {}, adminTicket)).statusCode, 400);
   assert.equal((await unban(app, { name: "" }, adminTicket)).statusCode, 400);
 });
+
+// ==== getban ==== //
+
+const getban = (app: App, name: string, ticket?: string) =>
+  app.inject({
+    method: "GET",
+    url: `/admin/getban/${name}`,
+    headers: ticket === undefined ? {} : { authorization: `Bearer ${ticket}` },
+  });
+
+test("getban reports a banned account's reason and expiry", async (t) => {
+  const { app, db, adminTicket } = await setup(t);
+  const expires = now() + 3600;
+  db.setBan("victim", "cheating", expires);
+
+  const res = await getban(app, "victim", adminTicket);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { banned: true, exp: expires, reason: "cheating" });
+});
+
+test("getban on a permanent ban has a null expiry", async (t) => {
+  const { app, db, adminTicket } = await setup(t);
+  db.setBan("victim", "cheating", null);
+  const res = await getban(app, "victim", adminTicket);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { banned: true, exp: null, reason: "cheating" });
+});
+
+test("getban on an account that isn't banned answers 200 banned:false", async (t) => {
+  const { app, adminTicket } = await setup(t);
+  const res = await getban(app, "victim", adminTicket);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json(), { banned: false });
+});
+
+test("getban on an unknown account answers 404", async (t) => {
+  const { app, adminTicket } = await setup(t);
+  assert.equal((await getban(app, "nobody", adminTicket)).statusCode, 404);
+});
+
+test("getban needs an admin: no ticket 401, non-admin 403", async (t) => {
+  const { app, db, userTicket } = await setup(t);
+  db.setBan("victim", "cheating", null);
+  assert.equal((await getban(app, "victim")).statusCode, 401);
+  assert.equal((await getban(app, "victim", userTicket)).statusCode, 403);
+});

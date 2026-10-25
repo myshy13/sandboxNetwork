@@ -108,8 +108,8 @@ Ends one login session by deleting its refresh token. Used by the client's Sign 
 
 Bans an account by name, for a number of hours. Admin only.
 
-- **Auth:** the caller's ticket (from `/login` or `/refresh`) in the `authorization` header, as the bare ticket with
-  no `Bearer ` prefix. A hook on every `/admin` route checks it before the body is looked at: it must verify, and the
+- **Auth:** the caller's ticket (from `/login` or `/refresh`) in the `authorization` header as `Bearer <ticket>`; a
+  header without that exact prefix is a `401`. A hook on every `/admin` route checks it before the body is looked at: it must verify, and the
   account must still exist, be an admin and not be banned **in the db** (the ticket's own `isAdmin` is not trusted, it
   can be an hour old). The caller's identity comes from the ticket, never from the body.
 - **Rate limit:** the global 100 per minute per IP.
@@ -137,6 +137,24 @@ Bans an account by name, for a number of hours. Admin only.
   issued to the banned player still works until its `exp`.
 - `hours` is optional, not nullable, on purpose: Ajv coerces `0` to `null` in a nullable field, which would turn
   `hours: 0` into a permanent ban.
+
+## GET /admin/getban/:name
+
+Reports whether an account is banned, and why. Admin only, same auth as `POST /admin/ban`.
+
+- **Auth, rate limit:** exactly as `POST /admin/ban`.
+- **Params:** `name`, the account to look up.
+- **Responses:**
+
+  | Status | Body                                                      | When                                  |
+  | ------ | --------------------------------------------------------- | ------------------------------------- |
+  | `200`  | `{ banned: true, exp, reason }`                           | banned; `exp` is unix seconds, `null` for a permanent ban |
+  | `200`  | `{ banned: false }`                                       | the account exists and is not banned  |
+  | `401`  | `{ error }`                                               | ticket missing, invalid or expired, or its account is gone |
+  | `403`  | `{ error }`                                               | the caller is not an admin, or is banned |
+  | `404`  | `{ error: "Account not found" }`                          | no account with that name             |
+
+- `exp` is the stored expiry; an expired timed ban is still reported as banned until it is cleared.
 
 ## POST /admin/unban
 
