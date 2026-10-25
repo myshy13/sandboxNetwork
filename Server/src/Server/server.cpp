@@ -783,6 +783,30 @@ void Server::handleReceive(int playerId, const std::string &data) {
       break;
     }
 
+    case proto::Type::AdminKick: {
+      if (!tickets.has_value())
+        break;
+      auto msg = proto::unpack<proto::AdminKick>(data);
+      if (!p->isAdmin)
+        return;
+      Player *playerToBan = nullptr;
+      for (size_t i = 0; i < players.size(); i++) {
+        if (players[i].displayName.has_value() &&
+            std::string(players[i].displayName.value()) == msg.name) {
+          playerToBan = &players[i];
+          break;
+        }
+      }
+      if (playerToBan == nullptr)
+        break;
+      sendTo(playerToBan->id,
+             proto::pack(proto::Type::kick,
+                         proto::kick{playerToBan->id, "Banned: " + msg.reason}),
+             true);
+      disconnectPlayer(playerToBan->id);
+      break;
+    }
+
     case proto::Type::SetViewRadius: {
       auto msg = proto::unpack<proto::SetViewRadius>(data);
       // Identity comes from the connection; the radius is client-supplied, so

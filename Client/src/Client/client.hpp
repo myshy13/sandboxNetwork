@@ -118,6 +118,8 @@ class Client {
   void sendChatMessage(const std::string& msg);
   void setName(const std::string& msg);
   void placeObject(const Object& object);
+  // returns true if sent
+  bool banPlayerMessage(const std::string& name, const std::string& banReason);
   // Asks the server to stream this many chunks around us. False if the
   // handshake hasn't finished yet (call again).
   bool sendViewRadius(int chunks);

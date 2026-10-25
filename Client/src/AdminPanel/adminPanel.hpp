@@ -14,6 +14,8 @@
 
 enum class AdminPanelState { Idle, Sending, Failed };
 
+enum class AdminRequest { None, Ban, Unban };
+
 struct BanPlayerRequest {
   std::string name;
   std::string reason;
@@ -58,7 +60,7 @@ class AdminPanel {
   // HTTP State
   AdminPanelState state{AdminPanelState::Idle};
   std::string statusMessage;
-  std::string successMessage;  // shown on a 204, set by whichever request is in flight
+  AdminRequest request{AdminRequest::None};  // what the request in flight is
   float statusTime{0.0f};
 
   std::vector<OnlinePlayer> getPlayers(bool guests = false);

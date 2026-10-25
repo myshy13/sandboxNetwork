@@ -103,6 +103,15 @@ void Client::poll() {
   }
 }
 
+bool Client::banPlayerMessage(const std::string& name,
+                              const std::string& banReason) {
+  if (!auth.isAdmin()) return false;
+  transport->send(
+      proto::pack(proto::Type::AdminKick, proto::AdminKick{name, banReason}),
+      true);
+  return true;
+}
+
 void Client::handleMessage(const std::string& data) {
   switch (proto::peekType(data)) {
     // ==== id assignment ==== //

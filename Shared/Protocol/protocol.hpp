@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 18; // Handshake now carries the auth ticket
+constexpr int PROTOCOL_VERSION = 19; // Added AdminKick option
 
 enum class Type : uint8_t {
   // player
@@ -47,6 +47,7 @@ enum class Type : uint8_t {
   clientHandshake,
   SetName,
   GivenId,
+  AdminKick,
 };
 
 struct PlayerUpdate {
@@ -160,6 +161,12 @@ struct TicketRefresh {
   std::string ticket;
 
   template <class A> void serialize(A &ar) { ar(ticket); }
+};
+struct AdminKick {
+  std::string name;
+  std::string reason;
+
+  template <class Archive> void serialize(Archive &ar) { ar(name, reason); }
 };
 
 // ==== pack: struct -> bytes, tag prepended ==== //

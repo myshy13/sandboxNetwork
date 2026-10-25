@@ -70,12 +70,18 @@ void AdminPanel::update() {
   if (!res.has_value()) return;
   switch (res->status) {
     case 204: {
+      if (request == AdminRequest::Ban) {
+        // The account is banned now, so end their live session too.
+        client.banPlayerMessage(banTargetName, banReason);
+        statusMessage = "Successfully banned player";
+      } else {
+        statusMessage = "Successfully unbanned player";
+      }
       banTargetId = std::nullopt;
       banTargetName.clear();
       banReason.clear();
       banHours.clear();
       statusTime = STATUS_MESSAGE_TIME;
-      statusMessage = successMessage;
       state = AdminPanelState::Idle;
       break;
     }
@@ -227,7 +233,7 @@ void AdminPanel::frame(float dt) {
         http->post(env::AUTH_URL + std::string("/admin/unban"), body,
                    "Bearer " + auth.getTicket());
         state = AdminPanelState::Sending;
-        successMessage = "Successfully unbanned player";
+        request = AdminRequest::Unban;
         unbanName.clear();
       },
       "Unban",
@@ -317,7 +323,7 @@ void AdminPanel::drawBanForm(const std::string& name) {
           http->post(std::string(env::AUTH_URL) + "/admin/ban", jsonBody,
                      "Bearer " + auth.getTicket());
           state = AdminPanelState::Sending;
-          successMessage = "Successfully banned player";
+          request = AdminRequest::Ban;
         }
       },
       "Confirm", confirmRec, 25, ButtonStyles::Secondary);
