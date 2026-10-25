@@ -33,7 +33,9 @@ class AdminRoutes {
   readonly #requireAdmin = async (req: FastifyRequest, res: FastifyReply) => {
     const header = req.headers.authorization ?? "";
     // An empty token fails verify, so there is no separate check for it.
-    const claim = header.startsWith("Bearer ") ? this.#signer.verify(header.slice(7), Date.now() / 1000) : null;
+    const claim = header.startsWith("Bearer ")
+      ? this.#signer.verify(header.slice(7), Date.now() / 1000)
+      : null;
     if (!claim) return res.status(401).send({ error: "Ticket invalid" });
 
     // The ticket can be an hour old, so the db decides who is an admin right now.
@@ -67,7 +69,9 @@ class AdminRoutes {
       });
 
       typed.post("/admin/ban", { schema: { body: this.#banPlayerBody } }, async (req, res) => {
-        const { name, reason, hours } = req.body;
+        const { name, reason } = req.body;
+        let { hours } = req.body;
+        if (hours && hours === 0) hours = undefined; // easy option for c++ client
         const expires = hours ? Math.floor(Date.now() / 1000) + hours * 3600 : null;
 
         if (this.#db.setBan(name, reason, expires)) return res.status(204).send();
