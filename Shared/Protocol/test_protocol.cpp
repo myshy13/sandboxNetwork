@@ -209,6 +209,21 @@ int main() {
     assert(msg.ticket == "abc123==");
   }
 
+  // ==== AdminKick: both fields survive, free text and empty included ==== //
+  {
+    auto bytes = proto::pack(proto::Type::AdminKick,
+                             proto::AdminKick{"alice", "spamming: 3 times"});
+    assert(proto::peekType(bytes) == proto::Type::AdminKick);
+    auto msg = proto::unpack<proto::AdminKick>(bytes);
+    assert(msg.name == "alice");
+    assert(msg.reason == "spamming: 3 times");
+
+    auto empty = proto::unpack<proto::AdminKick>(
+        proto::pack(proto::Type::AdminKick, proto::AdminKick{"alice", ""}));
+    assert(empty.name == "alice");
+    assert(empty.reason.empty());
+  }
+
   std::printf("protocol tests passed\n");
   return 0;
 }
