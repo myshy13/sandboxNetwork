@@ -193,9 +193,9 @@ Same voxel look, different game. Pick a direction before building any of these: 
 - [-] `AdminUnban`: the admin panel's unban also tells the game server (new message, admin-checked like `AdminKick`),
       so it drops that account from the revoked-tickets list. Until then an unbanned player stays blocked on the game
       server until their entry expires (up to an hour). **Skipped:** They can just log back in, it's not that hard
-- [ ] Game server revoked-tickets list: `AdminKick` records the account (`revokedUntil`, lifetime = ticket lifetime +
+- [x] Game server revoked-tickets list: `AdminKick` records the account (`revokedUntil`, lifetime = ticket lifetime +
       `EXPIRY_GRACE_WINDOW`), and the `clientHandshake` and `TicketRefresh` cases reject it, so a banned player can't
-      rejoin on a ticket that is still valid. In progress on `feature/admin-panel`.
+      rejoin on a ticket that is still valid.
 
 ## Infra & ops
 
