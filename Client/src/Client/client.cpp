@@ -107,7 +107,7 @@ void Client::poll() {
 
 bool Client::banPlayerMessage(const std::string& name,
                               const std::string& banReason) {
-  if (!auth.isAdmin()) return false;
+  if (playerId == -1 || !auth.isAdmin()) return false;
   transport->send(
       proto::pack(proto::Type::AdminKick, proto::AdminKick{name, banReason}),
       true);
