@@ -5,6 +5,7 @@
 #include <iterator>
 #include <string>
 
+#include "AdminPanel/adminPanel.hpp"
 #include "AssetManager/manager.hpp"
 #include "Client/client.hpp"
 #include "Input/input.hpp"
@@ -52,6 +53,9 @@ class Game {
   Renderer renderer;
   Input& input;
 
+  Auth& auth;
+  AdminPanel adminPanel;
+
   int sunLights[4] = {-1, -1, -1, -1};
   float lightUpdateCooldown{lightUpdateCooldownTime};
 
@@ -66,6 +70,7 @@ class Game {
   // ==== per-frame state ==== //
   bool paused = false;
   bool inChat = false;
+  bool adminOpen = false;
   std::string chatInput;
   float playerPosCooldown = Client::POS_UPDATE_INTERVAL;
   float bulletCooldown = 0.0f;
@@ -85,6 +90,9 @@ class Game {
       0.0;  // Renderer::drawObjects, incl. frustum cull + instancing
 #endif
 
+  // true while a screen covers the game: pause menu, chat or admin panel
+  bool uiOpen() const { return paused || inChat || adminOpen; }
+
   // disconnects, shows the cursor, and goes to Home
   void exit();
 
@@ -92,6 +100,7 @@ class Game {
   void applyNetworkUpdates();
   void syncViewRadius();
   void handlePause();
+  void handleOpenAdmin();
   void handleChatInput();
   void updatePlayer(float dt);
   void sendPosition(float dt);
