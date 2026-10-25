@@ -38,6 +38,9 @@ authoritative server, one shared binary protocol.
 - Bans sit on the account. A banned account can't log in or refresh, but a ticket already issued works until it
   expires (up to an hour).
 - A logged-in player who joins again elsewhere replaces their old session.
+- **Admin panel**: an admin account opens it in game (F8, or View on a gamepad) to ban a player by name with a reason
+  and optional hours (empty = permanent) or unban by name. A ban also kicks the player immediately and stops them
+  rejoining on a ticket that is still valid; guests can't be banned.
 
 ## Non-goals (don't add without asking)
 
