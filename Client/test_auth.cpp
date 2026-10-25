@@ -29,7 +29,8 @@ class FakeHttp : public HttpClient {
   bool inFlight{false};
   std::optional<HttpResponse> answer;
 
-  void post(const std::string& url, const std::string& body) override {
+  void post(const std::string& url, const std::string& body,
+            const std::string& /*authorization*/) override {
     if (inFlight) return;
     posts.push_back({url, body});
     inFlight = true;
