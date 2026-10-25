@@ -769,6 +769,16 @@ void Server::handleReceive(int playerId, const std::string &data) {
       }
       auto msg = proto::unpack<proto::TicketRefresh>(data);
       std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
+      if (claim.has_value() && revokedUntil.contains(claim->id)) {
+        auto kickBytes = proto::pack(proto::Type::kick,
+                                     proto::kick{playerId, "Account banned"});
+        sendTo(playerId, kickBytes, true);
+        disconnectPlayer(playerId);
+        Player *kicked = findPlayer(playerId);
+        if (kicked != nullptr)
+          p->handshaken = false;
+        break;
+      }
       if (refreshAccepted(p->accountId, claim)) {
         p->ticketExp = claim->exp;
         p->isAdmin = claim->isAdmin;
@@ -799,6 +809,9 @@ void Server::handleReceive(int playerId, const std::string &data) {
       }
       if (playerToBan == nullptr)
         break;
+      if (playerToBan->accountId.has_value())
+        revokedUntil[*playerToBan->accountId] =
+            getSeconds() + env::REVOKED_UNTIL_LIFETIME;
       sendTo(playerToBan->id,
              proto::pack(proto::Type::kick,
                          proto::kick{playerToBan->id, "Banned: " + msg.reason}),
@@ -850,6 +863,10 @@ void Server::handleReceive(int playerId, const std::string &data) {
         std::optional<Claim> claim = tickets->verify(msg.ticket, seconds);
         if (!claim.has_value()) {
           kick("Authentication failed");
+          break;
+        }
+        if (revokedUntil.contains(claim->id)) {
+          kick("Account banned");
           break;
         }
         auto accountPlayerId = accountToPlayer.find(claim->id);
@@ -1165,8 +1182,11 @@ void Server::tick(float dt) {
       }
     }
   }
-  if (ticketCheckCountdown <= 0)
+  if (ticketCheckCountdown <= 0) {
     ticketCheckCountdown = env::EXPIRY_CHECK_INTERVAL;
+    std::erase_if(revokedUntil,
+                  [&](auto it) { return it.second <= getSeconds(); });
+  }
   // ==== hit detection ==== //
   for (auto &b : bullets) {
     b.deathCountdown -= dt;

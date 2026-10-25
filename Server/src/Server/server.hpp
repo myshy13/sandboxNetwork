@@ -79,6 +79,7 @@ class Server {
   std::optional<Tickets> tickets;
   std::unordered_map<uint32_t, int>
       accountToPlayer; // acountId -> player id. (not guests)
+  std::unordered_map<uint32_t, uint64_t> revokedUntil;
 
   std::unordered_map<int, int> kills;
 
