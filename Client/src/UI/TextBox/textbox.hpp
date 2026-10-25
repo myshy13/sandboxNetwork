@@ -2,6 +2,7 @@
 
 #include <raylib.h>
 
+#include <optional>
 #include <string>
 
 #include "Input/input.hpp"
@@ -14,6 +15,8 @@ class TextBox {
   Rectangle rec;
   std::string& content;
   const std::string placeholder{""};
+
+  std::optional<float> initialY;
 
   bool focused;
   bool masked;
@@ -33,9 +36,16 @@ class TextBox {
           Input& input, const std::string& placeholder = "");
 
   void setYPos(float yPos) {
+    initialY = yPos;  // frame() re-centres from this when the window resizes
     rec = Rectangle{GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f, yPos,
                     BUTTON_WIDTH, BUTTON_HEIGHT};
   };
+
+  // The caller owns the position now, so frame() stops re-centring.
+  void setRec(const Rectangle& r) {
+    initialY.reset();
+    rec = r;
+  }
 
   void frame();
 };

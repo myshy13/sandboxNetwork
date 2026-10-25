@@ -27,7 +27,9 @@ TextBox::TextBox(std::string& content, float yPos, bool masked,
     : TextBox(content,
               Rectangle{GetScreenWidth() / 2.0f - BUTTON_WIDTH / 2.0f, yPos,
                         BUTTON_WIDTH, BUTTON_HEIGHT},
-              TEXTBOX_FONTSIZE, masked, style, input, placeholder) {}
+              TEXTBOX_FONTSIZE, masked, style, input, placeholder) {
+  initialY = yPos;
+}
 
 void TextBox::update() {
   const bool hovered = CheckCollisionPointRec(input.getPointer(), rec);
@@ -64,7 +66,7 @@ void TextBox::draw() {
          MeasureTextFont(shown.c_str(), fontSize) > inner.width - PADDING * 2)
     shown.erase(0, 1);
 
-  if (shown.size() == 0 && placeholder.size() == 0) {
+  if (shown.empty() && !placeholder.empty()) {
     shown = placeholder;
     muted = true;
   }
@@ -72,15 +74,17 @@ void TextBox::draw() {
   const int x = (int)(inner.x + PADDING);
   const int y = (int)(inner.y + inner.height / 2 - fontSize / 2.0f);
   DrawTextFont(shown.c_str(), x, y, fontSize,
-               muted ? style.mutedColor : style.textColor);
+               muted ? Theme::TextMuted : style.textColor);
 
+  // The caret sits at the start of the box while the placeholder is showing.
   if (focused && (int)(GetTime() / CARET_BLINK) % 2 == 0)
-    DrawRectangle(x + MeasureTextFont(shown.c_str(), fontSize) + 2, y, 2,
-                  fontSize, Theme::Text);
+    DrawRectangle(
+        x + (muted ? 0 : MeasureTextFont(shown.c_str(), fontSize)) + 2, y, 2,
+        fontSize, Theme::Text);
 }
 
 void TextBox::frame() {
-  if (IsWindowResized()) rec.x = GetScreenWidth() / 2.0f - rec.width / 2.0f;
+  if (IsWindowResized() && initialY.has_value()) setYPos(initialY.value());
   update();
   draw();
 }
