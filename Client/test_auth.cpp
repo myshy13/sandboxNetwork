@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cereal/archives/json.hpp>
 #include <cstdio>
 #include <functional>
 #include <optional>
@@ -6,12 +7,11 @@
 #include <string>
 #include <vector>
 
-#include <cereal/archives/json.hpp>
-
 #include "Auth/auth.hpp"
 #include "env.hpp"
 
-// auth.cpp logs through raylib's TraceLog; the test supplies a silent one so raylib isn't linked.
+// auth.cpp logs through raylib's TraceLog; the test supplies a silent one so
+// raylib isn't linked.
 extern "C" void TraceLog(int, const char*, ...) {}
 
 // ==== fakes ==== //
@@ -21,7 +21,8 @@ struct Post {
   std::string body;
 };
 
-// Single-flight like the real client: busy from post() until poll() hands the answer back.
+// Single-flight like the real client: busy from post() until poll() hands the
+// answer back.
 class FakeHttp : public HttpClient {
  public:
   std::vector<Post> posts;
@@ -33,7 +34,9 @@ class FakeHttp : public HttpClient {
     posts.push_back({url, body});
     inFlight = true;
   }
+
   bool busy() const override { return inFlight; }
+
   std::optional<HttpResponse> poll() override {
     if (!answer) return std::nullopt;
     auto out = answer;
@@ -41,20 +44,26 @@ class FakeHttp : public HttpClient {
     inFlight = false;
     return out;
   }
+
   // The server's reply to the request in flight; the next poll() returns it.
-  void reply(int status, const std::string& body = "") { answer = HttpResponse{status, body}; }
+  void reply(int status, const std::string& body = "") {
+    answer = HttpResponse{status, body};
+  }
 };
 
 class FakeStore : public TokenStore {
  public:
   std::string token;
   std::function<void()> onSave;
+
   std::string load() override { return token; }
+
   bool save(const std::string& t) override {
     if (onSave) onSave();
     token = t;
     return true;
   }
+
   void clear() override { token.clear(); }
 };
 
@@ -72,13 +81,16 @@ std::string loginBody(const std::string& ticket, const std::string& token) {
 struct Creds {
   std::string name, password;
 };
+
 Creds parseCreds(const std::string& body) {
   Creds c;
   std::istringstream iss(body);
   cereal::JSONInputArchive ar(iss);
-  ar(cereal::make_nvp("name", c.name), cereal::make_nvp("password", c.password));
+  ar(cereal::make_nvp("name", c.name),
+     cereal::make_nvp("password", c.password));
   return c;
 }
+
 std::string parseRefreshToken(const std::string& body) {
   std::string t;
   std::istringstream iss(body);
@@ -97,6 +109,7 @@ struct Fixture {
     http.reply(status, body);
     auth.update(now);
   }
+
   // Logs in at time `now` and leaves the fixture LoggedIn with `token`.
   void loggedIn(int64_t now, const std::string& token = TOKEN_A) {
     assert(auth.login("alice", "hunter2hunter2"));
@@ -117,7 +130,8 @@ int main() {
     assert(f.http.posts.empty());
   }
 
-  // ==== login: posts flat name/password JSON to /login and shows Working ==== //
+  // ==== login: posts flat name/password JSON to /login and shows Working ====
+  // //
   {
     Fixture f;
     assert(f.auth.login("alice", "hunter2hunter2"));
@@ -166,7 +180,9 @@ int main() {
   {
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
-    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
+    f.answer(0, 403,
+             "{\"error\":\"Account "
+             "banned\",\"reason\":\"cheating\",\"expires\":null}");
     assert(f.auth.getState() == State::Error);
     assert(f.auth.getErrorMessage() == "Account banned");
     // expires is null (permanent): the reason must survive it
@@ -174,28 +190,35 @@ int main() {
     assert(f.store.token.empty());
   }
 
-  // ==== the ban reason: from the server, empty when there is none, never stale ==== //
+  // ==== the ban reason: from the server, empty when there is none, never stale
+  // ==== //
   {
     // a timed ban, with a number in expires
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
-    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"spam\",\"expires\":1900000000}");
+    f.answer(0, 403,
+             "{\"error\":\"Account "
+             "banned\",\"reason\":\"spam\",\"expires\":1900000000}");
     assert(f.auth.getBanReason() == "spam");
   }
   {
-    // the server stored no reason: null, so none shown, and the message is still the server's
+    // the server stored no reason: null, so none shown, and the message is
+    // still the server's
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
-    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":null,\"expires\":null}");
+    f.answer(0, 403,
+             "{\"error\":\"Account banned\",\"reason\":null,\"expires\":null}");
     assert(f.auth.getState() == State::Error);
     assert(f.auth.getErrorMessage() == "Account banned");
     assert(f.auth.getBanReason().empty());
   }
   {
-    // a body that is not JSON, or has no reason: fallback message, empty reason, no throw
-    for (const std::string& body : {std::string("not json"), std::string(""),
-                                    std::string("{\"error\":\"Account banned\"}"),
-                                    std::string("{\"reason\":42}"), std::string("[1,2]")}) {
+    // a body that is not JSON, or has no reason: fallback message, empty
+    // reason, no throw
+    for (const std::string& body :
+         {std::string("not json"), std::string(""),
+          std::string("{\"error\":\"Account banned\"}"),
+          std::string("{\"reason\":42}"), std::string("[1,2]")}) {
       Fixture f;
       f.auth.login("alice", "hunter2hunter2");
       f.answer(0, 403, body);
@@ -205,10 +228,13 @@ int main() {
     }
   }
   {
-    // a later failure that is not a ban clears the old reason; a login clears it too
+    // a later failure that is not a ban clears the old reason; a login clears
+    // it too
     Fixture f;
     f.auth.login("alice", "hunter2hunter2");
-    f.answer(0, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
+    f.answer(0, 403,
+             "{\"error\":\"Account "
+             "banned\",\"reason\":\"cheating\",\"expires\":null}");
     assert(f.auth.getBanReason() == "cheating");
 
     assert(f.auth.login("bob", "hunter2hunter2"));
@@ -217,7 +243,9 @@ int main() {
     assert(f.auth.getBanReason().empty());
 
     assert(f.auth.login("alice", "hunter2hunter2"));
-    f.answer(2, 403, "{\"error\":\"Account banned\",\"reason\":\"cheating\",\"expires\":null}");
+    f.answer(2, 403,
+             "{\"error\":\"Account "
+             "banned\",\"reason\":\"cheating\",\"expires\":null}");
     assert(f.auth.getBanReason() == "cheating");
     assert(f.auth.login("carol", "hunter2hunter2"));
     f.answer(3, 200, loginBody("T1", TOKEN_A));
@@ -249,7 +277,8 @@ int main() {
     assert(f.store.token.empty());
   }
 
-  // ==== auto refresh: nothing until a minute before expiry, then /refresh ==== //
+  // ==== auto refresh: nothing until a minute before expiry, then /refresh ====
+  // //
   {
     Fixture f;
     f.loggedIn(100);
@@ -292,23 +321,28 @@ int main() {
     assert(f.http.posts.size() == 2);
   }
 
-  // ==== refresh 403 (banned): token cleared, Error with the server's text ==== //
+  // ==== refresh 403 (banned): token cleared, Error with the server's text ====
+  // //
   {
     Fixture f;
     f.loggedIn(100);
     f.auth.update(3640);
-    f.answer(3641, 403, "{\"error\":\"Account banned\",\"reason\":\"x\",\"expires\":null}");
+    f.answer(
+        3641, 403,
+        "{\"error\":\"Account banned\",\"reason\":\"x\",\"expires\":null}");
     assert(f.auth.getState() == State::Error);
     assert(f.auth.getBanReason() == "x");
     assert(f.store.token.empty());
   }
 
-  // ==== refresh with no answer or a 429: keep the token, stay logged in, retry in 30 s ==== //
+  // ==== refresh with no answer or a 429: keep the token, stay logged in, retry
+  // in 30 s ==== //
   for (int status : {0, 429}) {
     Fixture f;
     f.loggedIn(100);
     f.auth.update(3640);
-    f.answer(3641, status, status == 429 ? "{\"error\":\"Too many requests\"}" : "");
+    f.answer(3641, status,
+             status == 429 ? "{\"error\":\"Too many requests\"}" : "");
     assert(f.auth.getState() == State::LoggedIn);
     assert(f.store.token == TOKEN_A);
     f.auth.update(3641 + 29);
@@ -318,7 +352,8 @@ int main() {
     assert(parseRefreshToken(f.http.posts[2].body) == TOKEN_A);
   }
 
-  // ==== launch refresh: a saved token is tried, no token means no request ==== //
+  // ==== launch refresh: a saved token is tried, no token means no request ====
+  // //
   {
     Fixture f;
     f.store.token = TOKEN_A;
@@ -345,11 +380,13 @@ int main() {
     assert(f.store.token.empty());
   }
 
-  // ==== signup: /register, then /login with the same credentials, by itself ==== //
+  // ==== signup: /register, then /login with the same credentials, by itself
+  // ==== //
   {
     Fixture f;
     assert(f.auth.signup("alice", "hunter2hunter2"));
-    assert(f.http.posts.size() == 1 && f.http.posts[0].url == URL + "/register");
+    assert(f.http.posts.size() == 1 &&
+           f.http.posts[0].url == URL + "/register");
     Creds c = parseCreds(f.http.posts[0].body);
     assert(c.name == "alice" && c.password == "hunter2hunter2");
     assert(f.auth.getState() == State::Working);
@@ -359,7 +396,7 @@ int main() {
     c = parseCreds(f.http.posts[1].body);
     assert(c.name == "alice" && c.password == "hunter2hunter2");
     assert(f.auth.getState() == State::Working);  // still one continuous step
-    assert(f.auth.getTicketSerial() == 0);        // the register ticket is not used
+    assert(f.auth.getTicketSerial() == 0);  // the register ticket is not used
 
     f.answer(11, 200, loginBody("T1", TOKEN_A));
     assert(f.auth.getState() == State::LoggedIn && f.auth.getTicket() == "T1");
@@ -384,7 +421,8 @@ int main() {
     assert(f.http.posts.size() == 1);
   }
   {
-    // the account exists but the chained login failed: not logged in, no second /register
+    // the account exists but the chained login failed: not logged in, no second
+    // /register
     Fixture f;
     f.auth.signup("alice", "hunter2hunter2");
     f.answer(10, 201, "{\"ticket\":\"REG\"}");
@@ -420,7 +458,8 @@ int main() {
     assert(f.store.token.empty());
   }
 
-  // ==== logout while a refresh is in flight: the refresh result must not log you back in ==== //
+  // ==== logout while a refresh is in flight: the refresh result must not log
+  // you back in ==== //
   {
     Fixture f;
     f.loggedIn(100);
