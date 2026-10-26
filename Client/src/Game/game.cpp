@@ -19,6 +19,7 @@
 #include "GameState/gameState.hpp"
 #include "Input/input.hpp"
 #include "Input/inputState.hpp"
+#include "Raylib/cubeWires.hpp"
 #include "Raylib/drawText.hpp"
 #include "Shaders/lighting.hpp"
 #include "UI/Button/button.hpp"
@@ -502,7 +503,8 @@ void Game::drawScene(float dt) {
   // anything else would collapse to 0,0,0.
   if (targeted != nullptr) {
     const ObjectTransform& t = targeted->getTransform();
-    DrawCubeWiresV(Vector3Subtract(t.pos, camera.position), t.scale, BLACK);
+    DrawCubeWiresThickV(Vector3Subtract(t.pos, camera.position), t.scale, 0.03,
+                        BLACK);
   }
   // ==== draw online players ====
   for (const auto& p : client.getPlayers()) {
