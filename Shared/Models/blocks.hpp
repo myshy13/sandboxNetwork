@@ -15,6 +15,7 @@ enum class BlockType : uint8_t {
   Wood,
   Planks,
   Glass,
+  Stone,
   Count
 };
 
@@ -26,23 +27,25 @@ struct BlockInfo {
   bool blended{false};  // drawn with alpha blending (water); glass is a cutout
   bool solid{true};     // players collide with it
   bool placeable{true}; // a client may ask the server to place it
+  int durability{3};
   Color color{WHITE};   // the block's look until it has a texture
 };
 
 // One row per BlockType, in enum order. (it's checked at compile time)
 inline constexpr BlockInfo BLOCK_INFO[] = {
     {.type = BlockType::Grass},
-    {.type = BlockType::Dirt},
+    {.type = BlockType::Dirt, .durability = 2},
     {.type = BlockType::Water,
      .opaque = false,
      .fluid = true,
      .translucent = true,
      .blended = true,
      .solid = false},
-    {.type = BlockType::Leaves},
-    {.type = BlockType::Wood},
-    {.type = BlockType::Planks},
+    {.type = BlockType::Leaves, .durability = 1},
+    {.type = BlockType::Wood, .durability = 5},
+    {.type = BlockType::Planks, .durability = 5},
     {.type = BlockType::Glass, .opaque = false, .translucent = true},
+    {.type = BlockType::Stone, .durability = 6},
 };
 
 constexpr bool rowsValid() {

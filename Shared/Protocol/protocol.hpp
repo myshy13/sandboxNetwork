@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 19; // Added AdminKick option
+constexpr int PROTOCOL_VERSION = 20; // Added stone
 
 enum class Type : uint8_t {
   // player

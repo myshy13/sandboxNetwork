@@ -1,4 +1,5 @@
 #pragma once
+#include <MacTypes.h>
 #include <cstddef>
 #include <cstdint>
 #include <raylib.h>
@@ -10,13 +11,11 @@ struct ObjectTransform {
   Vector3 scale{0, 0, 0};
 };
 
-constexpr int MAX_DURABILITY = 3;
-
 class Object {
 private:
   int id{-1}; // -1 means an unassigned id
   ObjectTransform transform{};
-  int durability{MAX_DURABILITY};
+  int durability;
   BlockType type{BlockType::Dirt};
   uint8_t state{0}; // source block
 
@@ -25,7 +24,8 @@ public:
   // The type's colour, a quarter darker per point of damage taken.
   Color getColor() const {
     Color c = blockColor(type);
-    for (int i = durability; i < MAX_DURABILITY; i++) {
+    for (int i = durability; i < BLOCK_INFO[static_cast<Size>(type)].durability;
+         i++) {
       c.r = static_cast<unsigned char>(c.r * 3 / 4);
       c.g = static_cast<unsigned char>(c.g * 3 / 4);
       c.b = static_cast<unsigned char>(c.b * 3 / 4);
@@ -48,9 +48,12 @@ public:
 
   Object() = default;
   Object(int objectId, ObjectTransform t, BlockType ty)
-      : id(objectId), transform(t), type(ty) {}
+      : id(objectId), transform(t),
+        durability(BLOCK_INFO[static_cast<size_t>(ty)].durability), type(ty) {}
   // client only: the server assigns the real id
-  Object(ObjectTransform t, BlockType ty) : transform(t), type(ty) {}
+  Object(ObjectTransform t, BlockType ty)
+      : transform(t),
+        durability(BLOCK_INFO[static_cast<size_t>(ty)].durability), type(ty) {}
 
   // cereal: send the fields the other side needs to draw + identify the
   // block (colour is derived from type + durability, so it isn't sent).
