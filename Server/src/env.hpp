@@ -46,7 +46,7 @@ constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 constexpr uint32_t saveFormatVersion = 5; // Added timeOfDay to SaveMeta
 constexpr uint32_t terrainVersion = 5; // block damage now rolls from a 3D hash
 
-constexpr float FLOW_INTERVAL = 0.2f;
+constexpr float FLOW_INTERVAL = 0.0f;
 constexpr float WATER_HEIGHT = 6;
 
 // #define DEBUG_SHORT_DAY // easy toggle here
@@ -76,13 +76,13 @@ constexpr float SERVER_STATUS_INTERVAL = 5.0f;
 namespace stats {
 // ==== performance ==== //
 constexpr bool PERFORMANCE_STATS = true;
-constexpr bool TICK_TIME = true;
+constexpr bool TICK_TIME = false;
 constexpr bool WARNINGS = true;
 constexpr bool UPTIME = true;
-constexpr bool MEMORY = true;
+constexpr bool MEMORY = false;
 
 // ==== players ==== //
-constexpr bool PLAYER_STATS = true;
+constexpr bool PLAYER_STATS = false;
 constexpr bool PLAYER_COUNT = true;
 constexpr bool PLAYER_CAPACITY = true;
 constexpr bool ADMIN_COUNT = true;
@@ -90,16 +90,16 @@ constexpr bool ADMIN_COUNT = true;
 // ==== World stats ==== //
 constexpr bool WORLD_STATS = true;
 constexpr bool TIME_OF_DAY = true;
-constexpr bool GENERATED_CHUNKS = true;
+constexpr bool GENERATED_CHUNKS = false;
 
 // ==== Combat ==== //
-constexpr bool COMBAT_STATS = true;
+constexpr bool COMBAT_STATS = false;
 constexpr bool BULLET_COUNT = true;
 constexpr bool BULLETS_FIRED = true;
 constexpr bool RECENT_KILLS = true;
 
 // ==== Network === //
-constexpr bool NETWORK_STATS = true;
+constexpr bool NETWORK_STATS = false;
 constexpr bool PACKET_COUNT =
     true; // for each handlereceive, sendto, and broadcast.
 
