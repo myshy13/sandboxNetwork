@@ -3,6 +3,7 @@
 #include <raylib.h>
 
 #include <cstdlib>
+#include <functional>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -33,7 +34,8 @@ constexpr int MAX_BAN_HOURS = 8760;
 }  // namespace
 
 // Its own HttpClient: Auth's is busy during a refresh and would drop the post.
-AdminPanel::AdminPanel(Auth& auth, Client& client, Input& input)
+AdminPanel::AdminPanel(Auth& auth, Client& client, Input& input,
+                       std::function<void(void)> exit)
     : auth(auth),
       client(client),
       input(input),
@@ -44,7 +46,8 @@ AdminPanel::AdminPanel(Auth& auth, Client& client, Input& input)
       unbanBox(unbanName,
                {10.0f, (float)GetScreenHeight() - (BUTTON_HEIGHT * 0.75f) - 10,
                 BUTTON_WIDTH, BUTTON_HEIGHT * 0.75f},
-               30, false, ButtonStyles::Secondary, input, "Unban") {}
+               30, false, ButtonStyles::Secondary, input, "Unban"),
+      exit(exit) {}
 
 std::vector<OnlinePlayer> AdminPanel::getPlayers(bool guestsShown) {
   std::vector<OnlinePlayer> players = client.getPlayers();
@@ -242,6 +245,10 @@ void AdminPanel::frame(float dt) {
        BUTTON_WIDTH * 0.5f, BUTTON_HEIGHT * 0.75f},
       30, ButtonStyles::Multi);
   unbanButton.frame(input, input.pressed(Action::Click));
+
+  Button exitButton(exit, "<", {10, 10, 50, 50}, 50);
+
+  exitButton.frame(input, input.pressed(Action::Click));
 
   if (!banTargetId) return;
 

@@ -37,7 +37,7 @@ Game::Game(const AssetManager& a, Input& input, Auth& auth)
       renderer(a),
       input(input),
       auth(auth),
-      adminPanel(auth, client, input),
+      adminPanel(auth, client, input, [&]() { adminOpen = false; }),
       exitButton(Button([&]() { exit(); }, "<", Rectangle{10, 10, 50, 50}, 40,
                         ButtonStyles::Primary)) {
   // ==== lighting ==== //

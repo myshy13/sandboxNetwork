@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -66,8 +67,11 @@ class AdminPanel {
   std::vector<OnlinePlayer> getPlayers(bool guests = false);
   void drawBanForm(const std::string& name);
 
+  std::function<void(void)> exit;
+
  public:
-  AdminPanel(Auth& auth, Client& client, Input& input);
+  AdminPanel(Auth& auth, Client& client, Input& input,
+             std::function<void(void)> exit);
   void update();         // polls the ban request; call every frame
   void frame(float dt);  // draws the panel; call only while open
 };
