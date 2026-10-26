@@ -15,6 +15,7 @@ constexpr const char* TEXTURE_PATHS[] = {
     "assets/images/grass_side.png",  // grass side
     "assets/images/planks.png",      // wooden planks
     "assets/images/glass.png",       // glass
+    "assets/images/stone.png",       // stone
     "assets/icons/jump.png",         // jump icon
     "assets/icons/shoot.png",        // shoot icon
     "assets/icons/place.png",        // place icon

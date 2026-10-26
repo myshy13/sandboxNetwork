@@ -16,6 +16,7 @@ enum class Tex {
   Grass_Side,
   Planks,
   Glass,
+  Stone,
 
   // icons
   JumpIcon,
