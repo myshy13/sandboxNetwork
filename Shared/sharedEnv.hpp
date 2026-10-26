@@ -8,5 +8,5 @@ constexpr int SHARED_PLAYER_HEALTH = 20;
 constexpr int SHARED_WATER_MAX_LEVEL =
     8; // weakest flowing water; server flow and client water height both use it
 constexpr std::string SHARED_VERSION =
-    "0.9.1"; // accounts: sign in, tickets, bans (iOS and tvOS guest-only)
-             // minor: added exit button and thickened cube wires
+    "0.9.2"; // accounts: sign in, tickets, bans (iOS and tvOS guest-only)
+             // fix tests
