@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Models/Object.hpp"
+#include "Models/blocks.hpp"
+
 struct TreeBlock {
   int dx, dy, dz;
   BlockType type;
