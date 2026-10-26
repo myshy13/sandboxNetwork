@@ -1,5 +1,4 @@
 #pragma once
-#include <MacTypes.h>
 #include <cstddef>
 #include <cstdint>
 #include <raylib.h>
@@ -24,8 +23,8 @@ public:
   // The type's colour, a quarter darker per point of damage taken.
   Color getColor() const {
     Color c = blockColor(type);
-    for (int i = durability; i < BLOCK_INFO[static_cast<Size>(type)].durability;
-         i++) {
+    for (int i = durability;
+         i < BLOCK_INFO[static_cast<size_t>(type)].durability; i++) {
       c.r = static_cast<unsigned char>(c.r * 3 / 4);
       c.g = static_cast<unsigned char>(c.g * 3 / 4);
       c.b = static_cast<unsigned char>(c.b * 3 / 4);

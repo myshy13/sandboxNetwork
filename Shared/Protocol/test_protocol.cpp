@@ -1,5 +1,7 @@
+#include "Models/blocks.hpp"
 #include "Protocol/protocol.hpp"
 #include <cassert>
+#include <cstddef>
 #include <cstdio>
 #include <raylib.h>
 
@@ -86,7 +88,9 @@ int main() {
     assert(b.getId() == 6);
     assert(b.getTransform().pos.x == -2.5f && b.getTransform().pos.z == 7.5f);
     assert(b.getType() == BlockType::Dirt);
-    assert(b.getDurability() == MAX_DURABILITY - 1); // damage survives the wire
+    assert(b.getDurability() ==
+           BLOCK_INFO[static_cast<size_t>(BlockType::Dirt)].durability -
+               1); // damage survives the wire
   }
 
   // ==== Object colour: from the type, a quarter darker per damage ==== //
