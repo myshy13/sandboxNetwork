@@ -52,7 +52,40 @@ class Player : public Entity {
 
   Player();
 
-  static void DrawBody(const Transform& transform, const bool outline = false);
+  static void DrawBody(const Transform& transform, const bool outline = false,
+                       const Color& c = WHITE);
   static void DrawPlayer(const Transform& transform, const std::string& name,
                          const Vector3& localPos);
+
+  static Vector4 UsernameToVec4(const char* username) {
+    uint32_t hash = 2166136261u;
+
+    for (const unsigned char* p =
+             reinterpret_cast<const unsigned char*>(username);
+         *p; ++p) {
+      hash ^= *p;
+      hash *= 16777619u;
+    }
+
+    return {0.35f + ((hash & 0xFF) / 255.0f) * 0.55f,
+            0.35f + (((hash >> 8) & 0xFF) / 255.0f) * 0.55f,
+            0.35f + (((hash >> 16) & 0xFF) / 255.0f) * 0.55f, 1.0f};
+  }
+
+  static Color UsernameToColor(const char* username) {
+    uint32_t hash = 2166136261u;
+
+    // FNV-1a hash
+    for (const unsigned char* p = (const unsigned char*)username; *p; p++) {
+      hash ^= *p;
+      hash *= 16777619u;
+    }
+
+    // Generate a vivid color
+    unsigned char r = 80 + (hash & 0x7F);
+    unsigned char g = 80 + ((hash >> 8) & 0x7F);
+    unsigned char b = 80 + ((hash >> 16) & 0x7F);
+
+    return (Color){r, g, b, 255};
+  }
 };

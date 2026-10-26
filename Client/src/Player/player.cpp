@@ -237,7 +237,8 @@ Player::Player() {
   onGround = false;
 }
 
-void Player::DrawBody(const Transform& transform, const bool outline) {
+void Player::DrawBody(const Transform& transform, const bool outline,
+                      const Color& c) {
   Matrix matScale =
       MatrixScale(transform.scale.x, transform.scale.y, transform.scale.z);
   Matrix matRotation = QuaternionToMatrix(transform.rotation);
@@ -254,7 +255,7 @@ void Player::DrawBody(const Transform& transform, const bool outline) {
   if (outline) {
     DrawCubeWiresV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, BLACK);
   } else {
-    DrawCubeV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, WHITE);
+    DrawCubeV({0.0f, 0.5f, 0.0f}, {1, 1, 1}, c);
   }
   rlPopMatrix();
 }
@@ -262,7 +263,8 @@ void Player::DrawBody(const Transform& transform, const bool outline) {
 void Player::DrawPlayer(const Transform& transform, const std::string& name,
                         const Vector3& localPos) {
   Font font = GameState::shared().getMainFont();
-  DrawBody(transform, true);
+  Color c = UsernameToColor(name.c_str());
+  DrawBody(transform, true, c);
 
   Vector3 p = transform.translation + Vector3{0, transform.scale.y + 2.0f, 0};
   constexpr float FONT_SIZE = 2, SPACING = 0.05f;
@@ -274,6 +276,6 @@ void Player::DrawPlayer(const Transform& transform, const std::string& name,
   rlRotatef(atan2f(d.x, d.z) * RAD2DEG, 0.0f, 1.0f, 0.0f);
   rlRotatef(90.0f, 1.0f, 0.0f, 0.0f);
   DrawText3D(font, name.c_str(), {-halfW, 0, 0}, FONT_SIZE, SPACING, 1.0f, true,
-             WHITE);
+             c);  // just in case
   rlPopMatrix();
 }

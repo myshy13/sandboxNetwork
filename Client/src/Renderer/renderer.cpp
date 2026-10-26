@@ -19,6 +19,7 @@
 #include "GameState/gameState.hpp"
 #include "Models/Object.hpp"
 #include "Models/blocks.hpp"
+#include "Player/player.hpp"
 #include "Raylib/shadowMap.hpp"
 #include "Shaders/lighting.hpp"
 #include "env.hpp"
@@ -344,7 +345,9 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
                              Vector3Add(p.pos, {reach, playerScale.y, reach})};
     if (!boxInFrustum(frustum, box)) continue;
     for (const Matrix& m : playerFaceMatrices(p, camera.position)) {
-      opaque[static_cast<size_t>(Tex::Count)].colors.push_back({1, 1, 1, 1});
+      opaque[static_cast<size_t>(Tex::Count)].colors.push_back(
+          p.name.has_value() ? Player::UsernameToVec4(p.name->c_str())
+                             : Vector4{1, 1, 1, 1});
       opaque[static_cast<size_t>(Tex::Count)].mats.push_back(m);
     }
   }
