@@ -34,7 +34,7 @@ constexpr float PLACE_REACH = 65.0f; // client REACH (50) + eye height + lag;
 constexpr float WORLD_LIMIT = 1000000.0f; // |coordinate| a player may claim;
                                           // cell keys overflow past ~5.2M
 constexpr float MAX_TICK_DT =
-    0.1f; // a stalled tick simulates at most this much time
+    0.2f; // a stalled tick simulates at most this much time
 
 constexpr int PLAYER_MAX_HEALTH =
     SHARED_PLAYER_HEALTH; // the client's env::MAX_HEALTH aliases it too
@@ -43,11 +43,13 @@ constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
 constexpr int DEFAULT_VIEW_RADIUS = 4; // default
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 
-constexpr uint32_t saveFormatVersion = 5; // Added timeOfDay to SaveMeta
-constexpr uint32_t terrainVersion = 5; // block damage now rolls from a 3D hash
+constexpr uint32_t saveFormatVersion = 6; // Added Stone blocktype
+constexpr uint32_t terrainVersion = 6;    // Add stone generation below y=4
 
-constexpr float FLOW_INTERVAL = 0.0f;
+// world properties
+constexpr float FLOW_INTERVAL = 0.2f;
 constexpr float WATER_HEIGHT = 6;
+constexpr float STONE_HEIGHT = 2;
 
 // #define DEBUG_SHORT_DAY // easy toggle here
 #ifdef DEBUG_SHORT_DAY

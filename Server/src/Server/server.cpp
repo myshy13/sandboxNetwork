@@ -2,6 +2,7 @@
 #include "Auth/tickets.hpp"
 #include "Fluid/fluidSim.hpp"
 #include "Models/Object.hpp"
+#include "Models/blocks.hpp"
 #include "Protocol/protocol.hpp"
 #include "Terrain/chunk.hpp"
 #include "Terrain/structures.hpp"
@@ -345,10 +346,13 @@ void Server::generateChunk(int cx, int cz) {
         nextObjectId++;
 
         for (int i = height; i > 0; i--) {
+          int stoneHeightMod = terrain.hash(cellX, cellZ) % 4 - 2;
           blockY -= blockSize.y;
           Object below(nextObjectId,
                        ObjectTransform{{blockX, blockY, blockZ}, blockSize},
-                       BlockType::Dirt);
+                       height - i + stoneHeightMod > env::STONE_HEIGHT
+                           ? BlockType::Stone
+                           : BlockType::Dirt);
           addBlock(below, false); // generated, not a new edit
           nextObjectId++;
         }
