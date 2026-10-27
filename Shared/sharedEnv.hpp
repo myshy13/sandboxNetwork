@@ -9,4 +9,7 @@ constexpr int SHARED_WATER_MAX_LEVEL =
     8; // weakest flowing water; server flow and client water height both use it
 constexpr std::string SHARED_VERSION =
     "0.9.2"; // accounts: sign in, tickets, bans (iOS and tvOS guest-only)
-             // fix tests
+// fix tests
+
+constexpr int MAX_CHUNK_DISTANCE = 32; // by chunk
+constexpr float NET_CHUNK_SIZE = 16 * SHARED_BLOCK_SIZE.x;

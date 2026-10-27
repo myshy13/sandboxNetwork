@@ -14,20 +14,20 @@ and skipped items were cleared (see git history and `plan.md`).
 
 ## Maintenance
 
-- [ ] Fix the narrowing warnings MSVC reported in the server (`int` -> `float`
+- [x] Fix the narrowing warnings MSVC reported in the server (`int` -> `float`
       at `server.hpp:72`, `server.cpp` chunk/terrain code, `unsigned` seed in
-      `main.cpp`) with explicit casts so `-Wall -Wextra` stays clean.
+      `main.cpp`) with explicit casts so `-Wall -Wextra` stays clean. **Skipped:** Windows is not _recommended_. _im also too lazy_
 - [ ] Remaining duplicated-by-hand constants (`STREAM_CHUNK_SIZE` vs
       `CHUNK_SIZE`, `MAX_RENDER_DISTANCE` vs `MAX_VIEW_RADIUS`): move into
       `sharedEnv.hpp` like `SHARED_PLAYER_HEALTH`, update `arch.md`.
-- [ ] `static constexpr TREE_SHAPE` in a header gives every includer its own
+- [x] `static constexpr TREE_SHAPE` in a header gives every includer its own
       copy: make it `inline constexpr` (formatting rule).
 - [ ] Server: hard-close the connection after sending `kick` on a protocol
       version mismatch instead of letting it linger.
 - [x] CI: run the two test suites (`Shared/Protocol`, `Server`) before the
       builds in `build.yml` (`test.yml` exists, make releases depend on it).
 - [ ] Seed the CI build cache from `main` so tag releases aren't cold builds.
-- [ ] Windows build parked: needs `NOGDI NOUSER NOMINMAX` on the server target.
+- [-] Windows build parked: needs `NOGDI NOUSER NOMINMAX` on the server target. **Skipped:** Windows is no longer built by the CI
 
 ## Building & world
 
@@ -53,7 +53,7 @@ Each is an enum value + `BLOCK_INFO` row (see "Adding a block" in `arch.md`). Gr
 Just a row and a texture (flags only):
 
 - [x] glass (see `plan.md`, "Then: glass"): solid, translucent, not opaque
-- [ ] *stone*, gravel, snow, brick: plain solid cubes, for terrain variety and building
+- [ ] _stone_, gravel, snow, brick: plain solid cubes, for terrain variety and building
 - [ ] ice: solid + translucent, a good cold-biome block
 - [ ] cactus / bush: solid, could hurt on touch later (needs a damage hook, so wait)
 
@@ -76,12 +76,12 @@ Cows, sheep, chickens. This is a new system, not a block: expect it to be bigger
 more work than bullets, about the size of chunk streaming). Do it in slices, each one playable:
 
 - [ ] 1. One entity type (a cow) that the **server** owns and moves: a `std::vector<Entity>` next to `players` and
-      `bullets` in `Server`, ticked in `Server::tick`. Wander AI: pick a direction, walk a few seconds, stand, repeat.
-      Server-side gravity and block collision (players do this on the client; an animal can't, nobody owns it)
+     `bullets` in `Server`, ticked in `Server::tick`. Wander AI: pick a direction, walk a few seconds, stand, repeat.
+     Server-side gravity and block collision (players do this on the client; an animal can't, nobody owns it)
 - [ ] 2. Sync it: `SpawnEntity` / `EntityUpdate` (unreliable, like `PlayerUpdate`) / `DespawnEntity` in `protocol.hpp`,
-      plus a client list and a drawn box (a cube cow first, a model later). Interpolate between updates on the client
+     plus a client list and a drawn box (a cube cow first, a model later). Interpolate between updates on the client
 - [ ] 3. Interest: only send entities in chunks the client can see (reuse the per-client chunk view, `updateView` /
-      `broadcastToChunk`), or every animal on the map goes to every player
+     `broadcastToChunk`), or every animal on the map goes to every player
 - [ ] 4. Shootable: reuse the bullet sweep in `Server::tick` against entity boxes; entity health, death, despawn
 - [ ] 5. Spawning: a few per chunk from the seed when it generates, a cap per chunk, despawn when far from all players
 - [ ] 6. More species and drops (meat, wool), once one species is solid
@@ -190,8 +190,8 @@ Same voxel look, different game. Pick a direction before building any of these: 
 ## Admin & moderation
 
 - [-] `AdminUnban`: the admin panel's unban also tells the game server (new message, admin-checked like `AdminKick`),
-      so it drops that account from the revoked-tickets list. Until then an unbanned player stays blocked on the game
-      server until their entry expires (up to an hour). **Skipped:** They can just log back in, it's not that hard
+  so it drops that account from the revoked-tickets list. Until then an unbanned player stays blocked on the game
+  server until their entry expires (up to an hour). **Skipped:** They can just log back in, it's not that hard
 - [x] Game server revoked-tickets list: `AdminKick` records the account (`revokedUntil`, lifetime = ticket lifetime +
       `EXPIRY_GRACE_WINDOW`), and the `clientHandshake` and `TicketRefresh` cases reject it, so a banned player can't
       rejoin on a ticket that is still valid.

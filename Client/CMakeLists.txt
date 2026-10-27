@@ -231,7 +231,7 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 # Shadows start on natively and off in the browser and on phones (the settings screen can
 # still change it); game code reads this as a plain value, not an #ifdef.
-if(BUILD_WEB OR BUILD_IOS)
+if(BUILD_WEB OR BUILD_IOS OR BUILD_TVOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=0)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE SHADOWS_DEFAULT=1)
@@ -240,7 +240,7 @@ endif()
 if(BUILD_TVOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
 elseif(BUILD_WEB)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.5f)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.2f) # increases fps slightly
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE RENDER_SCALE_DEFAULT=1.0f)
 
@@ -252,7 +252,7 @@ endif()
 
 # Auto-jump (hop up one-block ledges while walking into them) starts on for phones, which have too few
 # fingers for a jump button as well as a stick and a look drag; the settings screen can still change it.
-if(BUILD_IOS)
+if(BUILD_IOS OR BUILD_TVOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE AUTO_JUMP_DEFAULT=1)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE AUTO_JUMP_DEFAULT=0)
@@ -260,7 +260,9 @@ endif()
 
 # Frame-rate cap: 0 means uncapped (the browser's loop paces the web build, iOS's display link
 # paces the phone, and the settings slider is hidden there); native starts at 120.
-if(BUILD_WEB OR BUILD_IOS)
+if(BUILD_WEB)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=100)
+elseif(BUILD_IOS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=0)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE TARGET_FPS_DEFAULT=120)
@@ -406,13 +408,18 @@ if(BUILD_WEB)
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
+    # optimisations
         "-O3"
+        "-flto"
+        "-sWASM_BIGINT"
+        "-sMALLOC=emmalloc"
         "-sUSE_GLFW=3"
         "-sWASM=1"
         "-sALLOW_MEMORY_GROWTH=1"
         "-sFETCH=1"
+        "-s USE_PTHREADS=1"
         # TEMP debugging: function names in stack traces + runtime checks; remove once the web freeze is fixed
-        "-sASSERTIONS=2"
+
         "--profiling-funcs"
         "-sMIN_WEBGL_VERSION=2"
         "-sMAX_WEBGL_VERSION=2"

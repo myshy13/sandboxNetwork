@@ -837,7 +837,7 @@ void Server::handleReceive(int playerId, const std::string &data) {
       // Identity comes from the connection; the radius is client-supplied, so
       // clamp it.
       if (auto it = views.find(playerId); it != views.end()) {
-        it->second.radius = std::clamp(msg.radius, 2, env::MAX_VIEW_RADIUS);
+        it->second.radius = std::clamp(msg.radius, 2, MAX_CHUNK_DISTANCE);
       }
       break;
     }

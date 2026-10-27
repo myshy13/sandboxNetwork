@@ -27,17 +27,19 @@ class GameState {
 
  public:
   Font mainFont{};
-  // How far around the player the sun's shadow map reaches (world units).
-  static constexpr int MIN_SHADOW_RADIUS = 50;
-  static constexpr int MAX_SHADOW_RADIUS = 400;
-  static constexpr int DEFAULT_SHADOW_RADIUS = 200;
-  static constexpr int DEFAULT_TARGET_FPS =
-      TARGET_FPS_DEFAULT;  // 0 = uncapped, see CMakeLists.txt
 
   // automatically adjusts from shared env
   static constexpr int MIN_RENDER_DISTANCE = env::BLOCKSIZE.x * 8 * 5;
   static constexpr int MAX_RENDER_DISTANCE =
       MAX_CHUNK_DISTANCE * (env::BLOCKSIZE.x) * 16;
+
+  // How far around the player the sun's shadow map reaches (world units).
+  // same as render distance
+  static constexpr int MIN_SHADOW_RADIUS = MIN_RENDER_DISTANCE;
+  static constexpr int MAX_SHADOW_RADIUS = MAX_RENDER_DISTANCE;
+  static constexpr int DEFAULT_SHADOW_RADIUS = 200;
+  static constexpr int DEFAULT_TARGET_FPS =
+      TARGET_FPS_DEFAULT;  // 0 = uncapped, see CMakeLists.txt
 
   static GameState& shared() {
     static GameState instance;

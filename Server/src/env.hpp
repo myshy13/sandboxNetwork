@@ -39,8 +39,8 @@ constexpr float MAX_TICK_DT =
 constexpr int PLAYER_MAX_HEALTH =
     SHARED_PLAYER_HEALTH; // the client's env::MAX_HEALTH aliases it too
 
-constexpr int MAX_VIEW_RADIUS = 8;     // absolute maximum (to stop cheating)
-constexpr int DEFAULT_VIEW_RADIUS = 4; // default
+constexpr int DEFAULT_VIEW_RADIUS =
+    MAX_CHUNK_DISTANCE / 2;            // default, until the client broadcasts
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick
 
 constexpr uint32_t saveFormatVersion = 6; // Added Stone blocktype
