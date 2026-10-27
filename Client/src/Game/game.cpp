@@ -214,7 +214,7 @@ void Game::handlePause() {
 
   if (!inChat) {
     paused = !paused;
-    input.setMouseLook(!paused || !client.isConnected());
+    input.setMouseLook(!paused);
   } else {
     inChat = false;
     chatInput.clear();
