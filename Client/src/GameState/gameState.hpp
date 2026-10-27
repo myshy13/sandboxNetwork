@@ -5,6 +5,8 @@
 #include <utility>
 
 #include "UI/Background/background.hpp"
+#include "env.hpp"
+#include "sharedEnv.hpp"
 
 enum class MenuState { Home, Settings, Playing, Login };
 
@@ -16,7 +18,7 @@ class GameState {
   bool windowCloseRequested{false};
 
   // ==== settings ==== //
-  int renderDistance{500};
+  int renderDistance{(int)(NET_CHUNK_SIZE / 2 * MAX_CHUNK_DISTANCE)};
   bool interpolation{true};
   bool shadows{SHADOWS_DEFAULT != 0};     // set per platform in CMakeLists.txt
   bool autoJump{AUTO_JUMP_DEFAULT != 0};  // set per platform in CMakeLists.txt
@@ -32,10 +34,10 @@ class GameState {
   static constexpr int DEFAULT_TARGET_FPS =
       TARGET_FPS_DEFAULT;  // 0 = uncapped, see CMakeLists.txt
 
-  static constexpr int MIN_RENDER_DISTANCE = 200;
-  // The server holds at most env::MAX_VIEW_RADIUS (8) chunks of
-  // World::STREAM_CHUNK_SIZE (80) around you; keep in sync.
-  static constexpr int MAX_RENDER_DISTANCE = 640;
+  // automatically adjusts from shared env
+  static constexpr int MIN_RENDER_DISTANCE = env::BLOCKSIZE.x * 8 * 5;
+  static constexpr int MAX_RENDER_DISTANCE =
+      MAX_CHUNK_DISTANCE * (env::BLOCKSIZE.x) * 16;
 
   static GameState& shared() {
     static GameState instance;

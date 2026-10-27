@@ -65,18 +65,13 @@ class World {
   using BlockPredicate = bool (*)(BlockType);
   bool boxCollides(BoundingBox box, BlockPredicate matches = ::isSolid) const;
 
-  static constexpr float CHUNK_SIZE =
+  static constexpr float COLLISION_CHUNK_SIZE =
       15.0f;  // world units per chunk (3 blocks)
-
-  // The server's streaming chunk (16x16 cells, every height), not the renderer
-  // chunk above.
-  static constexpr float STREAM_CHUNK_SIZE =
-      80.0f;  // must match CHUNK_SIZE in Server/src/Server/server.cpp
 
   // Which streaming chunk a world x or z falls in; floors as a float, since an
   // (int) cast rounds toward zero.
   static int streamChunkCoord(float v) {
-    return (int)floorf(v / STREAM_CHUNK_SIZE);
+    return (int)floorf(v / NET_CHUNK_SIZE);
   }
 
   // Indices into getObjects() of every block in a chunk, or null if it's empty.

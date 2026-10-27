@@ -26,6 +26,7 @@
 #include "UI/Theme/theme.hpp"
 #include "World/world.hpp"
 #include "env.hpp"
+#include "sharedEnv.hpp"
 #ifdef CHEATS
 #include <sstream>
 #endif
@@ -193,8 +194,8 @@ void Game::applyNetworkUpdates() {
 // Render distance is in world units; the server counts chunks, and clamps what
 // it accepts.
 void Game::syncViewRadius() {
-  const int chunks = (int)std::ceil(GameState::shared().getRenderDistance() /
-                                    World::STREAM_CHUNK_SIZE);
+  const int chunks =
+      (int)std::ceil(GameState::shared().getRenderDistance() / NET_CHUNK_SIZE);
   if (chunks == sentViewRadius) return;
   if (client.sendViewRadius(chunks)) {
     sentViewRadius =
@@ -583,7 +584,7 @@ void Game::drawChunkBorders() {
 
   constexpr int RADIUS = 2;      // chunks drawn on each side of yours
   constexpr float TOP = 200.0f;  // how tall the border lines are
-  constexpr float SIZE = World::STREAM_CHUNK_SIZE;
+  constexpr float SIZE = NET_CHUNK_SIZE;
   const Vector3 pos = player.getTransform().translation;
   const int cx = World::streamChunkCoord(pos.x);
   const int cz = World::streamChunkCoord(pos.z);

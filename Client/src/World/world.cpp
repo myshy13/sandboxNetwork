@@ -128,8 +128,8 @@ void World::update(float dt) {
 
 // ==== chunks ==== //
 static int64_t chunkKey(Vector3 pos) {
-  int cx = (int)floorf(pos.x / World::CHUNK_SIZE);
-  int cz = (int)floorf(pos.z / World::CHUNK_SIZE);
+  int cx = (int)floorf(pos.x / World::COLLISION_CHUNK_SIZE);
+  int cz = (int)floorf(pos.z / World::COLLISION_CHUNK_SIZE);
   return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
 }
 
