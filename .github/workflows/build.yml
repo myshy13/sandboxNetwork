@@ -8,7 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Release is gated on the full test suite (reusable workflow in test.yml)
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: test
     strategy:
       fail-fast: false
       matrix:

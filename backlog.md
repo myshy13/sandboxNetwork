@@ -24,11 +24,10 @@ and skipped items were cleared (see git history and `plan.md`).
       copy: make it `inline constexpr` (formatting rule).
 - [ ] Server: hard-close the connection after sending `kick` on a protocol
       version mismatch instead of letting it linger.
-- [ ] CI: run the two test suites (`Shared/Protocol`, `Server`) before the
+- [x] CI: run the two test suites (`Shared/Protocol`, `Server`) before the
       builds in `build.yml` (`test.yml` exists, make releases depend on it).
 - [ ] Seed the CI build cache from `main` so tag releases aren't cold builds.
 - [ ] Windows build parked: needs `NOGDI NOUSER NOMINMAX` on the server target.
-- [ ] Bump `GAME_VERSION` and tag `vX.Y.Z` per release.
 
 ## Building & world
 
