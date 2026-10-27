@@ -61,6 +61,19 @@ FetchContent_Declare(
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
+# ES3 raylib makes an unsized depth texture (WebGL2 rejects it: no shadow map); see cmake/patchRaylibDepth.cmake
+function(patch_raylib_depth rlgl)
+    execute_process(COMMAND ${CMAKE_COMMAND} -DRLGL=${rlgl}
+        -P "${CMAKE_SOURCE_DIR}/cmake/patchRaylibDepth.cmake"
+        RESULT_VARIABLE PATCH_RESULT OUTPUT_VARIABLE PATCH_OUT ERROR_VARIABLE PATCH_OUT)
+    if(NOT PATCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "cmake/patchRaylibDepth.cmake failed:\n${PATCH_OUT}")
+    endif()
+    if(PATCH_OUT)
+        message(STATUS "${PATCH_OUT}")  # empty when it was already patched
+    endif()
+endfunction()
+
 if(BUILD_WEB)
     set(PLATFORM "Web" CACHE STRING "" FORCE)
     # Web defaults to GLES2 rlgl, whose instancing/VAO extension pointers are null in a WebGL2 context
@@ -96,6 +109,8 @@ if(BUILD_IOS)
             endif()
             file(TOUCH "${RAYLIB_TVOS_STAMP}")
         endif()
+        # The copy only, never the fork checkout; unverified whether this is bugs.md #1
+        patch_raylib_depth("${RAYLIB_TVOS_DIR}/src/rlgl.h")
         set(raylib_SOURCE_DIR "${RAYLIB_TVOS_DIR}")
     endif()
     foreach(m rcore rshapes rtextures rtext rmodels raudio)
@@ -126,6 +141,9 @@ if(BUILD_IOS)
         "-framework AudioToolbox" "-framework CoreAudio" "-framework AVFoundation")
 else()
     FetchContent_MakeAvailable(raylib)
+    if(BUILD_WEB)
+        patch_raylib_depth("${raylib_SOURCE_DIR}/src/rlgl.h")
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------
@@ -408,7 +426,7 @@ if(BUILD_WEB)
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
-    # optimisations
+        # optimisations
         "-O3"
         "-flto"
         "-sWASM_BIGINT"

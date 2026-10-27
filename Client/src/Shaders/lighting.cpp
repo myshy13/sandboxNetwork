@@ -128,6 +128,12 @@ void Lighting::setShadow(const Matrix& lightVP, unsigned int depthTextureId,
   rlSetUniform(shadowMapLoc, &slot, SHADER_UNIFORM_INT, 1);
 }
 
+void Lighting::unbindShadow() const {
+  rlActiveTextureSlot(SHADOW_SLOT);
+  rlDisableTexture();
+  rlActiveTextureSlot(0);  // back to raylib's default, or its next bind lands here
+}
+
 void Lighting::setShadowsEnabled(bool enabled) {
   const int value = enabled ? 1 : 0;
   SetShaderValue(shader, useShadowsLoc, &value, SHADER_UNIFORM_INT);

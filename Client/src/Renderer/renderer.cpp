@@ -394,6 +394,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   Camera3D shadowCamera = {
       toSun * D, {0, 0, 0}, {0, 0, PI}, 2 * mapRadius, CAMERA_ORTHOGRAPHIC};
 
+  lighting.unbindShadow();  // still bound from last frame's setShadow
   BeginTextureMode(shadowMapTarget);
   ClearBackground(WHITE);
   rlSetClipPlanes(1, D + mapRadius + 100);

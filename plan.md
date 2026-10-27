@@ -29,7 +29,7 @@ What's left:
 - [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); checked in the
       afternoon, the stripes are gone. Tune by eye if it changes (stripes = too small, floating shadows = too big)
 - [ ] Night: skip the pass while the sun is below the horizon
-- [ ] Web: check the depth-texture extension and `glsl100` in a browser once
+- [x] Web: check the depth-texture extension and `glsl100` in a browser once
 
 Known limits: a low sun squashes the covered area into a thin ellipse of the map, so shadows blur along the sun's
 direction; unloaded chunks count as open air, so shadows can pop in as chunks load; water casts none.

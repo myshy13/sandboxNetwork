@@ -38,6 +38,9 @@ class Lighting {
   void setShadow(const Matrix& lightVP, unsigned int depthTextureId,
                  int mapSize);
 
+  // Before drawing into the depth map: WebGL refuses a draw while it is bound for reading too.
+  void unbindShadow() const;
+
   // Off makes the shader skip the shadow lookup entirely.
   void setShadowsEnabled(bool enabled);
 
