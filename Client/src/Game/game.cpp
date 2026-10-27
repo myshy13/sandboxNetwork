@@ -42,14 +42,14 @@ Game::Game(const AssetManager& a, Input& input, Auth& auth)
                         ButtonStyles::Primary)) {
   // ==== lighting ==== //
   DirectionalLight light = lighting.timeToLight(world.getTime());
-  sunLights[0] = lighting.addDirectional(Vector3Add(light.pos, {0, 0, 0}),
-                                         light.tar, light.color);
-  sunLights[1] = lighting.addDirectional(Vector3Add(light.pos, {10, 0, 0}),
-                                         light.tar, light.color);
-  sunLights[2] = lighting.addDirectional(Vector3Add(light.pos, {-10, -10, 10}),
-                                         light.tar, light.color);
-  sunLights[3] = lighting.addDirectional(Vector3Add(light.pos, {0, 10, -10}),
-                                         light.tar, light.color);
+  constexpr float LIGHT_RING_RADIUS = 10.0f;
+  for (int i = 0; i < 4; ++i) {
+    const float angle = i * (2.0f * PI / 4.0f);
+    const Vector3 offset = {std::cos(angle) * LIGHT_RING_RADIUS, 0.0f,
+                            std::sin(angle) * LIGHT_RING_RADIUS};
+    sunLights[i] = lighting.addDirectional(Vector3Add(light.pos, offset),
+                                           light.tar, light.color);
+  }
 }
 
 Game::~Game() {
