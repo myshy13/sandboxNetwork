@@ -31,7 +31,11 @@ TextBox::TextBox(std::string& content, float yPos, bool masked,
   initialY = yPos;
 }
 
-void TextBox::update() {
+void TextBox::update(float dt) {
+  statusResetCountdown -= dt;
+  if (statusResetCountdown <= 0.0f) {
+    status = TextBoxStatus::None;
+  }
   const bool hovered = CheckCollisionPointRec(input.getPointer(), rec);
   if (hovered) input.setCursorStyle(MOUSE_CURSOR_IBEAM);
 
@@ -57,7 +61,12 @@ void TextBox::update() {
 
 void TextBox::draw() {
   const Rectangle inner = Theme::DrawTrack(rec);
-  if (focused) DrawRectangleLinesEx(rec, Theme::Border, Theme::Focus);
+  // Status shows unfocused too: clicking the submit button unfocuses the box.
+  if (focused || status != TextBoxStatus::None)
+    DrawRectangleLinesEx(rec, Theme::Border,
+                         status == TextBoxStatus::None    ? Theme::Focus
+                         : status == TextBoxStatus::Error ? Theme::Red
+                                                          : Theme::Green);
 
   bool muted{false};
   std::string shown = masked ? std::string(content.size(), '*') : content;
@@ -83,8 +92,8 @@ void TextBox::draw() {
         fontSize, Theme::Text);
 }
 
-void TextBox::frame() {
+void TextBox::frame(float dt) {
   if (IsWindowResized() && initialY.has_value()) setYPos(initialY.value());
-  update();
+  update(dt);
   draw();
 }

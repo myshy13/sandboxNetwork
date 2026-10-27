@@ -76,13 +76,13 @@ void AccountMenu::frame() {
                (float)GetScreenHeight() / 2 - 100 + 2, 40, Theme::TextMuted);
   DrawTextFont("Username", GetScreenWidth() / 2 - BUTTON_WIDTH / 2,
                (float)GetScreenHeight() / 2 - 100, 40, Theme::Text);
-  usernameBox.frame();
+  usernameBox.frame(GetFrameTime());
   DrawTextFont("Password", GetScreenWidth() / 2 - BUTTON_WIDTH / 2 + 2,
                (float)GetScreenHeight() / 2 + 110 - 50 + 2, 40,
                Theme::TextMuted);
   DrawTextFont("Password", GetScreenWidth() / 2 - BUTTON_WIDTH / 2,
                (float)GetScreenHeight() / 2 + 110 - 50, 40, Theme::Text);
-  passwordBox.frame();
+  passwordBox.frame(GetFrameTime());
 
   const bool clicked = input.pressed(Action::Click);
   loginButton.frame(input, clicked);

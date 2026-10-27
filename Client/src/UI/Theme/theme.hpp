@@ -19,6 +19,7 @@ inline constexpr Color PanelShadow{7, 10, 24, 255};
 inline constexpr Color Text{200, 230, 255, 255};
 inline constexpr Color TextMuted{141, 150, 189, 255};
 inline constexpr Color Focus{60, 100, 210, 255};
+inline constexpr Color Green{30, 189, 70, 255};
 
 // Metrics
 inline constexpr float Border = 4.0f;

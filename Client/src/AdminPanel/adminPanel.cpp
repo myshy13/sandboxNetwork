@@ -217,7 +217,7 @@ void AdminPanel::frame(float dt) {
     }
   }
 
-  unbanBox.frame();
+  unbanBox.frame(GetFrameTime());
   Button unbanButton(
       [&]() {
         if (state == AdminPanelState::Sending) return;
@@ -285,9 +285,9 @@ void AdminPanel::drawBanForm(const std::string& name) {
                labelY, 30, Theme::Text);
 
   reasonBox.setYPos(reasonY);
-  reasonBox.frame();
+  reasonBox.frame(GetFrameTime());
   hoursBox.setYPos(hoursY);
-  hoursBox.frame();
+  hoursBox.frame(GetFrameTime());
   if (banReason.size() > MAX_REASON_LENGTH) banReason.resize(MAX_REASON_LENGTH);
 
   const Rectangle cancelRec = {left, buttonsY, halfWide, BUTTON_HEIGHT};

@@ -10,6 +10,8 @@
 
 constexpr int TEXTBOX_FONTSIZE = 30;
 
+enum TextBoxStatus { Error, Success, None };
+
 class TextBox {
  private:
   Rectangle rec;
@@ -26,7 +28,10 @@ class TextBox {
   int fontSize{TEXTBOX_FONTSIZE};
   ButtonStyle style;
 
-  void update();
+  float statusResetCountdown = 0.0f;
+  TextBoxStatus status{TextBoxStatus::None};
+
+  void update(float dt);
   void draw();
 
  public:
@@ -47,5 +52,10 @@ class TextBox {
     rec = r;
   }
 
-  void frame();
+  void frame(float dt);
+
+  void setStatus(TextBoxStatus s, float statusResetCooldown) {
+    status = s;
+    statusResetCountdown = statusResetCooldown;
+  }
 };
