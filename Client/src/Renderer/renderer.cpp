@@ -381,7 +381,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
       std::min(GameState::shared().getShadowRadius(),
                GameState::shared().getRenderDistance()) *
       NET_CHUNK_SIZE;  // both settings are in chunks
-  const float mapRadius = radius + SHADOW_SNAP * sqrtf(2.0f);
+  const float mapRadius = radius + SHADOW_SNAP * sqrtf(3.0f);
 
   const float D = 2 * mapRadius;
 
@@ -389,6 +389,7 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   Vector3 centre = camera.position;
   centre.x = floorf(centre.x / SHADOW_SNAP) * SHADOW_SNAP;
   centre.z = floorf(centre.z / SHADOW_SNAP) * SHADOW_SNAP;
+  centre.y = floorf(centre.y / SHADOW_SNAP) * SHADOW_SNAP;
 
   Camera3D shadowCamera = {
       toSun * D, {0, 0, 0}, {0, 0, PI}, 2 * mapRadius, CAMERA_ORTHOGRAPHIC};
