@@ -86,7 +86,7 @@ Server::Server(FILE *console, int wsPort, std::string savePath, int saveTime,
     std::fprintf(stderr, "Failed to initialize ENet\n");
     std::exit(EXIT_FAILURE);
   }
-  std::printf("ENet initialized\n");
+  std::printf("[Server] ENet initialized\n");
 
   if (pubkeyPath != "") {
     std::ifstream pubKeyFile(pubkeyPath, std::ios::binary);
@@ -185,7 +185,7 @@ void Server::saveWorld() {
   for (auto &[key, chunk] : snapshot) {
     auto [cx, cz] = chunkCoords(key);
     if (!writeChunkFile(chunkFilePath(savePath, cx, cz), chunk))
-      std::printf("ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
+      std::printf("[Server] ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
                   cz); // no later save to retry in
   }
 }
@@ -259,10 +259,10 @@ int Server::checkOverlaps() const {
   if (cells > 0) {
     std::fprintf(
         stderr,
-        "overlapping blocks: %d cells hold 2+ blocks (%d extra of %zu)\n",
+        "[World] overlapping blocks: %d cells hold 2+ blocks (%d extra of %zu)\n",
         cells, extra, objects.size());
   } else {
-    std::printf("no overlapping blocks (%zu objects)\n", objects.size());
+    std::printf("[World] no overlapping blocks (%zu objects)\n", objects.size());
   }
   return extra;
 }
@@ -502,7 +502,7 @@ std::optional<Bullet> Server::createBullet(Player *p, Vector3 origin,
 int Server::handleConnect(std::unique_ptr<Connection> connection) {
   const int id = nextClientId;
   nextClientId++;
-  std::printf("Client %d connected\n", id);
+  std::printf("[Server] Client %d connected\n", id);
 
   connections[id] = std::move(connection);
 
@@ -539,7 +539,7 @@ int Server::handleConnect(std::unique_ptr<Connection> connection) {
 }
 
 void Server::handleDisconnect(int playerId) {
-  std::printf("Client %d disconnected\n", playerId);
+  std::printf("[Server] Client %d disconnected\n", playerId);
   Player *p = findPlayer(playerId);
   if (p != nullptr) {
     std::optional<uint32_t> accountId = p->accountId;
@@ -930,11 +930,11 @@ void Server::handleReceive(int playerId, const std::string &data) {
     }
 
     default:
-      std::printf("Invalid request\n");
+      std::printf("[Server] Invalid request\n");
       break;
     }
   } catch (const std::exception &e) {
-    std::printf("ERR: bad message (type %d) from player %d: %s\n",
+      ("[Server] ERR: bad message (type %d) from player %d: %s\n",
                 (int)proto::peekType(data), playerId, e.what());
   }
 }
@@ -1284,7 +1284,7 @@ void Server::tick(float dt) {
       double tickMs = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - tickStart)
                           .count();
-      std::printf("tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
+      std::printf("[Server] tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
                   tickMs, objects.size(), bullets.size(), players.size());
     }
   }
