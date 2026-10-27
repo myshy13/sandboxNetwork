@@ -45,7 +45,10 @@ public:
     }
 
     ENetAddress address;
-    enet_address_set_host(&address, hostName.c_str());
+    if (enet_address_set_host(&address, hostName.c_str()) != 0) {
+      std::fprintf(stderr, "[net] can't resolve host %s\n", hostName.c_str());
+      return;  // address is unset; connecting would hit garbage
+    }
     address.port = static_cast<enet_uint16>(port);
 
     peer = enet_host_connect(host, &address, 2, 0);

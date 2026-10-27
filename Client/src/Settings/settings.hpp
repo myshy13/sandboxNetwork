@@ -3,23 +3,35 @@
 #include "Input/input.hpp"
 #include "UI/Button/button.hpp"
 #include "UI/Slider/slider.hpp"
+#include "UI/TextBox/textbox.hpp"
 
 class Settings {
-  private:
-    GameState &gameState = GameState::shared();
-    Button exitButton;
-    Button vsyncButton;
-    Button interpolationButton;
-    Button shadowsButton;
-    Button autoJumpButton;
-    Slider renderDistanceSlider;
-    Slider shadowRadiusSlider;
-    Slider targetFpsSlider;
-    Input& input;
+ private:
+  GameState& gameState = GameState::shared();
 
-    float scroll{0.0f};
+  Slider renderDistanceSlider;
+  Slider shadowRadiusSlider;
+  Slider targetFpsSlider;
 
-   public:
-    Settings(Input& input);
-    void frame();
+  Button exitButton;
+  Button vsyncButton;
+  Button interpolationButton;
+  Button shadowsButton;
+  Button autoJumpButton;
+
+  TextBox serverPort;
+  TextBox serverIp;
+
+  Button setServerButton;
+
+  Input& input;
+
+  std::string ip;
+  std::string port;
+
+  float scroll{0.0f};
+
+ public:
+  Settings(Input& input);
+  void frame();
 };

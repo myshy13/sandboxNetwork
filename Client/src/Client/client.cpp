@@ -44,11 +44,12 @@ bool Client::connect() {
       (kickReason || secondsSinceConnect() < CONNECT_TIMEOUT))
     return false;
 
-  std::cout << "Joining server: " << env::SERVER_IP << " at port " << port
-            << "\n";
+  std::cout << "Joining server: " << GameState::shared().getIp() << " at port "
+            << GameState::shared().getPort() << "\n";
   disconnect();
   transport = makeTransport();
-  transport->connect(env::SERVER_IP, port);
+  transport->connect(GameState::shared().getIp(),
+                     GameState::shared().getPort());
 
   // ==== forget the last session ==== //
   players.clear();

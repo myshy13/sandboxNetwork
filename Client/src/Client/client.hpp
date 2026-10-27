@@ -74,7 +74,6 @@ struct WorldEvent {
 class Client {
  private:
   int lastTicketSerial{0};
-  int port{env::SERVER_PORT};
   std::unique_ptr<Transport> transport;
 
   std::vector<OnlinePlayer> players{};
