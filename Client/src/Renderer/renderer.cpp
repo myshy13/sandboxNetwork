@@ -271,7 +271,7 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
       continue;  // whole cell is off-screen, skip ever block in it
     if (Vector3Distance(
             Vector3Scale(Vector3Add(cell.bounds.max, cell.bounds.min), 0.5),
-            camera.position) > GameState::shared().getRenderDistance())
+            camera.position) > GameState::shared().getRenderDistanceUnits())
       continue;
 
     for (size_t n = 0; n < cell.indices.size(); n++) {
@@ -378,8 +378,9 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   // The settings screen sets how far shadows reach; no point mapping farther
   // than the world is drawn.
   const float radius =
-      static_cast<float>(std::min(GameState::shared().getShadowRadius(),
-                                  GameState::shared().getRenderDistance()));
+      std::min(GameState::shared().getShadowRadius(),
+               GameState::shared().getRenderDistance()) *
+      NET_CHUNK_SIZE;  // both settings are in chunks
   const float mapRadius = radius + SHADOW_SNAP * sqrtf(2.0f);
 
   const float D = 2 * mapRadius;

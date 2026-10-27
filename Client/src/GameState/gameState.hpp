@@ -41,11 +41,11 @@ class GameState {
   bool windowCloseRequested{false};
 
   // ==== settings ==== //
-  int renderDistance{(int)(NET_CHUNK_SIZE / 2 * MAX_CHUNK_DISTANCE)};
+  int renderDistance{6};
   bool interpolation{true};
   bool shadows{SHADOWS_DEFAULT != 0};     // set per platform in CMakeLists.txt
   bool autoJump{AUTO_JUMP_DEFAULT != 0};  // set per platform in CMakeLists.txt
-  int shadowRadius{DEFAULT_SHADOW_RADIUS};
+  int shadowRadius{6};
   int targetFps{DEFAULT_TARGET_FPS};
 
   std::string serverIp = env::SERVER_IP;  // bare hostname or IPv4
@@ -55,15 +55,13 @@ class GameState {
   Font mainFont{};
 
   // automatically adjusts from shared env
-  static constexpr int MIN_RENDER_DISTANCE = env::BLOCKSIZE.x * 8 * 5;
-  static constexpr int MAX_RENDER_DISTANCE =
-      MAX_CHUNK_DISTANCE * (env::BLOCKSIZE.x) * 16;
+  static constexpr int MIN_RENDER_DISTANCE = 2;
+  static constexpr int MAX_RENDER_DISTANCE = MAX_CHUNK_DISTANCE;
 
-  // How far around the player the sun's shadow map reaches (world units).
-  // same as render distance
+  // How far around the player the sun's shadow map reaches (chunks), same
+  // range as render distance
   static constexpr int MIN_SHADOW_RADIUS = MIN_RENDER_DISTANCE;
   static constexpr int MAX_SHADOW_RADIUS = MAX_RENDER_DISTANCE;
-  static constexpr int DEFAULT_SHADOW_RADIUS = 200;
   static constexpr int DEFAULT_TARGET_FPS =
       TARGET_FPS_DEFAULT;  // 0 = uncapped, see CMakeLists.txt
 
@@ -92,7 +90,9 @@ class GameState {
 
   void setRenderDistance(int distance) { renderDistance = distance; }
 
-  const int& getRenderDistance() const { return renderDistance; }
+  int getRenderDistance() const { return renderDistance; }
+
+  int getRenderDistanceUnits() const { return renderDistance * NET_CHUNK_SIZE; }
 
   void toggleInterpolation() { interpolation = !interpolation; }
 

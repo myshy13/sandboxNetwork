@@ -191,11 +191,10 @@ void Game::applyNetworkUpdates() {
   }
 }
 
-// Render distance is in world units; the server counts chunks, and clamps what
+// Render distance is in chunks, as the server counts it; the server clamps what
 // it accepts.
 void Game::syncViewRadius() {
-  const int chunks =
-      (int)std::ceil(GameState::shared().getRenderDistance() / NET_CHUNK_SIZE);
+  const int chunks = GameState::shared().getRenderDistance();
   if (chunks == sentViewRadius) return;
   if (client.sendViewRadius(chunks)) {
     sentViewRadius =
@@ -884,7 +883,7 @@ void Game::drawDebug() {
     // Far only has to clear the furthest block drawn, so it tracks render
     // distance.
     rlSetClipPlanes(NEAR_PLANES[nearPlaneStep],
-                    GameState::shared().getRenderDistance() + 100.0);
+                    GameState::shared().getRenderDistanceUnits() + 100.0);
   }
 
   constexpr int ROWSIZE = 30;

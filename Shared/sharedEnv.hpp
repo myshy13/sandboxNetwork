@@ -11,5 +11,5 @@ constexpr std::string SHARED_VERSION =
     "0.9.2"; // accounts: sign in, tickets, bans (iOS and tvOS guest-only)
 // fix tests
 
-constexpr int MAX_CHUNK_DISTANCE = 32; // by chunk
+constexpr int MAX_CHUNK_DISTANCE = 8; // by chunk; cost grows with its square
 constexpr float NET_CHUNK_SIZE = 16 * SHARED_BLOCK_SIZE.x;

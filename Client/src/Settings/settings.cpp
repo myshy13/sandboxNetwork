@@ -13,22 +13,24 @@
 #include "UI/TextBox/textbox.hpp"
 #include "UI/Theme/theme.hpp"
 
-// Distances are stored in world units; show them in blocks (5 units each).
-static std::string inBlocks(int units) { return std::to_string(units / 5); }
-
 static std::string noFormat(int units) { return std::to_string(units); }
+
+// Render and shadow distance are stored in chunks.
+static std::string inChunks(int chunks) {
+  return std::to_string(chunks) + " chunks";
+}
 
 Settings::Settings(Input& input)
     : renderDistanceSlider(
           "Render distance: ", GameState::MIN_RENDER_DISTANCE,
           GameState::MAX_RENDER_DISTANCE,
           [] { return GameState::shared().getRenderDistance(); },
-          [](int v) { GameState::shared().setRenderDistance(v); }, inBlocks),
+          [](int v) { GameState::shared().setRenderDistance(v); }, inChunks),
       shadowRadiusSlider(
           "Shadow distance: ", GameState::MIN_SHADOW_RADIUS,
           GameState::MAX_SHADOW_RADIUS,
           [] { return GameState::shared().getShadowRadius(); },
-          [](int v) { GameState::shared().setShadowRadius(v); }, inBlocks),
+          [](int v) { GameState::shared().setShadowRadius(v); }, inChunks),
       targetFpsSlider(
           "Target FPS: ", 10, 512,
           [] { return GameState::shared().getTargetFps(); },
