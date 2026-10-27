@@ -127,7 +127,7 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
   }
   if (!onGround) {
     if (inWater) {
-      velocity.y -= GRAVITY * dt * 0.2f;
+      velocity.y += swimPower * dt * 0.5f; // bouyancy
       // Terminal velocity: cap how fast we can fall.
       constexpr float TERMINAL_VELOCITY = -20;
       velocity.y = Clamp(velocity.y, TERMINAL_VELOCITY, jumpPower);

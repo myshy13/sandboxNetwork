@@ -17,7 +17,7 @@ and skipped items were cleared (see git history and `plan.md`).
 - [x] Fix the narrowing warnings MSVC reported in the server (`int` -> `float`
       at `server.hpp:72`, `server.cpp` chunk/terrain code, `unsigned` seed in
       `main.cpp`) with explicit casts so `-Wall -Wextra` stays clean. **Skipped:** Windows is not _recommended_. _im also too lazy_
-- [ ] Remaining duplicated-by-hand constants (`STREAM_CHUNK_SIZE` vs
+- [x] Remaining duplicated-by-hand constants (`STREAM_CHUNK_SIZE` vs
       `CHUNK_SIZE`, `MAX_RENDER_DISTANCE` vs `MAX_VIEW_RADIUS`): move into
       `sharedEnv.hpp` like `SHARED_PLAYER_HEALTH`, update `arch.md`.
 - [x] `static constexpr TREE_SHAPE` in a header gives every includer its own
@@ -41,7 +41,7 @@ and skipped items were cleared (see git history and `plan.md`).
 - [ ] tree interaction: leaves breakable, trunk gives cover (check bullets
       stop on tree blocks like any other block)
 - [ ] water: bucket / place-water block so players can shape flow
-- [ ] water: swimming (slower move, buoyancy) and a screen tint underwater
+- [x] water: swimming (slower move, buoyancy) and a _**green tint underwater**: done_
 - [ ] water: cap or test worst-case flow cost per tick on big open drops
 - [ ] sound effects (shoot, hit, splash)
 - [ ] Solid clouds (you can walk on them) **Note:** possibly maybe build the game goal about that
