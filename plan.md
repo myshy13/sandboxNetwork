@@ -111,7 +111,7 @@ Stages (each ends in something runnable). Route-level backlog for stage 1: `Auth
    - [x] 3h. iOS / tvOS: guest-only (no text entry). Check Mbed TLS and cpp-httplib build there; if not, stub the
          `HttpClient` and `TokenStore` with no-ops.
    - Known limit: two clients on one machine share the token file, so one failed refresh clears the other's token.
-     Fix later with a profile name in the path.
+     Fix later with a profile name in the path. **Unimportant:** Why would you have 2 clients if you're not debugging. You can't even have both client running with the same account
 4. [ ] Deployment: HTTPS in front of the auth service, systemd unit, key file permissions, SQLite backups (S3 later), game
        server flags. Later: email + password reset. Done early (branch `feature/admin-panel`): `POST /admin/unban`, the admin panel in the game client (calls `/admin/*`), and a revoked-tickets list on the game server fed by `AdminKick` (not pushed from auth).
 
