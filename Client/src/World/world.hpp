@@ -55,7 +55,6 @@ class World {
   bool isFluid(Vector3 pos) const;
   // Whether the specified cell contains water
   bool isWater(Vector3 pos) const;
-  // Whether the specified cell contains lava
   bool isTranslucent(Vector3 pos) const;
   // The flow level of the fluid in pos's cell (0 = source), or -1 if there's
   // no fluid there.

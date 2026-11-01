@@ -1341,10 +1341,7 @@ void Server::tick(float dt) {
                                         true);
                        removeBlock(index);
                        Object o(nextObjectId++, {pos, blockSize}, type);
-                       addBlock(o, true,
-                                true); // activate doesn't cost that much, and
-                                       // it might cause bugs in future if it's
-                                       // set to false
+                       addBlock(o, true, true);
                        broadcastToChunk(chunkKeyAt(pos),
                                         proto::pack(proto::Type::NewObject,
                                                     proto::NewObject{o}),
