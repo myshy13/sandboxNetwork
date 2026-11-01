@@ -19,6 +19,10 @@ uniform sampler2D shadowMap;
 uniform int shadowMapResolution;
 uniform int useShadows;  // 0 = skip the lookup (setting off)
 
+uniform vec4 fogColor;  // lava = red, only used for lava for now
+uniform float fogStartDistance;
+uniform float fogEndDistance;  // 0 = no fog
+
 // NOTE: Add here your custom variables
 
 #define     MAX_LIGHTS              4
@@ -131,5 +135,12 @@ void main()
 
     // Noise keyed to world position so the grain sticks to surfaces; 0.02 = strength
     finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.02;
+
+    // After gamma, so fogColor matches the cleared background exactly.
+    if (fogEndDistance > 0.0) {
+        float viewDistance = distance(viewPos, fragPosition);
+        float fogFactor = smoothstep(fogStartDistance, fogEndDistance, viewDistance);
+        finalColor.rgb = mix(finalColor.rgb, fogColor.rgb, fogFactor);
+    }
     gl_FragColor = finalColor;
 }

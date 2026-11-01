@@ -4,6 +4,7 @@
 #include <raymath.h>
 
 #include <cmath>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <utility>
@@ -106,6 +107,15 @@ void Client::poll() {
   }
 }
 
+// One per PlayerHitReason, in enum order. const char*, not a constexpr
+// std::string: that only compiles while every message fits its small buffer.
+constexpr const char* DEATH_MESSAGES[] = {"fell from a height", "died in lava",
+                                          "got shot by", "died"};
+
+static_assert(std::size(DEATH_MESSAGES) ==
+                  static_cast<size_t>(proto::PlayerHitReason::Count),
+              "There must be 1 death message per PlayerHitReason");
+
 bool Client::banPlayerMessage(const std::string& name,
                               const std::string& banReason) {
   if (playerId == -1 || !auth.isAdmin()) return false;
@@ -206,24 +216,24 @@ void Client::handleMessage(const std::string& data) {
       }
       if (msg.health <= 0) {
         ChatEntry deathMessage;
-        deathMessage.id = -1;
+        deathMessage.id = -1;  // -1 = server
         deathMessage.receivedAt = GetTime();
-        std::optional<std::string> name = idToName(msg.id);
-        if (msg.shooterId != -1) {
-          deathMessage.text =
-              "Player " + std::to_string(msg.shooterId) + " killed " +
-              (name.has_value() ? name.value()
-                                : "Player " + std::to_string(msg.id));
-        } else {
-          deathMessage.text =
-              (name.has_value() ? name.value()
-                                : "Player " + std::to_string(msg.id)) +
-              " fell from a height";
-        }
+        // A name may not have arrived yet; "Player N" can't misname an account.
+        auto nameOf = [&](int id) {
+          return idToName(id).value_or("Player " + std::to_string(id));
+        };
+        // A byte off the wire indexes DEATH_MESSAGES: unknown reads as Regular.
+        const proto::PlayerHitReason reason =
+            msg.hitReason < proto::PlayerHitReason::Count
+                ? msg.hitReason
+                : proto::PlayerHitReason::Regular;
+        const bool shot = reason == proto::PlayerHitReason::Shot;
+        std::string message =
+            nameOf(msg.id) + " " + DEATH_MESSAGES[static_cast<size_t>(reason)];
+        if (shot) message += " " + nameOf(msg.shooterId);
+        deathMessage.text = message;
         chat.push_back(deathMessage);
-        if (msg.shooterId != -1) {
-          kills[msg.shooterId] += 1;  // a fall has no killer
-        }
+        if (shot) kills[msg.shooterId] += 1;  // only a shot has a killer
       }
       break;
     }

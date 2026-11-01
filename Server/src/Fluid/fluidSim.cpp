@@ -1,8 +1,10 @@
 #include "fluidSim.hpp"
+#include "Models/blocks.hpp"
 #include "Server/blockHelpers.hpp"
 #include "env.hpp"
 #include "raymath.h"
 #include <algorithm>
+#include <cstddef>
 #include <utility>
 
 void FluidSim::tick(float dt, const FluidWorld &world) {
@@ -10,6 +12,7 @@ void FluidSim::tick(float dt, const FluidWorld &world) {
   if (flowAccumulator < env::FLOW_INTERVAL)
     return;
   flowAccumulator -= env::FLOW_INTERVAL;
+  passCount++;
 
   // Cells woken during this pass wait for the next one, so flow moves one cell
   // per pass in every direction.
@@ -25,11 +28,57 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
   if (it == world.occupiedCells.end())
     return;
   Object &occupant = world.objects[it->second];
-  if (occupant.getType() != BlockType::Water)
-    return;
-
+  // Each fluid only feeds, rests on and spreads as itself.
+  const BlockType type = occupant.getType();
   const Vector3 pos = occupant.getTransform().pos;
+
+  if (!isFluid(type))
+    return;
+  // ==== lava specific checks ==== //
+  if (type == BlockType::Lava) {
+    for (Vector3 offset :
+         {Vector3{BLOCK_SIZE, 0, 0}, Vector3{-BLOCK_SIZE, 0, 0},
+          Vector3{0, 0, BLOCK_SIZE}, Vector3{0, 0, -BLOCK_SIZE},
+          Vector3{0, -BLOCK_SIZE, 0}, Vector3{0, BLOCK_SIZE, 0}}) {
+      auto neighbourIt =
+          world.occupiedCells.find(blockKey(Vector3Add(pos, offset)));
+      if (neighbourIt == world.occupiedCells.end())
+        continue;
+      BlockType neighbourType = world.objects[neighbourIt->second].getType();
+      if (neighbourType == BlockType::Water) {
+        world.replaceBlock(it->second, BlockType::Stone);
+        return;
+      }
+    }
+  }
+
+  // ==== water specific checks ==== //
+  if (type == BlockType::Water) {
+    for (Vector3 offset :
+         {Vector3{BLOCK_SIZE, 0, 0}, Vector3{-BLOCK_SIZE, 0, 0},
+          Vector3{0, 0, BLOCK_SIZE}, Vector3{0, 0, -BLOCK_SIZE},
+          Vector3{0, -BLOCK_SIZE, 0}, Vector3{0, BLOCK_SIZE, 0}}) {
+      auto neighbourIt =
+          world.occupiedCells.find(blockKey(Vector3Add(pos, offset)));
+      if (neighbourIt == world.occupiedCells.end())
+        continue;
+      BlockType neighbourType = world.objects[neighbourIt->second].getType();
+      if (neighbourType == BlockType::Lava) {
+        world.replaceBlock(neighbourIt->second, BlockType::Stone);
+        processCell(cellKey, world, nextActive);
+        return;
+      }
+    }
+  }
+
+  if (passCount % BLOCK_INFO[static_cast<size_t>(type)].flowEvery != 0) {
+    nextActive.insert(cellKey); // needs to be processed again next pass
+    return;
+  }
+
   const int level = occupant.getState();
+
+  const int maxLevel = flowDistance(type);
 
   // Wakes the cells this one can feed: its four sides and the cell below.
   auto wakeNeighbours = [&]() {
@@ -48,7 +97,7 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
   // open drop at the edge of generated terrain would otherwise fall forever.
   if (belowPos.y >= 0 && !world.occupiedCells.contains(belowKey)) {
     // Fallen water is fed from above, never a source itself; keep its strength.
-    world.setWaterLevel(belowPos, std::max(level, 1));
+    world.setFluidLevel(belowPos, type, std::max(level, 1));
     nextActive.insert(belowKey);
     nextActive.insert(cellKey);
     return;
@@ -61,13 +110,13 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
 
     // Strongest level this cell can be fed: side water at n gives n + 1, water
     // above gives its own strength.
-    int fedLevel = MAX_LEVEL + 1; // past MAX_LEVEL = nothing feeds it
+    int fedLevel = maxLevel + 1; // past maxLevel = nothing feeds it
     auto checkFeeder = [&](Vector3 offset, bool above) {
       auto n = world.occupiedCells.find(blockKey(Vector3Add(pos, offset)));
       if (n == world.occupiedCells.end())
         return;
       const Object &neighbour = world.objects[n->second];
-      if (neighbour.getType() != BlockType::Water)
+      if (neighbour.getType() != type)
         return;
       // A side neighbour only feeds if it's currently stronger than this cell -
       // otherwise two equal-strength neighbours could prop each other up
@@ -95,27 +144,27 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
     auto belowIt = world.occupiedCells.find(belowKey);
     const bool supported =
         belowIt != world.occupiedCells.end() &&
-        (world.objects[belowIt->second].getType() != BlockType::Water ||
+        (world.objects[belowIt->second].getType() != type ||
          world.objects[belowIt->second].getState() == SOURCE);
     if (fedCount >= 2 && supported) {
-      world.setWaterLevel(pos, SOURCE);
+      world.setFluidLevel(pos, type, SOURCE);
       wakeNeighbours();
       nextActive.insert(cellKey);
       return;
     }
 
-    const bool fed = fedLevel <= MAX_LEVEL;
+    const bool fed = fedLevel <= maxLevel;
     // Unfed water weakens a step per pass; fed water takes whatever
     // strength its best feeder gives.
     newLevel = fed ? fedLevel : level + 1;
 
-    if (newLevel > MAX_LEVEL) {
+    if (newLevel > maxLevel) {
       world.removeBlock(it->second); // `it` is stale from here on
       wakeNeighbours();
       return;
     }
     if (newLevel != level) {
-      world.setWaterLevel(pos, newLevel);
+      world.setFluidLevel(pos, type, newLevel);
       nextActive.insert(cellKey);
       wakeNeighbours();
     }
@@ -127,10 +176,9 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
   // waterfall falls straight down; a source always spreads.
   auto below = world.occupiedCells.find(belowKey);
   const bool onGround =
-      belowPos.y < 0 ||
-      (below != world.occupiedCells.end() &&
-       world.objects[below->second].getType() != BlockType::Water);
-  if (newLevel + 1 > MAX_LEVEL || (newLevel != SOURCE && !onGround))
+      belowPos.y < 0 || (below != world.occupiedCells.end() &&
+                         world.objects[below->second].getType() != type);
+  if (newLevel + 1 > maxLevel || (newLevel != SOURCE && !onGround))
     return;
 
   auto spreadTo = [&](Vector3 offset) {
@@ -138,7 +186,7 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
     const int64_t neighbourKey = blockKey(neighbourPos);
     if (world.occupiedCells.contains(neighbourKey))
       return; // only empty cells take a new flow
-    world.setWaterLevel(neighbourPos, newLevel + 1);
+    world.setFluidLevel(neighbourPos, type, newLevel + 1);
     nextActive.insert(neighbourKey);
   };
 

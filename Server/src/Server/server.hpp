@@ -5,6 +5,7 @@
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
+#include "Protocol/protocol.hpp"
 #include "Terrain/terrain.hpp"
 #include "env.hpp"
 
@@ -46,6 +47,8 @@ struct Player {
   std::optional<uint32_t> accountId; // guest if empty
   bool isAdmin{false};
   uint32_t ticketExp{0};
+
+  float damageCheckTick = 0.0f;
 
   // Call whenever pos is set by the server (spawn, respawn): a teleport isn't a
   // fall.
@@ -164,9 +167,9 @@ class Server {
   void addBlock(const Object &block, bool markDirty = true,
                 bool activate = true);
   void removeBlock(int index);
-  // Sets a water cell's flow level and notifies every player holding its chunk.
-  // No-op off a water cell.
-  void setWaterLevel(Vector3 pos, uint8_t level);
+  // Sets a fluid cell's flow level (creating it in an empty cell) and notifies
+  // every player holding its chunk. No-op on a block of any other type.
+  void setFluidLevel(Vector3 pos, BlockType type, uint8_t level);
   // Records objects[i] in occupiedCells and in its chunk's list.
   void indexBlock(int i);
   // Sends chunk (cx, cz) to one player as a ChunkData, empty chunks included.
@@ -180,8 +183,9 @@ class Server {
   // when the player lands on something solid. Water cancels the fall.
   void updateFall(Player *player);
   // The one place health drops: broadcasts PlayerHit and handles death and
-  // respawn. attackerId < 0 means no attacker (a fall), so no kill credit.
-  void damagePlayer(Player &p, int amount, int attackerId);
+  // respawn.
+  void damagePlayer(Player &p, int amount, proto::PlayerHitReason reason,
+                    int attackerId = -1);
   // Interest management: unloads chunks that are too far from the player and
   // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
   void updateView(const Player &p);

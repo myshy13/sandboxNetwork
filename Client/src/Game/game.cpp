@@ -31,6 +31,11 @@
 #include <sstream>
 #endif
 
+// In lava, everything fades to this by LAVA_FOG_END; also the sky colour there.
+constexpr Color LAVA_FOG       = {207, 53, 10, 255};
+constexpr float LAVA_FOG_START = 0.5f * env::BLOCKSIZE.x;
+constexpr float LAVA_FOG_END   = 4.0f * env::BLOCKSIZE.x;
+
 // ==== setup / teardown ==== //
 Game::Game(const AssetManager& a, Input& input, Auth& auth)
     : assets(a),
@@ -456,7 +461,14 @@ void Game::drawScene(float dt) {
     ClearBackground(BLACK);
     return;
   }
-  Color bg = lighting.skyColor(world.getTime());
+  // Fog only hides what's far away; walls still occlude, so lava never shows
+  // more than outside it. The sky isn't geometry, so it takes the fog colour.
+  const bool inLava = world.typeAt(camera.position) == BlockType::Lava;
+  if (inLava)
+    lighting.setFog(LAVA_FOG, LAVA_FOG_START, LAVA_FOG_END);
+  else
+    lighting.clearFog();
+  Color bg = inLava ? LAVA_FOG : lighting.skyColor(world.getTime());
   // ClearBackground({5, 5, 5, 255});
   ClearBackground(bg);
 
@@ -535,6 +547,9 @@ void Game::drawScene(float dt) {
   if (world.isWater(camera.position))
     DrawRectangle(0, 0, target.texture.width, target.texture.height,
                   Fade(SKYBLUE, 0.35f));
+  else if (inLava)  // light: the fog does most of the work
+    DrawRectangle(0, 0, target.texture.width, target.texture.height,
+                  Fade(LAVA_FOG, 0.2f));
 }
 
 // F5: red wireframes on every cell the collision grid treats as solid near you,

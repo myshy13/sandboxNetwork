@@ -19,9 +19,9 @@ void check(bool ok, const char *name) {
 }
 
 // ==== stand-in for the Server's block store ==== //
-// Same contract as Server::addBlock / removeBlock / setWaterLevel: one block
-// per cell, swap-and-pop removal, water neighbours woken when a block is
-// removed.
+// Same contract as Server::addBlock / removeBlock / setFluidLevel /
+// replaceBlock: one block per cell, swap-and-pop removal, fluid neighbours
+// woken when a block is removed.
 class TestWorld {
 public:
   std::vector<Object> objects;
@@ -52,17 +52,23 @@ public:
     return it == occupied.end() ? nullptr : &objects[it->second];
   }
 
-  bool waterAt(int x, int y, int z) const {
+  bool isAt(int x, int y, int z, BlockType type) const {
     const Object *o = at(x, y, z);
-    return o && o->getType() == BlockType::Water;
+    return o && o->getType() == type;
   }
 
-  int waterCount() const {
+  bool waterAt(int x, int y, int z) const {
+    return isAt(x, y, z, BlockType::Water);
+  }
+
+  int count(BlockType type) const {
     int n = 0;
     for (const Object &o : objects)
-      n += o.getType() == BlockType::Water;
+      n += o.getType() == type;
     return n;
   }
+
+  int waterCount() const { return count(BlockType::Water); }
 
   // Cell key -> level of every water block, to compare two moments.
   std::map<int64_t, int> waterSnapshot() const {
@@ -77,7 +83,8 @@ public:
     removeBlock(occupied.at(cellKey(x, y, z)));
   }
 
-  FluidWorld world() { return FluidWorld{objects, occupied, setFn, removeFn}; }
+  FluidWorld world() { return FluidWorld{objects, occupied, setFn, removeFn, replaceFn};
+  }
 
   // Runs `passes` full flow passes.
   void step(int passes = 1) {
@@ -87,27 +94,34 @@ public:
 
 private:
   int nextId = 1;
-  std::function<void(Vector3, int)> setFn = [this](Vector3 pos, int level) {
-    setWaterLevel(pos, level);
-  };
+  std::function<void(Vector3, BlockType, int)> setFn =
+      [this](Vector3 pos, BlockType type, int level) {
+        setFluidLevel(pos, type, level);
+      };
   std::function<void(int)> removeFn = [this](int index) { removeBlock(index); };
+  std::function<void(int, BlockType)> replaceFn = [this](int index,
+                                                         BlockType type) {
+    const Vector3 pos = objects[index].getTransform().pos;
+    removeBlock(index);
+    addObject(Object(nextId++, ObjectTransform{pos, blockSize}, type), true);
+  };
 
   void addObject(const Object &o, bool activate) {
     objects.push_back(o);
     occupied[blockKey(o.getTransform().pos)] = (int)objects.size() - 1;
-    if (activate && o.getType() == BlockType::Water)
+    if (activate && o.isFluid())
       sim.markActive(blockKey(o.getTransform().pos));
   }
 
-  void setWaterLevel(Vector3 pos, int level) {
+  void setFluidLevel(Vector3 pos, BlockType type, int level) {
     auto it = occupied.find(blockKey(pos));
     if (it == occupied.end()) {
-      Object o(nextId++, ObjectTransform{pos, blockSize}, BlockType::Water);
+      Object o(nextId++, ObjectTransform{pos, blockSize}, type);
       o.setState((uint8_t)level);
       addObject(o, true);
       return;
     }
-    if (objects[it->second].getType() == BlockType::Water)
+    if (objects[it->second].getType() == type)
       objects[it->second].setState((uint8_t)level);
   }
 
@@ -129,8 +143,7 @@ private:
     for (Vector3 offset : offsets) {
       const int64_t key = blockKey(Vector3Add(pos, offset));
       auto it = occupied.find(key);
-      if (it != occupied.end() &&
-          objects[it->second].getType() == BlockType::Water)
+      if (it != occupied.end() && objects[it->second].isFluid())
         sim.markActive(key);
     }
   }
@@ -363,6 +376,75 @@ void testConverges() {
         "a pool fed by one source settles and stops changing");
 }
 
+// ==== lava meets water ==== //
+// True if any lava cell has water on a side, above or below it.
+bool lavaTouchesWater(const TestWorld &w) {
+  for (const Object &o : w.objects) {
+    if (o.getType() != BlockType::Lava)
+      continue;
+    const Vector3 p = o.getTransform().pos;
+    for (Vector3 offset :
+         {Vector3{BLOCK_SIZE, 0, 0}, Vector3{-BLOCK_SIZE, 0, 0},
+          Vector3{0, 0, BLOCK_SIZE}, Vector3{0, 0, -BLOCK_SIZE},
+          Vector3{0, BLOCK_SIZE, 0}, Vector3{0, -BLOCK_SIZE, 0}}) {
+      auto it = w.occupied.find(blockKey(Vector3Add(p, offset)));
+      if (it != w.occupied.end() &&
+          w.objects[it->second].getType() == BlockType::Water)
+        return true;
+    }
+  }
+  return false;
+}
+
+void testLavaTurnsToStoneWithoutWaitingForItsPass() {
+  TestWorld w;
+  w.floor(5, 0);
+  w.add(0, 1, 0, BlockType::Lava);
+  w.add(1, 1, 0, BlockType::Water);
+  w.step(); // pass 1: not one of lava's flow passes (flowEvery 3)
+  check(w.isAt(0, 1, 0, BlockType::Stone),
+        "lava touching water turns to stone on the next pass, not its next "
+        "flow pass");
+  check(w.waterAt(1, 1, 0), "the water it touched stays water");
+}
+
+void testLavaBesideFlowingWater() {
+  TestWorld w;
+  w.floor(10, 0);
+  w.add(0, 1, 0, BlockType::Lava);
+  w.add(2, 1, 0, BlockType::Water); // its flow reaches (1, 1, 0) next to lava
+  w.step(30);
+  check(w.isAt(0, 1, 0, BlockType::Stone),
+        "a lava source that flowing water reaches turns to stone");
+  check(w.waterAt(1, 1, 0) && w.waterAt(2, 1, 0),
+        "water is never turned to stone");
+  check(w.count(BlockType::Lava) == 0,
+        "no lava is left once its source is stone");
+}
+
+void testWaterFallingOntoLava() {
+  TestWorld w;
+  w.floor(10, 0);
+  w.add(0, 1, 0, BlockType::Lava);
+  w.add(0, 4, 0, BlockType::Water); // falls straight down onto the lava
+  w.step(30);
+  check(w.isAt(0, 1, 0, BlockType::Stone),
+        "water falling onto lava turns the lava below to stone");
+  check(w.waterAt(0, 2, 0), "the water lands on the stone");
+}
+
+void testPoolsMeetingLeaveNoContact() {
+  TestWorld w;
+  w.floor(12, 0);
+  w.add(-4, 1, 0, BlockType::Lava);
+  w.add(4, 1, 0, BlockType::Water);
+  w.step(60);
+  check(!lavaTouchesWater(w), "after lava and water meet, no lava cell "
+                              "touches water (sides, above or below)");
+  check(w.count(BlockType::Stone) > 0, "where they met is stone");
+  check(w.isAt(4, 1, 0, BlockType::Water), "the water source is still water");
+}
+
 int main() {
   testCellKeys();
   testTickGating();
@@ -380,6 +462,10 @@ int main() {
   testMaxLevelUnfedRemoved();
   testDrainsAfterSourceRemoved();
   testConverges();
+  testLavaTurnsToStoneWithoutWaitingForItsPass();
+  testLavaBesideFlowingWater();
+  testWaterFallingOntoLava();
+  testPoolsMeetingLeaveNoContact();
 
   std::printf(failures ? "%d fluid test(s) FAILED\n" : "fluid tests passed\n",
               failures);

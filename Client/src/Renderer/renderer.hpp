@@ -111,11 +111,11 @@ class Renderer {
   // Visible (non-occluded) blocks of one World chunk, so the whole chunk can be
   // frustum-culled at once. Keyed by the same chunk key World uses; only chunks
   // World reports dirty get rebuilt, never the whole map.
-  // Water's shape, in world units above its cell's floor: surface height, and
+  // A fluid's shape, in world units above its cell's floor: surface height, and
   // where each side face's visible strip starts.
-  struct WaterShape {
+  struct FluidShape {
     float top{0};
-    float sideBottom[6]{};  // indexed by face; a lower water neighbour hides
+    float sideBottom[6]{};  // indexed by face; a lower same-fluid neighbour hides
                             // the face up to its own surface
   };
 
@@ -124,8 +124,8 @@ class Renderer {
     // Parallel to `indices`: bit f set means face f has no neighbour, so it's
     // drawn.
     std::vector<uint8_t> faceMasks;
-    std::vector<WaterShape>
-        waterShapes;  // parallel to `indices`, only read for water
+    std::vector<FluidShape>
+        fluidShapes;  // parallel to `indices`, only read for fluids
     BoundingBox bounds{};
   };
 

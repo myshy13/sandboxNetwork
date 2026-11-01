@@ -185,8 +185,9 @@ void Server::saveWorld() {
   for (auto &[key, chunk] : snapshot) {
     auto [cx, cz] = chunkCoords(key);
     if (!writeChunkFile(chunkFilePath(savePath, cx, cz), chunk))
-      std::printf("[Server] ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
-                  cz); // no later save to retry in
+      std::printf(
+          "[Server] ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
+          cz); // no later save to retry in
   }
 }
 
@@ -257,12 +258,13 @@ int Server::checkOverlaps() const {
     }
   }
   if (cells > 0) {
-    std::fprintf(
-        stderr,
-        "[World] overlapping blocks: %d cells hold 2+ blocks (%d extra of %zu)\n",
-        cells, extra, objects.size());
+    std::fprintf(stderr,
+                 "[World] overlapping blocks: %d cells hold 2+ blocks (%d "
+                 "extra of %zu)\n",
+                 cells, extra, objects.size());
   } else {
-    std::printf("[World] no overlapping blocks (%zu objects)\n", objects.size());
+    std::printf("[World] no overlapping blocks (%zu objects)\n",
+                objects.size());
   }
   return extra;
 }
@@ -599,7 +601,8 @@ void Server::updateFall(Player *player) {
       int blocksFallen = (int)floorf((player->peakY - pos.y) / BLOCK_SIZE);
       int excess = blocksFallen - env::FALL_SAFE_BLOCKS;
       if (excess > 0) {
-        damagePlayer(*player, (int)(excess * env::FALL_DAMAGE_PER_BLOCK), -1);
+        damagePlayer(*player, (int)(excess * env::FALL_DAMAGE_PER_BLOCK),
+                     proto::PlayerHitReason::FallDamage);
       }
     }
     player->resetFall();
@@ -610,11 +613,12 @@ void Server::updateFall(Player *player) {
   player->peakY = std::max(player->peakY, pos.y);
 }
 
-void Server::damagePlayer(Player &p, int amount, int attackerId) {
+void Server::damagePlayer(Player &p, int amount, proto::PlayerHitReason reason,
+                          int attackerId) {
   p.health -= amount;
   // Before any reset below, so clients see health <= 0 and count the kill.
   broadcast(proto::pack(proto::Type::PlayerHit,
-                        proto::PlayerHit{p.health, p.id, attackerId}),
+                        proto::PlayerHit{p.health, p.id, reason, attackerId}),
             true);
 
   if (p.health <= 0) {
@@ -934,13 +938,12 @@ void Server::handleReceive(int playerId, const std::string &data) {
       break;
     }
   } catch (const std::exception &e) {
-      ("[Server] ERR: bad message (type %d) from player %d: %s\n",
+    std::printf("[Server] ERR: bad message (type %d) from player %d: %s\n",
                 (int)proto::peekType(data), playerId, e.what());
   }
 }
 
 // ==== fixed-rate tick (bullet lifetime etc.) ==== //
-
 bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
   Vector3 dir = Vector3Subtract(end, start);
   float tMin = 0.0f;
@@ -1051,13 +1054,13 @@ void Server::addBlock(const Object &block, bool markDirty, bool activate) {
     fluidSim.markActive(blockKey(block.getTransform().pos));
 }
 
-void Server::setWaterLevel(Vector3 pos, uint8_t level) {
+void Server::setFluidLevel(Vector3 pos, BlockType type, uint8_t level) {
   auto occupant = occupiedCells.find(blockKey(pos));
   if (occupant == occupiedCells.end()) {
     if (!generatedChunks.contains(chunkKeyAt(pos)))
       return; // generateChunk would later build over it (or it'd save as a
               // terrain-less chunk)
-    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BlockType::Water);
+    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, type);
     o.setState(level);
     addBlock(o);
     broadcastToChunk(chunkKeyAt(pos),
@@ -1065,8 +1068,8 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
                      true);
     return;
   }
-  if (!objects[occupant->second].isFluid()) {
-    return; // solid, can't flow into an occupied cell
+  if (objects[occupant->second].getType() != type) {
+    return; // a solid or another fluid: can't flow into an occupied cell
   }
   objects[occupant->second].setState(level);
   dirtyChunks.insert(chunkKeyAt(pos));
@@ -1193,6 +1196,33 @@ void Server::tick(float dt) {
         p.handshaken = false;
       }
     }
+
+    // ==== touch damage (lava) ==== //
+    // Not before the handshake: pos is still the default, and a kick above
+    // shouldn't be followed by a hit and a respawn.
+    if (!p.handshaken)
+      continue;
+    // ponytail: lava is the only block that hurts, so the predicate names it;
+    // when a second one (cactus) does, make footprintHas return the block.
+    auto isLavaBlock = [](const Object &o) {
+      return o.getType() == BlockType::Lava;
+    };
+    // Feet, middle and head: just under the top, so a head touching the
+    // block above's underside doesn't count.
+    const bool inLava =
+        footprintHas(p.pos, p.pos.y, isLavaBlock) ||
+        footprintHas(p.pos, p.pos.y + PLAYER_SCALE.y / 2, isLavaBlock) ||
+        footprintHas(p.pos, p.pos.y + PLAYER_SCALE.y - 0.1f, isLavaBlock);
+    if (!inLava) {
+      p.damageCheckTick = 0.0f; // the next touch hurts at once
+      continue;
+    }
+    p.damageCheckTick -= dt;
+    if (p.damageCheckTick <= 0.0f) {
+      p.damageCheckTick += env::TOUCH_DAMAGE_INTERVAL;
+      damagePlayer(p, touchDamage(BlockType::Lava),
+                   proto::PlayerHitReason::Lava);
+    }
   }
   if (ticketCheckCountdown <= 0) {
     ticketCheckCountdown = env::EXPIRY_CHECK_INTERVAL;
@@ -1250,7 +1280,7 @@ void Server::tick(float dt) {
 
       if (SegmentIntersectsBox(prevPos, b.pos, player)) {
         b.deathCountdown = 0.0f;
-        damagePlayer(p, 1, b.playerId);
+        damagePlayer(p, 1, proto::PlayerHitReason::Shot, b.playerId);
         break;
       }
     }
@@ -1284,15 +1314,16 @@ void Server::tick(float dt) {
       double tickMs = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - tickStart)
                           .count();
-      std::printf("[Server] tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
-                  tickMs, objects.size(), bullets.size(), players.size());
+      std::printf(
+          "[Server] tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
+          tickMs, objects.size(), bullets.size(), players.size());
     }
   }
 
   fluidSim.tick(
       dt, FluidWorld{objects, occupiedCells,
-                     [&](Vector3 pos, int level) {
-                       setWaterLevel(pos, (uint8_t)level);
+                     [&](Vector3 pos, BlockType type, int level) {
+                       setFluidLevel(pos, type, (uint8_t)level);
                      },
                      [&](int index) {
                        const Vector3 pos = objects[index].getTransform().pos;
@@ -1301,6 +1332,23 @@ void Server::tick(float dt) {
                                                     proto::RemoveObject{pos}),
                                         true);
                        removeBlock(index);
+                     },
+                     [&](int index, BlockType type) {
+                       const Vector3 pos = objects.at(index).getTransform().pos;
+                       broadcastToChunk(chunkKeyAt(pos),
+                                        proto::pack(proto::Type::RemoveObject,
+                                                    proto::RemoveObject{pos}),
+                                        true);
+                       removeBlock(index);
+                       Object o(nextObjectId++, {pos, blockSize}, type);
+                       addBlock(o, true,
+                                true); // activate doesn't cost that much, and
+                                       // it might cause bugs in future if it's
+                                       // set to false
+                       broadcastToChunk(chunkKeyAt(pos),
+                                        proto::pack(proto::Type::NewObject,
+                                                    proto::NewObject{o}),
+                                        true);
                      }});
 }
 

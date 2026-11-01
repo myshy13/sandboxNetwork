@@ -322,11 +322,9 @@ bool World::isWater(Vector3 pos) const {
          objects[it->second].getType() == BlockType::Water;
 }
 
-int World::waterLevel(Vector3 pos) const {
+int World::fluidLevel(Vector3 pos) const {
   auto it = occupiedCells.find(cellKey(pos));
-  if (it == occupiedCells.end() ||
-      objects[it->second].getType() != BlockType::Water)
-    return -1;
+  if (it == occupiedCells.end() || !objects[it->second].isFluid()) return -1;
   return objects[it->second].getState();
 }
 

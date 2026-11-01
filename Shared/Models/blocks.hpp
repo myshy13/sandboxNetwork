@@ -16,6 +16,7 @@ enum class BlockType : uint8_t {
   Planks,
   Glass,
   Stone,
+  Lava,
   Count
 };
 
@@ -28,25 +29,40 @@ struct BlockInfo {
   bool solid{true};     // players collide with it
   bool placeable{true}; // a client may ask the server to place it
   int durability{3};
-  Color color{WHITE};   // the block's look until it has a texture
+  int flowDistance{8};
+  int flowEvery{1};
+  int touchDamage{0};
+  Color color{WHITE}; // the block's look until it has a texture
 };
 
 // One row per BlockType, in enum order. (it's checked at compile time)
 inline constexpr BlockInfo BLOCK_INFO[] = {
     {.type = BlockType::Grass},
     {.type = BlockType::Dirt, .durability = 2},
-    {.type = BlockType::Water,
-     .opaque = false,
-     .fluid = true,
-     .translucent = true,
-     .blended = true,
-     .solid = false},
+    {
+        .type = BlockType::Water,
+        .opaque = false,
+        .fluid = true,
+        .translucent = true,
+        .blended = true,
+        .solid = false,
+        .flowEvery = 1,
+    },
+
     {.type = BlockType::Leaves, .durability = 1},
     {.type = BlockType::Wood, .durability = 5},
     {.type = BlockType::Planks, .durability = 5},
     {.type = BlockType::Glass, .opaque = false, .translucent = true},
     {.type = BlockType::Stone, .durability = 6},
-};
+    {
+        .type = BlockType::Lava,
+        .opaque = false,
+        .fluid = true,
+        .solid = false,
+        .flowDistance = 4,
+        .flowEvery = 3,
+        .touchDamage = 2,
+    }};
 
 constexpr bool rowsValid() {
   if (!(std::size(BLOCK_INFO) == static_cast<size_t>(BlockType::Count)))
@@ -55,6 +71,8 @@ constexpr bool rowsValid() {
     BlockType infoType = BLOCK_INFO[i].type;
     BlockType expectedType = static_cast<BlockType>(i);
     if (infoType != expectedType)
+      return false;
+    if (BLOCK_INFO[i].flowEvery < 1)
       return false;
   }
   return true;
@@ -86,4 +104,12 @@ inline bool isOpaque(BlockType t) {
 // Magenta marks an invalid type so it's obvious rather than invisible.
 inline Color blockColor(BlockType t) {
   return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].color : MAGENTA;
+}
+
+inline int flowDistance(BlockType t) {
+  return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].flowDistance : 0;
+}
+
+inline int touchDamage(BlockType t) {
+  return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].touchDamage : 0;
 }
