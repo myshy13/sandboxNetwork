@@ -172,24 +172,21 @@ bool Renderer::boxInFrustum(const Frustum& f, BoundingBox box) {
   return true;
 }
 
-// Water surface height above pos's cell floor (0 = no water): full under more
-// water, so a falling column reads as one stream; otherwise lower the weaker
-// the flow.
-static float waterHeight(const World& world, Vector3 pos) {
-  const int level = world.waterLevel(pos);
+// Surface height of a `type` fluid above pos's cell floor (0 = not that fluid):
+// full under more of the same fluid, so a falling column reads as one stream;
+// otherwise lower the weaker the flow.
+static float fluidLevel(const World& world, Vector3 pos, BlockType type) {
+  if (world.typeAt(pos) != type) return 0.0f;
+  const int level = world.fluidLevel(pos);
+  const int flowDistance = BLOCK_INFO[static_cast<size_t>(type)].flowDistance;
   if (level < 0) return 0.0f;
   const float size = env::BLOCKSIZE.y;
   const Vector3 above = Vector3Add(pos, {0, size, 0});
-  if (world.isWater(above) || world.isSolid(above)) return size;
+  if (world.typeAt(above) == type || world.isSolid(above)) return size;
   constexpr float SURFACE_DROP =
       0.6f;  // even a source sits a little below full, so it reads as water
-  constexpr int STEPS =
-      BLOCK_INFO[static_cast<size_t>(BlockType::Water)].flowDistance + 1;
-  return (size - SURFACE_DROP) *
-         (STEPS -
-          std::min(
-              level,
-              BLOCK_INFO[static_cast<size_t>(BlockType::Water)].flowDistance)) /
+  const int STEPS = flowDistance + 1;
+  return (size - SURFACE_DROP) * (STEPS - std::min(level, flowDistance)) /
          STEPS;
 }
 
@@ -206,11 +203,11 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
 
     // A face is drawn only where there's no neighbour to hide it, so no two
     // faces ever land on the same plane.
-    // Water-on-water faces are skipped too: stacked transparent faces would add
-    // up their alpha.
-    const bool water = objects[i].getType() == BlockType::Water;
-    WaterShape shape;
-    if (water) shape.top = waterHeight(world, t.pos);
+    // Faces between two cells of the same fluid are skipped too: stacked
+    // transparent faces would add up their alpha. Different fluids keep theirs.
+    const bool fluid = objects[i].isFluid();
+    FluidShape shape;
+    if (fluid) shape.top = fluidLevel(world, t.pos, objects[i].getType());
     uint8_t mask = 0;
     for (int f = 0; f < 6; f++) {
       Vector3 neighbour =
@@ -220,11 +217,12 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
       if (world.isTranslucent(neighbour) &&
           objects[i].getType() == neighbourType && !isFluid(neighbourType))
         continue;
-      if (water && world.isWater(neighbour)) {
+      if (fluid && neighbourType == objects[i].getType()) {
         if (FACE_DIR[f].y != 0)
-          continue;  // above/below is the same body of water
+          continue;  // above/below is the same body of fluid
         // A side only shows where it rises above the neighbour's surface.
-        shape.sideBottom[f] = waterHeight(world, neighbour);
+        shape.sideBottom[f] =
+            fluidLevel(world, neighbour, objects[i].getType());
         if (shape.sideBottom[f] >= shape.top) continue;
       }
       mask |= (uint8_t)(1 << f);
@@ -240,7 +238,7 @@ void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,
     }
     cell.indices.push_back(i);
     cell.faceMasks.push_back(mask);
-    cell.waterShapes.push_back(shape);
+    cell.fluidShapes.push_back(shape);
   }
 
   if (!cell.indices.empty()) grid[key] = std::move(cell);
@@ -297,14 +295,14 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
         }
       }
 
-      bool water = o.getType() == BlockType::Water;
+      bool fluid = o.isFluid();
       const Color c = o.getColor();  // type colour, darkened by damage
       Vector4 colour = {c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f};
       // Every face of a block is either translucent or not, so pick the array
       // once here rather than per face.
       auto& batches = isBlended(o.getType()) ? translucent : opaque;
       uint8_t mask = cell.faceMasks[n];
-      const WaterShape& shape = cell.waterShapes[n];
+      const FluidShape& shape = cell.fluidShapes[n];
       const float floorY = t.pos.y - t.scale.y * 0.5f;
 
       for (int f = 0; f < 6; f++) {
@@ -315,9 +313,9 @@ Object* Renderer::drawObjects(std::vector<Object>& objects, World& world,
         Vector3 size = t.scale;
         float crop = 0.0f;  // fraction of the texture's height left out
 
-        if (water && f == 2) {
+        if (fluid && f == 2) {
           at.y = floorY + shape.top;
-        } else if (water && f != 3) {
+        } else if (fluid && f != 3) {
           // Side face: only the strip from where it becomes visible up to the
           // surface.
           const float bottom = shape.sideBottom[f];
@@ -382,10 +380,9 @@ void Renderer::shadowMap(const std::vector<Object>& objects, Camera3D camera,
   double defaultFar = rlGetCullDistanceFar();
   // The settings screen sets how far shadows reach; no point mapping farther
   // than the world is drawn.
-  const float radius =
-      std::min(GameState::shared().getShadowRadius(),
-               GameState::shared().getRenderDistance()) *
-      NET_CHUNK_SIZE;  // both settings are in chunks
+  const float radius = std::min(GameState::shared().getShadowRadius(),
+                                GameState::shared().getRenderDistance()) *
+                       NET_CHUNK_SIZE;  // both settings are in chunks
   const float mapRadius = radius + SHADOW_SNAP * sqrtf(3.0f);
 
   const float D = 2 * mapRadius;

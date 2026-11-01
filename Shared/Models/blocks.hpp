@@ -103,3 +103,7 @@ inline bool isOpaque(BlockType t) {
 inline Color blockColor(BlockType t) {
   return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].color : MAGENTA;
 }
+
+inline int flowDistance(BlockType t) {
+  return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].flowDistance : 0;
+}

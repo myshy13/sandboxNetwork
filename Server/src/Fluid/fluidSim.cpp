@@ -40,7 +40,7 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
   const Vector3 pos = occupant.getTransform().pos;
   const int level = occupant.getState();
 
-  const int maxLevel = BLOCK_INFO[static_cast<size_t>(type)].flowDistance;
+  const int maxLevel = flowDistance(type);
 
   // Wakes the cells this one can feed: its four sides and the cell below.
   auto wakeNeighbours = [&]() {
