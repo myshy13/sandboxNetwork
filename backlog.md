@@ -173,6 +173,11 @@ Same voxel look, different game. Pick a direction before building any of these: 
 - [ ] measure bandwidth per player at the default render distance, including
       water level updates while a flow is spreading
 - [ ] chunk save format versioning (terrain/tree changes vs old saves)
+- [ ] remove object ids: they come from one never-reset counter (`nextObjectId`) and every client receives them, so
+      a modded client can walk towards smaller ids to the earliest-explored area, trace where players went, and spot
+      bases (placed blocks get fresh, high ids next to old terrain). Nothing reads them (client and server go by
+      position), so delete the field, `nextObjectId` and its `meta.bin` slot; bumps `PROTOCOL_VERSION` and
+      `env::saveFormatVersion`, and old saves need handling
 
 ## Input & platforms
 
