@@ -19,6 +19,10 @@ uniform sampler2D shadowMap;
 uniform int shadowMapResolution;
 uniform int useShadows;  // 0 = skip the lookup (setting off)
 
+uniform vec4 fogColor; // lava = red, only used for lava for now
+uniform float fogStartDistance;
+uniform float fogEndDistance;
+
 // Output fragment color
 #ifdef GL_ES
 #define finalColor gl_FragColor
@@ -132,6 +136,13 @@ void main() {
 
   // Gamma correction
   finalColor = pow(finalColor, vec4(1.0/2.2));
+
+  float viewDistance = distance(viewPos, fragPosition);
+
+  if (fogEndDistance > 0.0) {
+    float fogFactor = smoothstep(fogStartDistance, fogEndDistance, viewDistance);
+    finalColor.rgb = mix(finalColor.rgb, fogColor.rgb, fogFactor);
+  }
 
   // Noise keyed to world position so the grain sticks to surfaces; 0.02 = strength
   finalColor.rgb += (rand(fragPosition.xy + fragPosition.z) - 0.5)*0.02;

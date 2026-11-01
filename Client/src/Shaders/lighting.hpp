@@ -38,7 +38,8 @@ class Lighting {
   void setShadow(const Matrix& lightVP, unsigned int depthTextureId,
                  int mapSize);
 
-  // Before drawing into the depth map: WebGL refuses a draw while it is bound for reading too.
+  // Before drawing into the depth map: WebGL refuses a draw while it is bound
+  // for reading too.
   void unbindShadow() const;
 
   // Off makes the shader skip the shadow lookup entirely.
@@ -59,6 +60,9 @@ class Lighting {
 
   Color skyColor(float time) const;
 
+  void setFog(const Color& color, float start, float end);
+  void clearFog();
+
  private:
   Shader shader{};
 
@@ -71,6 +75,10 @@ class Lighting {
   int shadowMapLoc = -1;
   int shadowResLoc = -1;
   int useShadowsLoc = -1;
+
+  int fogColorLoc = -1;
+  int fogStartDistanceLoc = -1;
+  int fogEndDistanceLoc = -1;
 
   // Raylib resets texture slots 0-3 after every batch and the block texture
   // uses 0, so the shadow map lives well above them.

@@ -31,6 +31,9 @@ Lighting::Lighting() {
   shadowMapLoc = GetShaderLocation(shader, "shadowMap");
   shadowResLoc = GetShaderLocation(shader, "shadowMapResolution");
   useShadowsLoc = GetShaderLocation(shader, "useShadows");
+  fogColorLoc = GetShaderLocation(shader, "fogColor");
+  fogStartDistanceLoc = GetShaderLocation(shader, "fogStartDistance");
+  fogEndDistanceLoc = GetShaderLocation(shader, "fogEndDistance");
 
   // Ambient light.
   float defaultAmbient[4] = {
@@ -45,10 +48,29 @@ Lighting::Lighting() {
   SetShaderValue(shader, ambientLoc, defaultAmbient, SHADER_UNIFORM_VEC4);
   SetShaderValue(shader, reflectivityLoc, &reflectivity, SHADER_UNIFORM_FLOAT);
 
+  float fogEndDistance = 0.0f;
+
+  SetShaderValue(shader, fogEndDistanceLoc, &fogEndDistance,
+                 SHADER_UNIFORM_FLOAT);
+
   colorLoc = GetShaderLocationAttrib(shader, "instanceColor");
   transformLoc = GetShaderLocationAttrib(shader, "instanceTransform");
 
   shader.locs[SHADER_LOC_MATRIX_MODEL] = transformLoc;
+}
+
+void Lighting::setFog(const Color& color, float start, float end) {
+  Vector4 color4 = ColorNormalize(color);
+  SetShaderValue(shader, fogEndDistanceLoc, &end, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shader, fogStartDistanceLoc, &start, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(shader, fogColorLoc, &color4, SHADER_UNIFORM_VEC4);
+}
+
+void Lighting::clearFog() {
+  float fogEndDistance = 0.0f;
+
+  SetShaderValue(shader, fogEndDistanceLoc, &fogEndDistance,
+                 SHADER_UNIFORM_FLOAT);
 }
 
 Lighting::~Lighting() { UnloadShader(shader); }
@@ -131,7 +153,8 @@ void Lighting::setShadow(const Matrix& lightVP, unsigned int depthTextureId,
 void Lighting::unbindShadow() const {
   rlActiveTextureSlot(SHADOW_SLOT);
   rlDisableTexture();
-  rlActiveTextureSlot(0);  // back to raylib's default, or its next bind lands here
+  // back to raylib's default, or its next bind lands here
+  rlActiveTextureSlot(0);
 }
 
 void Lighting::setShadowsEnabled(bool enabled) {
