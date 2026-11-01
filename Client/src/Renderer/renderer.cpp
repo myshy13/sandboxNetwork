@@ -183,9 +183,14 @@ static float waterHeight(const World& world, Vector3 pos) {
   if (world.isWater(above) || world.isSolid(above)) return size;
   constexpr float SURFACE_DROP =
       0.6f;  // even a source sits a little below full, so it reads as water
-  constexpr int STEPS = SHARED_WATER_MAX_LEVEL + 1;
+  constexpr int STEPS =
+      BLOCK_INFO[static_cast<size_t>(BlockType::Water)].flowDistance + 1;
   return (size - SURFACE_DROP) *
-         (STEPS - std::min(level, SHARED_WATER_MAX_LEVEL)) / STEPS;
+         (STEPS -
+          std::min(
+              level,
+              BLOCK_INFO[static_cast<size_t>(BlockType::Water)].flowDistance)) /
+         STEPS;
 }
 
 void Renderer::rebuildChunk(int64_t key, const std::vector<Object>& objects,

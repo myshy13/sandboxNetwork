@@ -17,6 +17,7 @@ enum class Tex {
   Planks,
   Glass,
   Stone,
+  Lava,
 
   // icons
   JumpIcon,
