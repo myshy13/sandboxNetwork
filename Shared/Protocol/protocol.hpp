@@ -15,7 +15,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 20; // Added stone
+constexpr int PROTOCOL_VERSION = 21; // Added Lava
 
 enum class Type : uint8_t {
   // player

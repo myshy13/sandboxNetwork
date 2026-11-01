@@ -19,7 +19,7 @@ void check(bool ok, const char *name) {
 }
 
 // ==== stand-in for the Server's block store ==== //
-// Same contract as Server::addBlock / removeBlock / setWaterLevel: one block
+// Same contract as Server::addBlock / removeBlock / setFluidLevel: one block
 // per cell, swap-and-pop removal, water neighbours woken when a block is
 // removed.
 class TestWorld {
@@ -87,27 +87,28 @@ public:
 
 private:
   int nextId = 1;
-  std::function<void(Vector3, int)> setFn = [this](Vector3 pos, int level) {
-    setWaterLevel(pos, level);
-  };
+  std::function<void(Vector3, BlockType, int)> setFn =
+      [this](Vector3 pos, BlockType type, int level) {
+        setFluidLevel(pos, type, level);
+      };
   std::function<void(int)> removeFn = [this](int index) { removeBlock(index); };
 
   void addObject(const Object &o, bool activate) {
     objects.push_back(o);
     occupied[blockKey(o.getTransform().pos)] = (int)objects.size() - 1;
-    if (activate && o.getType() == BlockType::Water)
+    if (activate && o.isFluid())
       sim.markActive(blockKey(o.getTransform().pos));
   }
 
-  void setWaterLevel(Vector3 pos, int level) {
+  void setFluidLevel(Vector3 pos, BlockType type, int level) {
     auto it = occupied.find(blockKey(pos));
     if (it == occupied.end()) {
-      Object o(nextId++, ObjectTransform{pos, blockSize}, BlockType::Water);
+      Object o(nextId++, ObjectTransform{pos, blockSize}, type);
       o.setState((uint8_t)level);
       addObject(o, true);
       return;
     }
-    if (objects[it->second].getType() == BlockType::Water)
+    if (objects[it->second].getType() == type)
       objects[it->second].setState((uint8_t)level);
   }
 
@@ -129,8 +130,7 @@ private:
     for (Vector3 offset : offsets) {
       const int64_t key = blockKey(Vector3Add(pos, offset));
       auto it = occupied.find(key);
-      if (it != occupied.end() &&
-          objects[it->second].getType() == BlockType::Water)
+      if (it != occupied.end() && objects[it->second].isFluid())
         sim.markActive(key);
     }
   }

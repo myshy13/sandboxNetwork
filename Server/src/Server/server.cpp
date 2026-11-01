@@ -1051,13 +1051,13 @@ void Server::addBlock(const Object &block, bool markDirty, bool activate) {
     fluidSim.markActive(blockKey(block.getTransform().pos));
 }
 
-void Server::setWaterLevel(Vector3 pos, uint8_t level) {
+void Server::setFluidLevel(Vector3 pos, BlockType type, uint8_t level) {
   auto occupant = occupiedCells.find(blockKey(pos));
   if (occupant == occupiedCells.end()) {
     if (!generatedChunks.contains(chunkKeyAt(pos)))
       return; // generateChunk would later build over it (or it'd save as a
               // terrain-less chunk)
-    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, BlockType::Water);
+    Object o(nextObjectId++, ObjectTransform{pos, blockSize}, type);
     o.setState(level);
     addBlock(o);
     broadcastToChunk(chunkKeyAt(pos),
@@ -1065,8 +1065,8 @@ void Server::setWaterLevel(Vector3 pos, uint8_t level) {
                      true);
     return;
   }
-  if (!objects[occupant->second].isFluid()) {
-    return; // solid, can't flow into an occupied cell
+  if (objects[occupant->second].getType() != type) {
+    return; // a solid or another fluid: can't flow into an occupied cell
   }
   objects[occupant->second].setState(level);
   dirtyChunks.insert(chunkKeyAt(pos));
@@ -1291,8 +1291,8 @@ void Server::tick(float dt) {
 
   fluidSim.tick(
       dt, FluidWorld{objects, occupiedCells,
-                     [&](Vector3 pos, int level) {
-                       setWaterLevel(pos, (uint8_t)level);
+                     [&](Vector3 pos, BlockType type, int level) {
+                       setFluidLevel(pos, type, (uint8_t)level);
                      },
                      [&](int index) {
                        const Vector3 pos = objects[index].getTransform().pos;

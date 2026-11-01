@@ -164,9 +164,9 @@ class Server {
   void addBlock(const Object &block, bool markDirty = true,
                 bool activate = true);
   void removeBlock(int index);
-  // Sets a water cell's flow level and notifies every player holding its chunk.
-  // No-op off a water cell.
-  void setWaterLevel(Vector3 pos, uint8_t level);
+  // Sets a fluid cell's flow level (creating it in an empty cell) and notifies
+  // every player holding its chunk. No-op on a block of any other type.
+  void setFluidLevel(Vector3 pos, BlockType type, uint8_t level);
   // Records objects[i] in occupiedCells and in its chunk's list.
   void indexBlock(int i);
   // Sends chunk (cx, cz) to one player as a ChunkData, empty chunks included.
