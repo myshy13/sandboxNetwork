@@ -185,8 +185,9 @@ void Server::saveWorld() {
   for (auto &[key, chunk] : snapshot) {
     auto [cx, cz] = chunkCoords(key);
     if (!writeChunkFile(chunkFilePath(savePath, cx, cz), chunk))
-      std::printf("[Server] ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
-                  cz); // no later save to retry in
+      std::printf(
+          "[Server] ERR: chunk %d, %d was not saved; its edits are lost\n", cx,
+          cz); // no later save to retry in
   }
 }
 
@@ -257,12 +258,13 @@ int Server::checkOverlaps() const {
     }
   }
   if (cells > 0) {
-    std::fprintf(
-        stderr,
-        "[World] overlapping blocks: %d cells hold 2+ blocks (%d extra of %zu)\n",
-        cells, extra, objects.size());
+    std::fprintf(stderr,
+                 "[World] overlapping blocks: %d cells hold 2+ blocks (%d "
+                 "extra of %zu)\n",
+                 cells, extra, objects.size());
   } else {
-    std::printf("[World] no overlapping blocks (%zu objects)\n", objects.size());
+    std::printf("[World] no overlapping blocks (%zu objects)\n",
+                objects.size());
   }
   return extra;
 }
@@ -934,13 +936,12 @@ void Server::handleReceive(int playerId, const std::string &data) {
       break;
     }
   } catch (const std::exception &e) {
-      ("[Server] ERR: bad message (type %d) from player %d: %s\n",
+    std::printf("[Server] ERR: bad message (type %d) from player %d: %s\n",
                 (int)proto::peekType(data), playerId, e.what());
   }
 }
 
 // ==== fixed-rate tick (bullet lifetime etc.) ==== //
-
 bool SegmentIntersectsBox(Vector3 start, Vector3 end, BoundingBox box) {
   Vector3 dir = Vector3Subtract(end, start);
   float tMin = 0.0f;
@@ -1284,8 +1285,9 @@ void Server::tick(float dt) {
       double tickMs = std::chrono::duration<double, std::milli>(
                           std::chrono::steady_clock::now() - tickStart)
                           .count();
-      std::printf("[Server] tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
-                  tickMs, objects.size(), bullets.size(), players.size());
+      std::printf(
+          "[Server] tick: %.2f ms (objects=%zu bullets=%zu players=%zu)\n",
+          tickMs, objects.size(), bullets.size(), players.size());
     }
   }
 
