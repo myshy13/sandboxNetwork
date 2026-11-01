@@ -16,6 +16,8 @@ class Player : public Entity {
   const float speed = 90.0f;
   float jumpPower = 45.0f;
   float swimPower = 15.0f;
+  // Eye this far below the body's top: keeps the near plane out of ceilings.
+  static constexpr float EYE_DROP = 0.8f;
 
   float yaw = 0.0f;
   float pitch = 0.0f;

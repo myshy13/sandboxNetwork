@@ -210,7 +210,8 @@ void Player::Update(float dt, Camera3D& camera, const World& world,
 // come along or it looks like the respawn never happened.
 void Player::UpdateCamera(Camera3D& camera) const {
   Vector3 head =
-      Vector3Add(transform.translation, {0.0f, transform.scale.y, 0.0f});
+      Vector3Add(transform.translation,
+                 {0.0f, transform.scale.y - EYE_DROP, 0.0f});
   camera.position = head;
   // camera.target only has to be *a* point in the look direction -
   // GetCameraMatrix and the frustum cull just need a direction out of it, so
