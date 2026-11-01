@@ -13,28 +13,7 @@ cases, not from water alone. `Object` stays small: ~843,000 live, so no per-bloc
 A server-side table of optional function pointers per block (`onTick`, `onNeighbourChange`, `onPlace`, `onBreak`,
 `nullptr` = nothing); water's flow becomes its entry. A client-side shape per block (cube, or water's variable height).
 
-## Day time and lighting
-
-What's left:
-
-- [-] Cache the map: redraw only when the snapped centre moves, the sun has moved a few degrees, or a chunk went
-  dirty (the pass costs ~6 ms every frame today) **Skipped:** Unnecessary
-- [x] Snap the map centre on a coarse world grid (`SHADOW_SNAP` 20 units on x and z, map padded by `SHADOW_SNAP * sqrt 2`),
-      so the grid no longer turns with the sun. The once-a-second hop is much less noticeable but not gone; left as is
-      (caching would cut it further)
-- [x] A shadow radius of its own (`GameState::getShadowRadius()`, default 200 units, 50 to 400 from a slider on the
-      settings screen, capped by the render distance): sharper map, ~6x fewer faces at the default; the shaders fade the
-      shadow out over the map's outer tenth
-- [ ] A depth-only shader for the pass (the lighting shader does per-pixel work that is thrown away)
-- [x] Slope-scaled bias in both shaders (`0.0005 * tan(angle to the normal)`, clamped 0.0001 to 0.005); checked in the
-      afternoon, the stripes are gone. Tune by eye if it changes (stripes = too small, floating shadows = too big)
-- [ ] Night: skip the pass while the sun is below the horizon
-- [x] Web: check the depth-texture extension and `glsl100` in a browser once
-
-Known limits: a low sun squashes the covered area into a thin ellipse of the map, so shadows blur along the sun's
-direction; unloaded chunks count as open air, so shadows can pop in as chunks load; water casts none.
-
-Later: ambient occlusion (darken corners where blocks meet, same neighbour-lookup idea at chunk rebuild).
+## Lighting
 
 Maybe later: cascaded shadow maps (2-3 maps of growing size around the player; the shader picks the smallest that
 contains the pixel). Not wanted yet; do it only after the single map is snapped, cached and has its own radius.
