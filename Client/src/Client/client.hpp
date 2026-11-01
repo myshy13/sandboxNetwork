@@ -152,6 +152,8 @@ class Client {
   }
 
   std::optional<std::string> idToName(int id) {
+    // `players` holds only the others; the local player is never in it.
+    if (id == playerId) return playerName;
     for (auto& p : players) {
       if (p.id == id) {
         return p.name;

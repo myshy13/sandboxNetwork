@@ -36,10 +36,14 @@ int main() {
 
   // ==== PlayerHit ==== //
   {
-    auto bytes = proto::pack(proto::Type::PlayerHit, proto::PlayerHit{2, 0, 1});
+    // Not the field's default (Shot), so a reason dropped from serialize fails.
+    auto bytes = proto::pack(
+        proto::Type::PlayerHit,
+        proto::PlayerHit{2, 0, proto::PlayerHitReason::Lava, 1});
     auto msg = proto::unpack<proto::PlayerHit>(bytes);
     assert(proto::peekType(bytes) == proto::Type::PlayerHit);
     assert(msg.health == 2 && msg.id == 0 && msg.shooterId == 1);
+    assert(msg.hitReason == proto::PlayerHitReason::Lava);
   }
 
   // ==== Respawn ==== //

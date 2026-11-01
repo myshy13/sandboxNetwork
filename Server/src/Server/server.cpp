@@ -601,7 +601,8 @@ void Server::updateFall(Player *player) {
       int blocksFallen = (int)floorf((player->peakY - pos.y) / BLOCK_SIZE);
       int excess = blocksFallen - env::FALL_SAFE_BLOCKS;
       if (excess > 0) {
-        damagePlayer(*player, (int)(excess * env::FALL_DAMAGE_PER_BLOCK), -1);
+        damagePlayer(*player, (int)(excess * env::FALL_DAMAGE_PER_BLOCK),
+                     proto::PlayerHitReason::FallDamage);
       }
     }
     player->resetFall();
@@ -612,11 +613,12 @@ void Server::updateFall(Player *player) {
   player->peakY = std::max(player->peakY, pos.y);
 }
 
-void Server::damagePlayer(Player &p, int amount, int attackerId) {
+void Server::damagePlayer(Player &p, int amount, proto::PlayerHitReason reason,
+                          int attackerId) {
   p.health -= amount;
   // Before any reset below, so clients see health <= 0 and count the kill.
   broadcast(proto::pack(proto::Type::PlayerHit,
-                        proto::PlayerHit{p.health, p.id, attackerId}),
+                        proto::PlayerHit{p.health, p.id, reason, attackerId}),
             true);
 
   if (p.health <= 0) {
@@ -1198,7 +1200,8 @@ void Server::tick(float dt) {
     // ==== touch damage (lava) ==== //
     // Not before the handshake: pos is still the default, and a kick above
     // shouldn't be followed by a hit and a respawn.
-    if (!p.handshaken) continue;
+    if (!p.handshaken)
+      continue;
     // ponytail: lava is the only block that hurts, so the predicate names it;
     // when a second one (cactus) does, make footprintHas return the block.
     auto isLavaBlock = [](const Object &o) {
@@ -1217,7 +1220,8 @@ void Server::tick(float dt) {
     p.damageCheckTick -= dt;
     if (p.damageCheckTick <= 0.0f) {
       p.damageCheckTick += env::TOUCH_DAMAGE_INTERVAL;
-      damagePlayer(p, touchDamage(BlockType::Lava), -1);
+      damagePlayer(p, touchDamage(BlockType::Lava),
+                   proto::PlayerHitReason::Lava);
     }
   }
   if (ticketCheckCountdown <= 0) {
@@ -1276,7 +1280,7 @@ void Server::tick(float dt) {
 
       if (SegmentIntersectsBox(prevPos, b.pos, player)) {
         b.deathCountdown = 0.0f;
-        damagePlayer(p, 1, b.playerId);
+        damagePlayer(p, 1, proto::PlayerHitReason::Shot, b.playerId);
         break;
       }
     }

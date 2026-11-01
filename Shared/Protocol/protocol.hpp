@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Models/Object.hpp"
 #include "raylib.h"
 #include <cereal/archives/binary.hpp>
@@ -15,7 +16,7 @@ template <class Archive> void serialize(Archive &ar, Vector3 &v) {
 
 namespace proto {
 
-constexpr int PROTOCOL_VERSION = 21; // Added Lava
+constexpr int PROTOCOL_VERSION = 22; // Updated PlayerHit
 
 enum class Type : uint8_t {
   // player
@@ -83,13 +84,16 @@ struct NewBullet { // server telling clients
   Vector3 vel;
   template <class A> void serialize(A &ar) { ar(playerId, bulletId, pos, vel); }
 };
-enum class PlayerHitReason { FallDamage, Shot };
+// Regular is the fallback for a reason this client doesn't know.
+enum class PlayerHitReason : uint8_t { FallDamage, Lava, Shot, Regular, Count };
 struct PlayerHit {
   int health;
   int id;
-  int shooterId;
   PlayerHitReason hitReason{PlayerHitReason::Shot};
-  template <class A> void serialize(A &ar) { ar(health, id, shooterId); }
+  int shooterId{-1}; // -1 = no attacker; only a Shot has one
+  template <class A> void serialize(A &ar) {
+    ar(health, id, shooterId, hitReason);
+  }
 };
 struct Respawn {
   Vector3 pos;

@@ -5,6 +5,7 @@
 #include "Models/Object.hpp"
 #include "Net/connection.hpp"
 #include "Net/ws_proxy.hpp"
+#include "Protocol/protocol.hpp"
 #include "Terrain/terrain.hpp"
 #include "env.hpp"
 
@@ -182,8 +183,9 @@ class Server {
   // when the player lands on something solid. Water cancels the fall.
   void updateFall(Player *player);
   // The one place health drops: broadcasts PlayerHit and handles death and
-  // respawn. attackerId < 0 means no attacker (a fall), so no kill credit.
-  void damagePlayer(Player &p, int amount, int attackerId);
+  // respawn.
+  void damagePlayer(Player &p, int amount, proto::PlayerHitReason reason,
+                    int attackerId = -1);
   // Interest management: unloads chunks that are too far from the player and
   // sends the nearest missing ones, at most env::CHUNKS_PER_TICK per call.
   void updateView(const Player &p);
