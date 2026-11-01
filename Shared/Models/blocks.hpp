@@ -31,6 +31,7 @@ struct BlockInfo {
   int durability{3};
   int flowDistance{8};
   int flowEvery{1};
+  int touchDamage{0};
   Color color{WHITE}; // the block's look until it has a texture
 };
 
@@ -60,6 +61,7 @@ inline constexpr BlockInfo BLOCK_INFO[] = {
         .solid = false,
         .flowDistance = 4,
         .flowEvery = 3,
+        .touchDamage = 2,
     }};
 
 constexpr bool rowsValid() {
@@ -106,4 +108,8 @@ inline Color blockColor(BlockType t) {
 
 inline int flowDistance(BlockType t) {
   return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].flowDistance : 0;
+}
+
+inline int touchDamage(BlockType t) {
+  return isValid(t) ? BLOCK_INFO[static_cast<size_t>(t)].touchDamage : 0;
 }

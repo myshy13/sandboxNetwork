@@ -39,6 +39,8 @@ constexpr float MAX_TICK_DT =
 constexpr int PLAYER_MAX_HEALTH =
     SHARED_PLAYER_HEALTH; // the client's env::MAX_HEALTH aliases it too
 
+constexpr float TOUCH_DAMAGE_INTERVAL = 0.5f; // seconds
+
 constexpr int DEFAULT_VIEW_RADIUS =
     MAX_CHUNK_DISTANCE / 2;            // default, until the client broadcasts
 constexpr int CHUNKS_PER_TICK = 2;     // bandwidth budget per player per tick

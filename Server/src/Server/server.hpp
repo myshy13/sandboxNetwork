@@ -47,6 +47,8 @@ struct Player {
   bool isAdmin{false};
   uint32_t ticketExp{0};
 
+  float damageCheckTick = 0.0f;
+
   // Call whenever pos is set by the server (spawn, respawn): a teleport isn't a
   // fall.
   void resetFall() {

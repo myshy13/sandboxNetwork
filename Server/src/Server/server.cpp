@@ -1194,6 +1194,31 @@ void Server::tick(float dt) {
         p.handshaken = false;
       }
     }
+
+    // ==== touch damage (lava) ==== //
+    // Not before the handshake: pos is still the default, and a kick above
+    // shouldn't be followed by a hit and a respawn.
+    if (!p.handshaken) continue;
+    // ponytail: lava is the only block that hurts, so the predicate names it;
+    // when a second one (cactus) does, make footprintHas return the block.
+    auto isLavaBlock = [](const Object &o) {
+      return o.getType() == BlockType::Lava;
+    };
+    // Feet, middle and head: just under the top, so a head touching the
+    // block above's underside doesn't count.
+    const bool inLava =
+        footprintHas(p.pos, p.pos.y, isLavaBlock) ||
+        footprintHas(p.pos, p.pos.y + PLAYER_SCALE.y / 2, isLavaBlock) ||
+        footprintHas(p.pos, p.pos.y + PLAYER_SCALE.y - 0.1f, isLavaBlock);
+    if (!inLava) {
+      p.damageCheckTick = 0.0f; // the next touch hurts at once
+      continue;
+    }
+    p.damageCheckTick -= dt;
+    if (p.damageCheckTick <= 0.0f) {
+      p.damageCheckTick += env::TOUCH_DAMAGE_INTERVAL;
+      damagePlayer(p, touchDamage(BlockType::Lava), -1);
+    }
   }
   if (ticketCheckCountdown <= 0) {
     ticketCheckCountdown = env::EXPIRY_CHECK_INTERVAL;
