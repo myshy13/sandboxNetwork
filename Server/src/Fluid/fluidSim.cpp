@@ -30,14 +30,52 @@ void FluidSim::processCell(int64_t cellKey, const FluidWorld world,
   Object &occupant = world.objects[it->second];
   // Each fluid only feeds, rests on and spreads as itself.
   const BlockType type = occupant.getType();
+  const Vector3 pos = occupant.getTransform().pos;
+
   if (!isFluid(type))
     return;
+  // ==== lava specific checks ==== //
+  if (type == BlockType::Lava) {
+    for (Vector3 offset :
+         {Vector3{BLOCK_SIZE, 0, 0}, Vector3{-BLOCK_SIZE, 0, 0},
+          Vector3{0, 0, BLOCK_SIZE}, Vector3{0, 0, -BLOCK_SIZE},
+          Vector3{0, -BLOCK_SIZE, 0}, Vector3{0, BLOCK_SIZE, 0}}) {
+      auto neighbourIt =
+          world.occupiedCells.find(blockKey(Vector3Add(pos, offset)));
+      if (neighbourIt == world.occupiedCells.end())
+        continue;
+      BlockType neighbourType = world.objects[neighbourIt->second].getType();
+      if (neighbourType == BlockType::Water) {
+        world.replaceBlock(it->second, BlockType::Stone);
+        return;
+      }
+    }
+  }
+
+  // ==== water specific checks ==== //
+  if (type == BlockType::Water) {
+    for (Vector3 offset :
+         {Vector3{BLOCK_SIZE, 0, 0}, Vector3{-BLOCK_SIZE, 0, 0},
+          Vector3{0, 0, BLOCK_SIZE}, Vector3{0, 0, -BLOCK_SIZE},
+          Vector3{0, -BLOCK_SIZE, 0}, Vector3{0, BLOCK_SIZE, 0}}) {
+      auto neighbourIt =
+          world.occupiedCells.find(blockKey(Vector3Add(pos, offset)));
+      if (neighbourIt == world.occupiedCells.end())
+        continue;
+      BlockType neighbourType = world.objects[neighbourIt->second].getType();
+      if (neighbourType == BlockType::Lava) {
+        world.replaceBlock(neighbourIt->second, BlockType::Stone);
+        processCell(cellKey, world, nextActive);
+        return;
+      }
+    }
+  }
+
   if (passCount % BLOCK_INFO[static_cast<size_t>(type)].flowEvery != 0) {
     nextActive.insert(cellKey); // needs to be processed again next pass
     return;
   }
 
-  const Vector3 pos = occupant.getTransform().pos;
   const int level = occupant.getState();
 
   const int maxLevel = flowDistance(type);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Models/Object.hpp"
+#include "Models/blocks.hpp"
 #include "raylib.h"
 #include <cstdint>
 #include <functional>
@@ -16,9 +17,10 @@ struct FluidWorld {
   std::vector<Object> &objects;
   const std::unordered_map<int64_t, int> &occupiedCells;
   // Creates or updates a cell of `type`; a no-op on any other block.
-  const std::function<void(Vector3 pos, BlockType type, int level)>
+  const std::function<void(Vector3 pos, BlockType type, int state)>
       &setFluidLevel;
   const std::function<void(int index)> &removeBlock;
+  const std::function<void(int index, BlockType type)> &replaceBlock;
 };
 
 class FluidSim {
