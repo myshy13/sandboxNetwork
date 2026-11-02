@@ -1531,8 +1531,6 @@ void Server::logStatus() {
       is << "messages in: " << statusReceived << ", out: " << statusSent
          << "\n";
   }
-
-  is << "========================\n";
   fputs(is.str().c_str(), console);
   fflush(console);
 
